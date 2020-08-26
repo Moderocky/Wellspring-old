@@ -1,0 +1,205 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Wed, 26 Aug 2020 18:53:29 +0100
+Subject: [PATCH] Allow for non-vanilla attributes.
+
+
+diff --git a/src/main/java/org/bukkit/Registry.java b/src/main/java/org/bukkit/Registry.java
+index 91544ade419ddc3c1c4e7393b2d8aa5c64f1b916..50a37e97b04b239fcd00d57bef915eaa7a6c4dae 100644
+--- a/src/main/java/org/bukkit/Registry.java
++++ b/src/main/java/org/bukkit/Registry.java
+@@ -2,6 +2,8 @@ package org.bukkit;
+ 
+ import com.google.common.base.Predicates;
+ import com.google.common.collect.ImmutableMap;
++
++import java.util.ArrayList;
+ import java.util.Arrays;
+ import java.util.Iterator;
+ import java.util.Map;
+@@ -57,7 +59,19 @@ public interface Registry<T extends Keyed> extends Iterable<T> {
+      *
+      * @see Attribute
+      */
+-    Registry<Attribute> ATTRIBUTE = new SimpleRegistry<>(Attribute.class);
++    Registry<Attribute> ATTRIBUTE = new Registry<Attribute>() {
++        @NotNull
++        @Override
++        public Attribute get(@NotNull NamespacedKey key) {
++            return new Attribute(key);
++        }
++
++        @NotNull
++        @Override
++        public Iterator<Attribute> iterator() {
++            return Attribute.attributeIterator();
++        }
++    };
+     /**
+      * Server biomes.
+      *
+diff --git a/src/main/java/org/bukkit/attribute/Attribute.java b/src/main/java/org/bukkit/attribute/Attribute.java
+index 13eac9ad2c1672051635d1c35cc49239252e7a61..db0e763c283272973d0af5d4ec32eff212944195 100644
+--- a/src/main/java/org/bukkit/attribute/Attribute.java
++++ b/src/main/java/org/bukkit/attribute/Attribute.java
+@@ -3,74 +3,146 @@ package org.bukkit.attribute;
+ import org.bukkit.Keyed;
+ import org.bukkit.NamespacedKey;
+ import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
++
++import java.util.HashMap;
++import java.util.Iterator;
++import java.util.Objects;
+ 
+ /**
+  * Types of attributes which may be present on an {@link Attributable}.
+  */
+-public enum Attribute implements Keyed {
++public final class Attribute implements Keyed {
+ 
+     /**
+      * Maximum health of an Entity.
+      */
+-    GENERIC_MAX_HEALTH("generic.max_health"),
++    public static final Attribute GENERIC_MAX_HEALTH = new Attribute("generic.max_health");
+     /**
+      * Range at which an Entity will follow others.
+      */
+-    GENERIC_FOLLOW_RANGE("generic.follow_range"),
++    public static final Attribute GENERIC_FOLLOW_RANGE = new Attribute("generic.follow_range");
+     /**
+      * Resistance of an Entity to knockback.
+      */
+-    GENERIC_KNOCKBACK_RESISTANCE("generic.knockback_resistance"),
++    public static final Attribute GENERIC_KNOCKBACK_RESISTANCE = new Attribute("generic.knockback_resistance");
+     /**
+      * Movement speed of an Entity.
+      */
+-    GENERIC_MOVEMENT_SPEED("generic.movement_speed"),
++    public static final Attribute GENERIC_MOVEMENT_SPEED = new Attribute("generic.movement_speed");
+     /**
+      * Flying speed of an Entity.
+      */
+-    GENERIC_FLYING_SPEED("generic.flying_speed"),
++    public static final Attribute GENERIC_FLYING_SPEED = new Attribute("generic.flying_speed");
+     /**
+      * Attack damage of an Entity.
+      */
+-    GENERIC_ATTACK_DAMAGE("generic.attack_damage"),
++    public static final Attribute GENERIC_ATTACK_DAMAGE = new Attribute("generic.attack_damage");
+     /**
+      * Attack knockback of an Entity.
+      */
+-    GENERIC_ATTACK_KNOCKBACK("generic.attack_knockback"),
++    public static final Attribute GENERIC_ATTACK_KNOCKBACK = new Attribute("generic.attack_knockback");
+     /**
+      * Attack speed of an Entity.
+      */
+-    GENERIC_ATTACK_SPEED("generic.attack_speed"),
++    public static final Attribute GENERIC_ATTACK_SPEED = new Attribute("generic.attack_speed");
+     /**
+      * Armor bonus of an Entity.
+      */
+-    GENERIC_ARMOR("generic.armor"),
++    public static final Attribute GENERIC_ARMOR = new Attribute("generic.armor");
+     /**
+      * Armor durability bonus of an Entity.
+      */
+-    GENERIC_ARMOR_TOUGHNESS("generic.armor_toughness"),
++    public static final Attribute GENERIC_ARMOR_TOUGHNESS = new Attribute("generic.armor_toughness");
+     /**
+      * Luck bonus of an Entity.
+      */
+-    GENERIC_LUCK("generic.luck"),
++    public static final Attribute GENERIC_LUCK = new Attribute("generic.luck");
+     /**
+      * Strength with which a horse will jump.
+      */
+-    HORSE_JUMP_STRENGTH("horse.jump_strength"),
++    public static final Attribute HORSE_JUMP_STRENGTH = new Attribute("horse.jump_strength");
+     /**
+      * Chance of a zombie to spawn reinforcements.
+      */
+-    ZOMBIE_SPAWN_REINFORCEMENTS("zombie.spawn_reinforcements");
++    public static final Attribute ZOMBIE_SPAWN_REINFORCEMENTS = new Attribute("zombie.spawn_reinforcements");
++
++    private static HashMap<String, Attribute> minecraftValues = new HashMap<>();
++
++    static {
++        minecraftValues.put("GENERIC_MAX_HEALTH", GENERIC_MAX_HEALTH);
++        minecraftValues.put("GENERIC_FOLLOW_RANGE", GENERIC_FOLLOW_RANGE);
++        minecraftValues.put("GENERIC_KNOCKBACK_RESISTANCE", GENERIC_KNOCKBACK_RESISTANCE);
++        minecraftValues.put("GENERIC_MOVEMENT_SPEED", GENERIC_MOVEMENT_SPEED);
++        minecraftValues.put("GENERIC_FLYING_SPEED", GENERIC_FLYING_SPEED);
++        minecraftValues.put("GENERIC_ATTACK_DAMAGE", GENERIC_ATTACK_DAMAGE);
++        minecraftValues.put("GENERIC_ATTACK_KNOCKBACK", GENERIC_ATTACK_KNOCKBACK);
++        minecraftValues.put("GENERIC_ATTACK_SPEED", GENERIC_ATTACK_SPEED);
++        minecraftValues.put("GENERIC_ARMOR", GENERIC_ARMOR);
++        minecraftValues.put("GENERIC_ARMOR_TOUGHNESS", GENERIC_ARMOR_TOUGHNESS);
++        minecraftValues.put("GENERIC_LUCK", GENERIC_LUCK);
++    }
+ 
+     private final NamespacedKey key;
+ 
++    public Attribute(NamespacedKey key) {
++        this.key = key;
++    }
++
+     private Attribute(String key) {
+         this.key = NamespacedKey.minecraft(key);
+     }
+ 
++    /**
++     * Whether this attribute is built-in, and found in "vanilla" Minecraft.
++     * @return True if this is a built-in attribute, false if it was added in a custom implementation.
++     */
++    public boolean isVanilla() {
++        return minecraftValues.containsValue(this);
++    }
++
+     @NotNull
+     @Override
+     public NamespacedKey getKey() {
+         return key;
+     }
++
++    public static Iterator<Attribute> attributeIterator() {
++        return minecraftValues.values().iterator();
++    }
++
++    /**
++     * Provides backwards compatibility for the old enum system.
++     *
++     * @return An array of the built-in Minecraft attributes.
++     */
++    @NotNull
++    public static Attribute[] values() {
++        return minecraftValues.values().toArray(new Attribute[0]);
++    }
++
++    /**
++     * Provides backwards compatibility for the old enum system.
++     *
++     * @param name The field-name of the attribute.
++     * @return The attribute.
++     */
++    @Nullable
++    public static Attribute valueOf(String name) {
++        return minecraftValues.get(name);
++    }
++
++    @Override
++    public boolean equals(Object o) {
++        if (this == o) return true;
++        if (!(o instanceof Attribute)) return false;
++        Attribute attribute = (Attribute) o;
++        return Objects.equals(key, attribute.key);
++    }
++
++    @Override
++    public int hashCode() {
++        return Objects.hash(key);
++    }
++
+ }

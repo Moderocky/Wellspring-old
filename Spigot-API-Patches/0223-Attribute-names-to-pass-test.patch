@@ -1,0 +1,25 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Wed, 26 Aug 2020 20:27:53 +0100
+Subject: [PATCH] Attribute names to pass test.
+
+
+diff --git a/src/main/java/org/bukkit/attribute/Attribute.java b/src/main/java/org/bukkit/attribute/Attribute.java
+index ad522eca0d35e9a686a023884377131d7f817eca..4dde6fe1d3cba668f01b18c1cc5a0e5fdf42d0ed 100644
+--- a/src/main/java/org/bukkit/attribute/Attribute.java
++++ b/src/main/java/org/bukkit/attribute/Attribute.java
+@@ -107,6 +107,14 @@ public final class Attribute implements Keyed {
+         return key;
+     }
+ 
++    /**
++     * @return The string key of this attribute, without the namespace.
++     */
++    @NotNull
++    public String name() {
++        return getKey().getKey();
++    }
++
+     @NotNull
+     public static Iterator<Attribute> attributeIterator() {
+         return minecraftValues.values().iterator();

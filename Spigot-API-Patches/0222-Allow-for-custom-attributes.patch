@@ -1,0 +1,41 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Wed, 26 Aug 2020 20:10:48 +0100
+Subject: [PATCH] Allow for custom attributes.
+
+
+diff --git a/src/main/java/org/bukkit/attribute/Attribute.java b/src/main/java/org/bukkit/attribute/Attribute.java
+index db0e763c283272973d0af5d4ec32eff212944195..ad522eca0d35e9a686a023884377131d7f817eca 100644
+--- a/src/main/java/org/bukkit/attribute/Attribute.java
++++ b/src/main/java/org/bukkit/attribute/Attribute.java
+@@ -85,11 +85,11 @@ public final class Attribute implements Keyed {
+ 
+     private final NamespacedKey key;
+ 
+-    public Attribute(NamespacedKey key) {
++    public Attribute(@NotNull NamespacedKey key) {
+         this.key = key;
+     }
+ 
+-    private Attribute(String key) {
++    private Attribute(@NotNull String key) {
+         this.key = NamespacedKey.minecraft(key);
+     }
+ 
+@@ -107,6 +107,7 @@ public final class Attribute implements Keyed {
+         return key;
+     }
+ 
++    @NotNull
+     public static Iterator<Attribute> attributeIterator() {
+         return minecraftValues.values().iterator();
+     }
+@@ -128,7 +129,7 @@ public final class Attribute implements Keyed {
+      * @return The attribute.
+      */
+     @Nullable
+-    public static Attribute valueOf(String name) {
++    public static Attribute valueOf(@NotNull String name) {
+         return minecraftValues.get(name);
+     }
+ 
