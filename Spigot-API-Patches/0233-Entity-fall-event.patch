@@ -1,0 +1,59 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Sat, 5 Sep 2020 17:22:41 +0100
+Subject: [PATCH] Entity fall event.
+
+
+diff --git a/src/main/java/com/destroystokyo/paper/event/entity/EntityLandEvent.java b/src/main/java/com/destroystokyo/paper/event/entity/EntityLandEvent.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..2db2e048a410df164901f952de9d91b844ceabf7
+--- /dev/null
++++ b/src/main/java/com/destroystokyo/paper/event/entity/EntityLandEvent.java
+@@ -0,0 +1,47 @@
++package com.destroystokyo.paper.event.entity;
++
++import org.bukkit.entity.Entity;
++import org.bukkit.entity.LivingEntity;
++import org.bukkit.event.Cancellable;
++import org.bukkit.event.HandlerList;
++import org.bukkit.event.entity.EntityEvent;
++import org.jetbrains.annotations.NotNull;
++
++/**
++ * Called when an entity's movement trajectory would cause them to touch the ground
++ * <p>
++ * Cancelling the event will stop the entity from moving
++ */
++public class EntityLandEvent extends EntityEvent implements Cancellable {
++    private static final HandlerList handlers = new HandlerList();
++    private boolean canceled;
++
++    public EntityLandEvent(@NotNull Entity entity) {
++        super(entity);
++    }
++
++    @NotNull
++    @Override
++    public Entity getEntity() {
++        return entity;
++    }
++
++    public boolean isCancelled() {
++        return canceled;
++    }
++
++    public void setCancelled(boolean cancel) {
++        canceled = cancel;
++    }
++
++    @NotNull
++    @Override
++    public HandlerList getHandlers() {
++        return handlers;
++    }
++
++    @NotNull
++    public static HandlerList getHandlerList() {
++        return handlers;
++    }
++}

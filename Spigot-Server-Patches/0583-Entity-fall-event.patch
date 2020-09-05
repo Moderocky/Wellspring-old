@@ -1,0 +1,22 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Sat, 5 Sep 2020 17:22:57 +0100
+Subject: [PATCH] Entity fall event.
+
+
+diff --git a/src/main/java/net/minecraft/server/Entity.java b/src/main/java/net/minecraft/server/Entity.java
+index ac82723ccfa4e7eec1a8f4c7422e1bd55224ade6..36ee3cd77611deac252863302d684478d66a04a8 100644
+--- a/src/main/java/net/minecraft/server/Entity.java
++++ b/src/main/java/net/minecraft/server/Entity.java
+@@ -634,7 +634,11 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
+             this.world.getMethodProfiler().enter("rest");
+             this.positionChanged = !MathHelper.b(vec3d.x, vec3d1.x) || !MathHelper.b(vec3d.z, vec3d1.z);
+             this.v = vec3d.y != vec3d1.y;
++            boolean previousOnGround = this.onGround;
+             this.onGround = this.v && vec3d.y < 0.0D;
++            if (onGround && !previousOnGround) { // Kenzie - Fall event
++                new com.destroystokyo.paper.event.entity.EntityLandEvent(getBukkitEntity()).callEvent();
++            }
+             BlockPosition blockposition = this.ao();
+             IBlockData iblockdata = this.world.getType(blockposition);
+ 
