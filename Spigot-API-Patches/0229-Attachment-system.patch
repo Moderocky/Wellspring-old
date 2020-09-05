@@ -1,0 +1,171 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Sat, 5 Sep 2020 09:31:30 +0100
+Subject: [PATCH] Attachment system.
+
+
+diff --git a/src/main/java/org/bukkit/Bukkit.java b/src/main/java/org/bukkit/Bukkit.java
+index bfe842364ee0a4bf39dacdbb6972477d57a4ef8a..d7d8911a2e322737e7000e78d7e0f6b6d51c99be 100644
+--- a/src/main/java/org/bukkit/Bukkit.java
++++ b/src/main/java/org/bukkit/Bukkit.java
+@@ -12,9 +12,11 @@ import java.util.Map;
+ import java.util.Set;
+ import java.util.UUID;
+ import java.util.function.Consumer;
++import java.util.function.Function;
+ import java.util.logging.Logger;
+ import org.bukkit.Warning.WarningState;
+ import org.bukkit.advancement.Advancement;
++import org.bukkit.attachment.Attachment;
+ import org.bukkit.block.data.BlockData;
+ import org.bukkit.boss.BarColor;
+ import org.bukkit.boss.BarFlag;
+@@ -26,6 +28,7 @@ import org.bukkit.command.CommandSender;
+ import org.bukkit.command.ConsoleCommandSender;
+ import org.bukkit.command.PluginCommand;
+ import org.bukkit.entity.Entity;
++import org.bukkit.entity.EntityType;
+ import org.bukkit.entity.Player;
+ import org.bukkit.event.inventory.InventoryType;
+ import org.bukkit.event.server.ServerListPingEvent;
+@@ -1725,6 +1728,20 @@ public final class Bukkit {
+         return server.getPermissionMessage();
+     }
+ 
++    /**
++     * Allows the registration of an attachment for specific entity types.
++     * The corresponding entity types will receive a new instance of the attachment
++     * (as per the creator function) upon their creation.
++     *
++     * Attachments ought to be final, due to the need to match their class when
++     * retrieving the attachment instance from the object.
++     * @param creatorFunction A function to create a new attachment instance.
++     * @param types The entity types this attachment should be registered for.
++     */
++    public static void registerAttachment(@NotNull Function<Entity, Attachment<?>> creatorFunction, @NotNull EntityType... types) {
++        server.registerAttachment(creatorFunction, types);
++    }
++
+     /**
+      * Creates a PlayerProfile for the specified uuid, with name as null
+      * @param uuid UUID to create profile for
+diff --git a/src/main/java/org/bukkit/Server.java b/src/main/java/org/bukkit/Server.java
+index 7c0a788900c93c29d14d8c45ac5ae3317cf4a94e..4d7bb902fede4fef56ff53c68bd802d96066ad2b 100644
+--- a/src/main/java/org/bukkit/Server.java
++++ b/src/main/java/org/bukkit/Server.java
+@@ -12,9 +12,11 @@ import java.util.Map;
+ import java.util.Set;
+ import java.util.UUID;
+ import java.util.function.Consumer;
++import java.util.function.Function;
+ import java.util.logging.Logger;
+ import org.bukkit.Warning.WarningState;
+ import org.bukkit.advancement.Advancement;
++import org.bukkit.attachment.Attachment;
+ import org.bukkit.block.data.BlockData;
+ import org.bukkit.boss.BarColor;
+ import org.bukkit.boss.BarFlag;
+@@ -26,6 +28,7 @@ import org.bukkit.command.CommandSender;
+ import org.bukkit.command.ConsoleCommandSender;
+ import org.bukkit.command.PluginCommand;
+ import org.bukkit.entity.Entity;
++import org.bukkit.entity.EntityType;
+ import org.bukkit.entity.Player;
+ import org.bukkit.event.inventory.InventoryType;
+ import org.bukkit.event.server.ServerListPingEvent;
+@@ -1420,6 +1423,20 @@ public interface Server extends PluginMessageRecipient {
+     @NotNull
+     List<Entity> selectEntities(@NotNull CommandSender sender, @NotNull String selector) throws IllegalArgumentException;
+ 
++    // Kenzie start - attachments
++    /**
++     * Allows the registration of an attachment for specific entity types.
++     * The corresponding entity types will receive a new instance of the attachment
++     * (as per the creator function) upon their creation.
++     *
++     * Attachments ought to be final, due to the need to match their class when
++     * retrieving the attachment instance from the object.
++     * @param creatorFunction A function to create a new attachment instance.
++     * @param types The entity types this attachment should be registered for.
++     */
++    void registerAttachment(@NotNull Function<Entity, Attachment<?>> creatorFunction, @NotNull EntityType... types);
++    // Kenzie end
++
+     /**
+      * @see UnsafeValues
+      * @return the unsafe values instance
+diff --git a/src/main/java/org/bukkit/attachment/Attachable.java b/src/main/java/org/bukkit/attachment/Attachable.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..e35071ed7ba012ff46e99e60a9f55ccf520f3e36
+--- /dev/null
++++ b/src/main/java/org/bukkit/attachment/Attachable.java
+@@ -0,0 +1,24 @@
++package org.bukkit.attachment;
++
++/**
++ * This allows objects to have unique attachments added to them.
++ */
++public interface Attachable {
++
++    /**
++     * Retrieve an attachment instance.
++     * @param attachmentClass The class that the attachment belongs to.
++     * @param <T> The specific attachment type.
++     * @return The attachment instance unique to this object.
++     */
++    <T extends Attachment<?>> T getAttachment(Class<T> attachmentClass);
++
++    /**
++     * Check whether this object has an attachment of a specific type.
++     * @param attachmentClass The class that the attachment belongs to.
++     * @param <T> The specific attachment type.
++     * @return True if present, otherwise false.
++     */
++    <T extends Attachment<?>> boolean hasAttachment(Class<T> attachmentClass);
++
++}
+diff --git a/src/main/java/org/bukkit/attachment/Attachment.java b/src/main/java/org/bukkit/attachment/Attachment.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..a7ff4800ad5cb7282ebffbdd489125f71cabbb6f
+--- /dev/null
++++ b/src/main/java/org/bukkit/attachment/Attachment.java
+@@ -0,0 +1,18 @@
++package org.bukkit.attachment;
++
++import org.bukkit.plugin.Plugin;
++
++public abstract class Attachment<T extends Attachable> {
++
++    private final T subject;
++
++    public Attachment(T subject) {
++        this.subject = subject;
++    }
++
++    public abstract Plugin getOwningPlugin();
++
++    public T getSubject() {
++        return subject;
++    }
++}
+diff --git a/src/main/java/org/bukkit/entity/Entity.java b/src/main/java/org/bukkit/entity/Entity.java
+index 7808ade92ccd3553056c57cdf77464fb8bdf9312..91eb02036b8ba64575c23bd1e04829d0fca9f720 100644
+--- a/src/main/java/org/bukkit/entity/Entity.java
++++ b/src/main/java/org/bukkit/entity/Entity.java
+@@ -9,6 +9,7 @@ import org.bukkit.Location;
+ import org.bukkit.Nameable;
+ import org.bukkit.Server;
+ import org.bukkit.World;
++import org.bukkit.attachment.Attachable;
+ import org.bukkit.block.BlockFace;
+ import org.bukkit.block.PistonMoveReaction;
+ import org.bukkit.command.CommandSender;
+@@ -26,7 +27,7 @@ import org.jetbrains.annotations.Nullable;
+ /**
+  * Represents a base entity in the world
+  */
+-public interface Entity extends Metadatable, CommandSender, Nameable, PersistentDataHolder {
++public interface Entity extends Metadatable, CommandSender, Nameable, PersistentDataHolder, Attachable {
+ 
+     /*
+      * Gets the entity's current position

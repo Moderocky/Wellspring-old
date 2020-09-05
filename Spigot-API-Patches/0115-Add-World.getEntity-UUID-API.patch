@@ -5,7 +5,7 @@ Subject: [PATCH] Add World.getEntity(UUID) API
 
 
 diff --git a/src/main/java/org/bukkit/World.java b/src/main/java/org/bukkit/World.java
-index 08985f77dce71ebd76510be873043e34ac34a821..889756b1c8d5e413a6ebe3623e128a737f88d48c 100644
+index 1f02f9a96eac55e14383a8a381be6473c014442f..79267ebf4fd0d5ea3fc37f62bf50c4064f62fc8d 100644
 --- a/src/main/java/org/bukkit/World.java
 +++ b/src/main/java/org/bukkit/World.java
 @@ -914,6 +914,17 @@ public interface World extends PluginMessageRecipient, Metadatable {

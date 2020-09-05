@@ -1,0 +1,19 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Sat, 5 Sep 2020 10:06:38 +0100
+Subject: [PATCH] Typo in documentation.
+
+
+diff --git a/src/main/java/org/bukkit/attachment/Attachable.java b/src/main/java/org/bukkit/attachment/Attachable.java
+index 558f72add89278da14f9d0515f63898dbb5ee0a5..ab3b85f72b42d2c71ea8d6dfa9a8668eac3aa4c8 100644
+--- a/src/main/java/org/bukkit/attachment/Attachable.java
++++ b/src/main/java/org/bukkit/attachment/Attachable.java
+@@ -12,7 +12,7 @@ public interface Attachable {
+      * @param attachmentClass The class that the attachment belongs to.
+      * @param <T> The specific attachment type.
+      * @return The attachment instance unique to this object.
+-     * @throws NullPointerException - if the attachment is not present. Use {@link this#getAttachment(Class)} first.
++     * @throws NullPointerException - if the attachment is not present. Use {@link this#hasAttachment(Class)} first.
+      */
+     @NotNull
+     <T extends Attachment<?>> T getAttachment(@NotNull Class<T> attachmentClass) throws NullPointerException;

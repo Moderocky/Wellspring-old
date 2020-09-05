@@ -6,7 +6,7 @@ Subject: [PATCH] Add MinecraftKey Information to Objects
 Stores the reference to the objects respective MinecraftKey
 
 diff --git a/src/main/java/com/destroystokyo/paper/PaperCommand.java b/src/main/java/com/destroystokyo/paper/PaperCommand.java
-index 41c79650b169b87fbc70cf502438a5453a04f23d..b839769ceae8932bb121a0b96fde1e7d129a1f63 100644
+index b8868b86338ce0e89bc74eccccf714b910d7a4fe..9cb2f3b31921870ddba044840e99eb04babe26bb 100644
 --- a/src/main/java/com/destroystokyo/paper/PaperCommand.java
 +++ b/src/main/java/com/destroystokyo/paper/PaperCommand.java
 @@ -178,7 +178,7 @@ public class PaperCommand extends Command {
@@ -17,12 +17,12 @@ index 41c79650b169b87fbc70cf502438a5453a04f23d..b839769ceae8932bb121a0b96fde1e7d
 +                    MinecraftKey key = e.getMinecraftKey();
  
                      MutablePair<Integer, Map<ChunkCoordIntPair, Integer>> info = list.computeIfAbsent(key, k -> MutablePair.of(0, Maps.newHashMap()));
-                     ChunkCoordIntPair chunk = new ChunkCoordIntPair(e.getChunkX(), e.getChunkZ());
+                     ChunkCoordIntPair chunk = new ChunkCoordIntPair(e.chunkX, e.chunkZ);
 diff --git a/src/main/java/net/minecraft/server/Entity.java b/src/main/java/net/minecraft/server/Entity.java
-index 7e01f6a1807f9885a7f4b163ce6bb626d8786a9a..6c7816fdc1ef476969cb70c8ea697b60746d6ab4 100644
+index f7ebe8e05613e638dc1dd386f4cf9a48c7b1e2a7..1a29857b41713126e86131b6eac01f0190fa11e7 100644
 --- a/src/main/java/net/minecraft/server/Entity.java
 +++ b/src/main/java/net/minecraft/server/Entity.java
-@@ -49,7 +49,7 @@ import org.bukkit.event.player.PlayerTeleportEvent;
+@@ -51,7 +51,7 @@ import org.bukkit.event.player.PlayerTeleportEvent;
  import org.bukkit.plugin.PluginManager;
  // CraftBukkit end
  
@@ -31,7 +31,7 @@ index 7e01f6a1807f9885a7f4b163ce6bb626d8786a9a..6c7816fdc1ef476969cb70c8ea697b60
  
      // CraftBukkit start
      private static final int CURRENT_LEVEL = 2;
-@@ -1708,12 +1708,31 @@ public abstract class Entity implements INamableTileEntity, ICommandListener {
+@@ -1668,12 +1668,31 @@ public abstract class Entity implements INamableTileEntity, ICommandListener {
          return true;
      }
  
@@ -63,18 +63,18 @@ index 7e01f6a1807f9885a7f4b163ce6bb626d8786a9a..6c7816fdc1ef476969cb70c8ea697b60
 +        // Paper end
      }
  
-     protected abstract void a(NBTTagCompound nbttagcompound);
+     protected abstract void loadData(NBTTagCompound nbttagcompound);
 diff --git a/src/main/java/net/minecraft/server/EntityTypes.java b/src/main/java/net/minecraft/server/EntityTypes.java
-index 4328273b1fca165320097dbac0650b31fae4e5ca..8427ee2ee8b90d5deb686412bb2eefb9a574b75a 100644
+index e08ccba8134846ef11928183d118a6cce53b6d89..ffb8685e7c457483bcf4b2ed1065fec0fbaa69e2 100644
 --- a/src/main/java/net/minecraft/server/EntityTypes.java
 +++ b/src/main/java/net/minecraft/server/EntityTypes.java
-@@ -237,6 +237,7 @@ public class EntityTypes<T extends Entity> {
+@@ -253,6 +253,7 @@ public class EntityTypes<T extends Entity> {
          }
      }
  
 +    public boolean isPersistable() { return a(); } // Paper - OBFHELPER
      public boolean a() {
-         return this.bc;
+         return this.bi;
      }
 diff --git a/src/main/java/net/minecraft/server/KeyedObject.java b/src/main/java/net/minecraft/server/KeyedObject.java
 new file mode 100644
@@ -92,7 +92,7 @@ index 0000000000000000000000000000000000000000..743142d0303fa25fe48a2abb07040d12
 +    }
 +}
 diff --git a/src/main/java/net/minecraft/server/TileEntity.java b/src/main/java/net/minecraft/server/TileEntity.java
-index 40752f7617d5aa6b5ae55cd9a1b2eeb57c276adb..9071bb7ece6d38d85b4ea11e53671f3ec5210b28 100644
+index 6f6f58672d882f36296bc4f65d075261fc6da912..cfbca7cfde3160e888e14c5bb3bc48267f1cb599 100644
 --- a/src/main/java/net/minecraft/server/TileEntity.java
 +++ b/src/main/java/net/minecraft/server/TileEntity.java
 @@ -11,7 +11,7 @@ import org.bukkit.inventory.InventoryHolder;

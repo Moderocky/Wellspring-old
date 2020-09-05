@@ -5,10 +5,10 @@ Subject: [PATCH] Ensure inv drag is in bounds
 
 
 diff --git a/src/main/java/net/minecraft/server/Container.java b/src/main/java/net/minecraft/server/Container.java
-index e38438db6ef46d30c63f13610e9e636b8bf5b66c..0c3a2f080ce71ac88a90e6c74fd3497d27a2c7c6 100644
+index 4ae2f06f527503bfdd366d8210a55ced073f0c52..1045bd6eaa977b0142b4496c3f872ffae767a0f1 100644
 --- a/src/main/java/net/minecraft/server/Container.java
 +++ b/src/main/java/net/minecraft/server/Container.java
-@@ -201,7 +201,7 @@ public abstract class Container {
+@@ -223,7 +223,7 @@ public abstract class Container {
                      this.d();
                  }
              } else if (this.h == 1) {

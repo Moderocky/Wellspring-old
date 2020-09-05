@@ -5,10 +5,10 @@ Subject: [PATCH] Add getTPS method
 
 
 diff --git a/src/main/java/org/bukkit/Bukkit.java b/src/main/java/org/bukkit/Bukkit.java
-index 755869366e7546fa8aefe7d7a1a602bab91a458c..6c3aa418589903925d92d48a79f9f3d2461f78d7 100644
+index f1585968b13007b0f9b8c69ac3c2eff28a0fc89e..59f0ba664dd945f24eaf9e38e98fdef0c4aaaa92 100644
 --- a/src/main/java/org/bukkit/Bukkit.java
 +++ b/src/main/java/org/bukkit/Bukkit.java
-@@ -1369,6 +1369,17 @@ public final class Bukkit {
+@@ -1412,6 +1412,17 @@ public final class Bukkit {
          return server.getEntity(uuid);
      }
  
@@ -27,10 +27,10 @@ index 755869366e7546fa8aefe7d7a1a602bab91a458c..6c3aa418589903925d92d48a79f9f3d2
       * Get the advancement specified by this key.
       *
 diff --git a/src/main/java/org/bukkit/Server.java b/src/main/java/org/bukkit/Server.java
-index fad4e929264e2be534d3c4a90a5d557fd6c5807b..f0dba56dcd8adb50725356810d316e74527939d8 100644
+index 6cbc22c08ce421bcd8bf3efabc96c9cec447faee..5cf43d538eee6eff031a93ab28f8f33c661acee3 100644
 --- a/src/main/java/org/bukkit/Server.java
 +++ b/src/main/java/org/bukkit/Server.java
-@@ -1148,6 +1148,16 @@ public interface Server extends PluginMessageRecipient {
+@@ -1185,6 +1185,16 @@ public interface Server extends PluginMessageRecipient {
      @Nullable
      Entity getEntity(@NotNull UUID uuid);
  

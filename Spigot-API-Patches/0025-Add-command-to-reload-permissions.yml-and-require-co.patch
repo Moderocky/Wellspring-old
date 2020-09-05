@@ -6,10 +6,10 @@ Subject: [PATCH] Add command to reload permissions.yml and require confirm to
 
 
 diff --git a/src/main/java/org/bukkit/Bukkit.java b/src/main/java/org/bukkit/Bukkit.java
-index 39423f3a689a69de666537603e97d50244827f64..423fecf5411c05a55f22951437ff77af4bd29318 100644
+index 071e27179e44e2a3a33b9c4fb900378c5fd9c34f..c10165f9fc2317a29c3bef7fa0dc0e308f64b7aa 100644
 --- a/src/main/java/org/bukkit/Bukkit.java
 +++ b/src/main/java/org/bukkit/Bukkit.java
-@@ -1574,6 +1574,13 @@ public final class Bukkit {
+@@ -1617,6 +1617,13 @@ public final class Bukkit {
      public static org.bukkit.command.CommandMap getCommandMap() {
          return server.getCommandMap();
      }
@@ -24,10 +24,10 @@ index 39423f3a689a69de666537603e97d50244827f64..423fecf5411c05a55f22951437ff77af
  
      @NotNull
 diff --git a/src/main/java/org/bukkit/Server.java b/src/main/java/org/bukkit/Server.java
-index b09d010853a67db16787d9e764f1e2949cb33050..38d7da7378f9dc387ce9b52f1527db929901670e 100644
+index 2387c04e8a4d14f04e7e4d09f7120d48a98703aa..c0fd1543a902cf4ff28207b5786af69fbe94a468 100644
 --- a/src/main/java/org/bukkit/Server.java
 +++ b/src/main/java/org/bukkit/Server.java
-@@ -1388,4 +1388,6 @@ public interface Server extends PluginMessageRecipient {
+@@ -1425,4 +1425,6 @@ public interface Server extends PluginMessageRecipient {
      @NotNull
      Spigot spigot();
      // Spigot end
@@ -85,7 +85,7 @@ index 50cc311be7904cc8fc6070a21c8e4de3a489fd20..c62da4131b17e66892678e8b618fb9ba
      }
  }
 diff --git a/src/main/java/org/bukkit/plugin/SimplePluginManager.java b/src/main/java/org/bukkit/plugin/SimplePluginManager.java
-index 9a5fe8ca4ad9415055f3a71b62064d9e79b8e644..8ddaf9c2e63b382533d7f8929023c364ff3a8f9d 100644
+index d0fec44d2546290091649879450761ce08514fcb..8b33d914d29897c0276f9e2e7ce83bd2c316d5e2 100644
 --- a/src/main/java/org/bukkit/plugin/SimplePluginManager.java
 +++ b/src/main/java/org/bukkit/plugin/SimplePluginManager.java
 @@ -894,4 +894,13 @@ public final class SimplePluginManager implements PluginManager {

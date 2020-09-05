@@ -14,10 +14,10 @@ big slowdown in execution but throwing an exception at same time to raise awaren
 that it is happening so that plugin authors can fix their code to stop executing commands async.
 
 diff --git a/src/main/java/net/minecraft/server/PlayerConnection.java b/src/main/java/net/minecraft/server/PlayerConnection.java
-index 914366afcdffe616d1403de4143205033860dbcb..5e8739462eface8b3bbc7ef8c0e08763e45c5b2e 100644
+index 46a4fc3140cd805794dfbc8456a7cb98c0004752..051e8471e4a55c444cbe5e7274ce878af7a15c61 100644
 --- a/src/main/java/net/minecraft/server/PlayerConnection.java
 +++ b/src/main/java/net/minecraft/server/PlayerConnection.java
-@@ -1570,6 +1570,29 @@ public class PlayerConnection implements PacketListenerPlayIn {
+@@ -1604,6 +1604,29 @@ public class PlayerConnection implements PacketListenerPlayIn {
          }
  
          if (!async && s.startsWith("/")) {
@@ -48,10 +48,10 @@ index 914366afcdffe616d1403de4143205033860dbcb..5e8739462eface8b3bbc7ef8c0e08763
          } else if (this.player.getChatFlags() == EnumChatVisibility.SYSTEM) {
              // Do nothing, this is coming from a plugin
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index 99083a1f36f95a4fb3d67f903d02b84d6ebae3d2..697246492a4bf31e84ce3d9f4e35c46f54b7eb7d 100644
+index 3228d479918ea5b0e639521f375120c11e8efdf3..996723e822d22a4a70054b002d7119e0a621aa33 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-@@ -720,6 +720,29 @@ public final class CraftServer implements Server {
+@@ -753,6 +753,29 @@ public final class CraftServer implements Server {
          Validate.notNull(commandLine, "CommandLine cannot be null");
          org.spigotmc.AsyncCatcher.catchOp("command dispatch"); // Spigot
  

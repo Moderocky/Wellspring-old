@@ -5,18 +5,18 @@ Subject: [PATCH] Entity Origin API
 
 
 diff --git a/src/main/java/net/minecraft/server/Entity.java b/src/main/java/net/minecraft/server/Entity.java
-index 0d617c8e09cf0adf0d7aa8c95fc69c641f91b795..7e400f4c281a02f038834ac984df4ce35a6a7ec3 100644
+index da1586b21ee12a28b66410fde09395bc044c26d0..d21106a96356032f1e183c75f020dc61d18d79fd 100644
 --- a/src/main/java/net/minecraft/server/Entity.java
 +++ b/src/main/java/net/minecraft/server/Entity.java
-@@ -167,6 +167,7 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
+@@ -164,6 +164,7 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
      public org.bukkit.projectiles.ProjectileSource projectileSource; // For projectiles only
      public boolean forceExplosionKnockback; // SPIGOT-949
      public Timing tickTimer = MinecraftTimings.getEntityTimings(this); // Paper
-+    public Location origin; // Paper
++    public org.bukkit.Location origin; // Paper
      // Spigot start
      public final org.spigotmc.ActivationRange.ActivationType activationType = org.spigotmc.ActivationRange.initializeEntityActivationType(this);
      public final boolean defaultActivationState;
-@@ -1581,6 +1582,11 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
+@@ -1539,6 +1540,11 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
                  this.bukkitEntity.storeBukkitValues(nbttagcompound);
              }
              // CraftBukkit end
@@ -28,30 +28,30 @@ index 0d617c8e09cf0adf0d7aa8c95fc69c641f91b795..7e400f4c281a02f038834ac984df4ce3
              return nbttagcompound;
          } catch (Throwable throwable) {
              CrashReport crashreport = CrashReport.a(throwable, "Saving entity NBT");
-@@ -1695,6 +1701,13 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
+@@ -1656,6 +1662,13 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
              this.getBukkitEntity().readBukkitValues(nbttagcompound);
              // CraftBukkit end
  
 +            // Paper start - Restore the entity's origin location
 +            NBTTagList originTag = nbttagcompound.getList("Paper.Origin", 6);
 +            if (!originTag.isEmpty()) {
-+                origin = new Location(world.getWorld(), originTag.getDoubleAt(0), originTag.getDoubleAt(1), originTag.getDoubleAt(2));
++                origin = new org.bukkit.Location(world.getWorld(), originTag.getDoubleAt(0), originTag.getDoubleAt(1), originTag.getDoubleAt(2));
 +            }
 +            // Paper end
 +
          } catch (Throwable throwable) {
              CrashReport crashreport = CrashReport.a(throwable, "Loading entity NBT");
              CrashReportSystemDetails crashreportsystemdetails = crashreport.a("Entity being loaded");
-@@ -1776,6 +1789,7 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
+@@ -1717,6 +1730,7 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
  
-     protected abstract void b(NBTTagCompound nbttagcompound);
+     protected abstract void saveData(NBTTagCompound nbttagcompound);
  
-+    protected NBTTagList createList(double... adouble) { return a(adouble); } // Paper - OBFHELPER
++    protected final NBTTagList createList(double... adouble) { return a(adouble); } // Paper - OBFHELPER
      protected NBTTagList a(double... adouble) {
          NBTTagList nbttaglist = new NBTTagList();
          double[] adouble1 = adouble;
 diff --git a/src/main/java/net/minecraft/server/EntityFallingBlock.java b/src/main/java/net/minecraft/server/EntityFallingBlock.java
-index 2097ec535e8a4427fc08da02726044b837d5a716..e64722f63bab6bc1ce97ca63d4fde7599f6c1296 100644
+index e7efc540a9ec67e67714c9b3cfd2c24c0842e3f5..969b0dca4acc959330c5f10a2c970c896d23ce63 100644
 --- a/src/main/java/net/minecraft/server/EntityFallingBlock.java
 +++ b/src/main/java/net/minecraft/server/EntityFallingBlock.java
 @@ -254,6 +254,14 @@ public class EntityFallingBlock extends Entity {
@@ -70,12 +70,12 @@ index 2097ec535e8a4427fc08da02726044b837d5a716..e64722f63bab6bc1ce97ca63d4fde759
  
      public void a(boolean flag) {
 diff --git a/src/main/java/net/minecraft/server/EntityTNTPrimed.java b/src/main/java/net/minecraft/server/EntityTNTPrimed.java
-index d9fd4448c707aca8e2040a5848387ce76bbee1df..7f8b8f5a365d44f03cb4dd60a7403721f9859446 100644
+index 71404a34d27dd7771ea1145085a6a6e4dc7589b0..623db6e3befcc7031e68c71f7eb179fce78291c4 100644
 --- a/src/main/java/net/minecraft/server/EntityTNTPrimed.java
 +++ b/src/main/java/net/minecraft/server/EntityTNTPrimed.java
 @@ -104,6 +104,14 @@ public class EntityTNTPrimed extends Entity {
      @Override
-     protected void a(NBTTagCompound nbttagcompound) {
+     protected void loadData(NBTTagCompound nbttagcompound) {
          this.setFuseTicks(nbttagcompound.getShort("Fuse"));
 +        // Paper start - Try and load origin location from the old NBT tags for backwards compatibility
 +        if (nbttagcompound.hasKey("SourceLoc_x")) {
@@ -89,7 +89,7 @@ index d9fd4448c707aca8e2040a5848387ce76bbee1df..7f8b8f5a365d44f03cb4dd60a7403721
  
      @Nullable
 diff --git a/src/main/java/net/minecraft/server/NBTTagList.java b/src/main/java/net/minecraft/server/NBTTagList.java
-index 5406f4c40f86e74f8ed4e7e986b23d19141ddc30..d778eac45de775cf4058621fadb55b1b4e1f3457 100644
+index ad8a506bb430b26fe147a657a2f826daf9bf4d45..ad4807e0bdd6409bd798f995da8f43cec1d0b385 100644
 --- a/src/main/java/net/minecraft/server/NBTTagList.java
 +++ b/src/main/java/net/minecraft/server/NBTTagList.java
 @@ -188,6 +188,7 @@ public class NBTTagList extends NBTList<NBTBase> {
@@ -101,10 +101,10 @@ index 5406f4c40f86e74f8ed4e7e986b23d19141ddc30..d778eac45de775cf4058621fadb55b1b
          if (i >= 0 && i < this.list.size()) {
              NBTBase nbtbase = (NBTBase) this.list.get(i);
 diff --git a/src/main/java/net/minecraft/server/WorldServer.java b/src/main/java/net/minecraft/server/WorldServer.java
-index 4ab77e8dc0f918bd4f069a0f886d04dea473f046..f8c9e90d2e5bb60795f7957786e56168ff7bf11c 100644
+index b281f49cd95dc9af612ee8e580f62c739920640f..73faa25ff7642aab6eaee4af1a4f036cde3b691b 100644
 --- a/src/main/java/net/minecraft/server/WorldServer.java
 +++ b/src/main/java/net/minecraft/server/WorldServer.java
-@@ -1166,6 +1166,11 @@ public class WorldServer extends World {
+@@ -1126,6 +1126,11 @@ public class WorldServer extends World implements GeneratorAccessSeed {
                  this.navigators.add(((EntityInsentient) entity).getNavigation());
              }
              entity.valid = true; // CraftBukkit
@@ -117,10 +117,10 @@ index 4ab77e8dc0f918bd4f069a0f886d04dea473f046..f8c9e90d2e5bb60795f7957786e56168
  
      }
 diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
-index 5a047dd68223363ef83f8d5b77adbd45f7531113..5625e5bda20578d7653439c47eee4671603f7b5b 100644
+index 66878c53bfb71392bf07d2c41a2edf1bc8f7af79..10f96056700c88cc8e83477877788e3443cecefd 100644
 --- a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
 +++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
-@@ -1009,4 +1009,12 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
+@@ -1022,4 +1022,12 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
          return spigot;
      }
      // Spigot end

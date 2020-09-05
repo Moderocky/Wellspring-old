@@ -9,10 +9,10 @@ This is a duplicate API from spigot, so use our duplicate subclass and
 improve setPosition to use raw
 
 diff --git a/src/main/java/net/minecraft/server/PlayerList.java b/src/main/java/net/minecraft/server/PlayerList.java
-index f28be11eee2b6e64e9db84a533dd2fb297611740..541e3ce83042b4363cdff3baf3dfcd3eba9b4820 100644
+index b2a89201a14e5132a0c6c69ec37c7a113202ab02..1b12577cabc52dbb870838599e1dd33ef8fa1948 100644
 --- a/src/main/java/net/minecraft/server/PlayerList.java
 +++ b/src/main/java/net/minecraft/server/PlayerList.java
-@@ -119,14 +119,14 @@ public abstract class PlayerList {
+@@ -143,7 +143,7 @@ public abstract class PlayerList {
  
          // Spigot start - spawn location event
          Player bukkitPlayer = entityplayer.getBukkitEntity();
@@ -21,9 +21,10 @@ index f28be11eee2b6e64e9db84a533dd2fb297611740..541e3ce83042b4363cdff3baf3dfcd3e
          Bukkit.getPluginManager().callEvent(ev);
  
          Location loc = ev.getSpawnLocation();
-         worldserver = ((CraftWorld) loc.getWorld()).getHandle();
+@@ -151,7 +151,7 @@ public abstract class PlayerList {
  
-         entityplayer.spawnIn(worldserver);
+         entityplayer.spawnIn(worldserver1);
+         entityplayer.playerInteractManager.a((WorldServer) entityplayer.world);
 -        entityplayer.setPosition(loc.getX(), loc.getY(), loc.getZ());
 +        entityplayer.setPositionRaw(loc.getX(), loc.getY(), loc.getZ()); // Paper - set raw so we aren't fully joined to the world (not added to chunk or world)
          entityplayer.setYawPitch(loc.getYaw(), loc.getPitch());

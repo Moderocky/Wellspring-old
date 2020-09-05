@@ -5,10 +5,10 @@ Subject: [PATCH] Make shield blocking delay configurable
 
 
 diff --git a/src/main/java/org/bukkit/entity/LivingEntity.java b/src/main/java/org/bukkit/entity/LivingEntity.java
-index ae712e76d961137a35b70dd3f3fbb33dddf37f0a..896b1971c86410ccc62353e44bfe5a449f8a0c97 100644
+index a2bdecc8b27652460064126f8e5bb8d038f5d11a..1d4ddb01c3d8d4619276c6b8ebb2c7f290df7d8b 100644
 --- a/src/main/java/org/bukkit/entity/LivingEntity.java
 +++ b/src/main/java/org/bukkit/entity/LivingEntity.java
-@@ -554,5 +554,19 @@ public interface LivingEntity extends Attributable, Damageable, ProjectileSource
+@@ -614,5 +614,19 @@ public interface LivingEntity extends Attributable, Damageable, ProjectileSource
       * @param arrows Number of arrows to stick in this entity
       */
      void setArrowsStuck(int arrows);

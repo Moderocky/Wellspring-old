@@ -1,0 +1,64 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Sat, 5 Sep 2020 09:35:28 +0100
+Subject: [PATCH] Missing annotations :(
+
+
+diff --git a/src/main/java/org/bukkit/attachment/Attachable.java b/src/main/java/org/bukkit/attachment/Attachable.java
+index e35071ed7ba012ff46e99e60a9f55ccf520f3e36..d8dc28f847cb1101e70dfc17bfffa6cc272cb8df 100644
+--- a/src/main/java/org/bukkit/attachment/Attachable.java
++++ b/src/main/java/org/bukkit/attachment/Attachable.java
+@@ -1,5 +1,7 @@
+ package org.bukkit.attachment;
+ 
++import org.jetbrains.annotations.NotNull;
++
+ /**
+  * This allows objects to have unique attachments added to them.
+  */
+@@ -11,7 +13,8 @@ public interface Attachable {
+      * @param <T> The specific attachment type.
+      * @return The attachment instance unique to this object.
+      */
+-    <T extends Attachment<?>> T getAttachment(Class<T> attachmentClass);
++    @NotNull
++    <T extends Attachment<?>> T getAttachment(@NotNull Class<T> attachmentClass);
+ 
+     /**
+      * Check whether this object has an attachment of a specific type.
+@@ -19,6 +22,6 @@ public interface Attachable {
+      * @param <T> The specific attachment type.
+      * @return True if present, otherwise false.
+      */
+-    <T extends Attachment<?>> boolean hasAttachment(Class<T> attachmentClass);
++    <T extends Attachment<?>> boolean hasAttachment(@NotNull Class<T> attachmentClass);
+ 
+ }
+diff --git a/src/main/java/org/bukkit/attachment/Attachment.java b/src/main/java/org/bukkit/attachment/Attachment.java
+index a7ff4800ad5cb7282ebffbdd489125f71cabbb6f..99834bb7b00515e644b1d2cdf71e4b7d44191969 100644
+--- a/src/main/java/org/bukkit/attachment/Attachment.java
++++ b/src/main/java/org/bukkit/attachment/Attachment.java
+@@ -1,18 +1,19 @@
+ package org.bukkit.attachment;
+ 
+ import org.bukkit.plugin.Plugin;
++import org.jetbrains.annotations.NotNull;
+ 
+ public abstract class Attachment<T extends Attachable> {
+ 
+-    private final T subject;
++    private final @NotNull T subject;
+ 
+-    public Attachment(T subject) {
++    public Attachment(@NotNull T subject) {
+         this.subject = subject;
+     }
+ 
+-    public abstract Plugin getOwningPlugin();
++    public abstract @NotNull Plugin getOwningPlugin();
+ 
+-    public T getSubject() {
++    public @NotNull T getSubject() {
+         return subject;
+     }
+ }

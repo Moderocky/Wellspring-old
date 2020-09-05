@@ -1,0 +1,42 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Wed, 26 Aug 2020 20:24:04 +0100
+Subject: [PATCH] Allow for custom attributes.
+
+
+diff --git a/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaItem.java b/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaItem.java
+index 4616b3e99b511a83b349d607c7d9faac79baf8df..6935d55b9b212a3aee7026b3273a2fc780099b7c 100644
+--- a/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaItem.java
++++ b/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaItem.java
+@@ -52,6 +52,7 @@ import org.apache.commons.codec.binary.Base64;
+ import org.apache.commons.lang.Validate;
+ import org.apache.commons.lang3.EnumUtils;
+ import org.bukkit.Material;
++import org.bukkit.NamespacedKey;
+ import org.bukkit.attribute.Attribute;
+ import org.bukkit.attribute.AttributeModifier;
+ import org.bukkit.block.data.BlockData;
+@@ -684,10 +685,10 @@ class CraftMetaItem implements ItemMeta, Damageable, Repairable, BlockDataMeta {
+                     continue;
+                 }
+                 AttributeModifier modifier = (AttributeModifier) o;
+-                Attribute attribute = EnumUtils.getEnum(Attribute.class, attributeName.toUpperCase(Locale.ROOT));
+-                if (attribute == null) {
+-                    continue;
+-                }
++                // Paper start - custom attributes
++                String[] parts = attributeName.split(":");
++                Attribute attribute = new Attribute(new NamespacedKey(parts[0], parts[1]));
++                // Paper end
+ 
+                 result.put(attribute, modifier);
+             }
+@@ -1507,7 +1508,7 @@ class CraftMetaItem implements ItemMeta, Damageable, Repairable, BlockDataMeta {
+             if (modCollection == null || modCollection.isEmpty()) {
+                 continue;
+             }
+-            mods.put(entry.getKey().name(), new ArrayList<>(modCollection));
++            mods.put(entry.getKey().getKey().toString(), new ArrayList<>(modCollection)); // Paper - use the namespacedkey
+         }
+         builder.put(key.BUKKIT, mods);
+     }

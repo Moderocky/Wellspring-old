@@ -5,7 +5,7 @@ Subject: [PATCH] Make /plugins list alphabetical
 
 
 diff --git a/src/main/java/org/bukkit/command/defaults/PluginsCommand.java b/src/main/java/org/bukkit/command/defaults/PluginsCommand.java
-index bcb576a4271b1ec7b1cfe6f83cf161b7d89ed2e5..a1071e3178a298f3fc1d6c960f4d8a6d3a3d0277 100644
+index bcb576a4271b1ec7b1cfe6f83cf161b7d89ed2e5..9b2e28d04be7a89bdd0fb27d1d1f3f71846edefb 100644
 --- a/src/main/java/org/bukkit/command/defaults/PluginsCommand.java
 +++ b/src/main/java/org/bukkit/command/defaults/PluginsCommand.java
 @@ -3,6 +3,9 @@ package org.bukkit.command.defaults;
@@ -18,7 +18,7 @@ index bcb576a4271b1ec7b1cfe6f83cf161b7d89ed2e5..a1071e3178a298f3fc1d6c960f4d8a6d
  import org.bukkit.Bukkit;
  import org.bukkit.ChatColor;
  import org.bukkit.command.CommandSender;
-@@ -34,23 +37,32 @@ public class PluginsCommand extends BukkitCommand {
+@@ -34,23 +37,33 @@ public class PluginsCommand extends BukkitCommand {
  
      @NotNull
      private String getPluginList() {
@@ -56,4 +56,5 @@ index bcb576a4271b1ec7b1cfe6f83cf161b7d89ed2e5..a1071e3178a298f3fc1d6c960f4d8a6d
 +        return "(" + plugins.size() + "): " + pluginList.toString();
 +        // Paper end
      }
++
  }

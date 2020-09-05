@@ -22,17 +22,15 @@ index 912611cf1aeccf5a82a789aab07d76723d4357cc..7d9976ce6bf86e6fdfd0c7770104cee0
 +    }
  }
 diff --git a/src/main/java/net/minecraft/server/EntityFishingHook.java b/src/main/java/net/minecraft/server/EntityFishingHook.java
-index 7be189f7428886058982774028de6adbd384fafd..40bdcf4e75bb36385e82ba8b8f2471760072705a 100644
+index b787c8a35c38aa944bcf0d849a1940bede88f86d..9928ba1d181eef8735ccd4e282719b4ca3d62bea 100644
 --- a/src/main/java/net/minecraft/server/EntityFishingHook.java
 +++ b/src/main/java/net/minecraft/server/EntityFishingHook.java
-@@ -326,8 +326,9 @@ public class EntityFishingHook extends Entity {
-                     this.aq = MathHelper.nextInt(this.random, 20, 80);
+@@ -338,7 +338,7 @@ public class EntityFishingHook extends IProjectile {
+                     this.ai = MathHelper.nextInt(this.random, 20, 80);
                  }
              } else {
--                this.ap = MathHelper.nextInt(this.random, 100, 600);
-+                this.ap = MathHelper.nextInt(this.random, world.paperConfig.fishingMinTicks, world.paperConfig.fishingMaxTicks); // Paper
-                 this.ap -= this.au * 20 * 5;
-+                this.ap = Math.max(0, this.ap); // Paper - Don't allow negative values
+-                this.ah = MathHelper.nextInt(this.random, 100, 600);
++                this.ah = MathHelper.nextInt(this.random, world.paperConfig.fishingMinTicks, world.paperConfig.fishingMaxTicks); // Paper
+                 this.ah -= this.ao * 20 * 5;
              }
          }
- 

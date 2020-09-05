@@ -5,10 +5,10 @@ Subject: [PATCH] Complete resource pack API
 
 
 diff --git a/src/main/java/net/minecraft/server/PlayerConnection.java b/src/main/java/net/minecraft/server/PlayerConnection.java
-index 5e8739462eface8b3bbc7ef8c0e08763e45c5b2e..3c8c9c9cd4cf4bc4f8c0da26f139d67fd8c5474b 100644
+index 051e8471e4a55c444cbe5e7274ce878af7a15c61..601dfa3fba8226c981444db12c868d6e68863ade 100644
 --- a/src/main/java/net/minecraft/server/PlayerConnection.java
 +++ b/src/main/java/net/minecraft/server/PlayerConnection.java
-@@ -1335,7 +1335,11 @@ public class PlayerConnection implements PacketListenerPlayIn {
+@@ -1370,7 +1370,11 @@ public class PlayerConnection implements PacketListenerPlayIn {
      // CraftBukkit start
      public void a(PacketPlayInResourcePackStatus packetplayinresourcepackstatus) {
          PlayerConnectionUtils.ensureMainThread(packetplayinresourcepackstatus, this, this.player.getWorldServer());
@@ -22,10 +22,10 @@ index 5e8739462eface8b3bbc7ef8c0e08763e45c5b2e..3c8c9c9cd4cf4bc4f8c0da26f139d67f
      // CraftBukkit end
  
 diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
-index 5ce7504c5f2c8049bd65d9558f9e413495c8894e..c4c372785045050c878e8df82425bc98c3c498b1 100644
+index 3698080b147301b41014ea75c677af042a38c6a3..4140fef9aeb3a67c8a0e543c54b3df66ba50eb0b 100644
 --- a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
-@@ -133,6 +133,10 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
+@@ -138,6 +138,10 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
      private double health = 20;
      private boolean scaledHealth = false;
      private double healthScale = 20;
@@ -36,7 +36,7 @@ index 5ce7504c5f2c8049bd65d9558f9e413495c8894e..c4c372785045050c878e8df82425bc98
  
      public CraftPlayer(CraftServer server, EntityPlayer entity) {
          super(server, entity);
-@@ -1730,6 +1734,32 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
+@@ -1790,6 +1794,32 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
      public boolean getAffectsSpawning() {
          return this.getHandle().affectsSpawning;
      }

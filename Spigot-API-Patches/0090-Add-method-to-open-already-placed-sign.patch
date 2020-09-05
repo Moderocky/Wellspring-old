@@ -5,14 +5,13 @@ Subject: [PATCH] Add method to open already placed sign
 
 
 diff --git a/src/main/java/org/bukkit/entity/HumanEntity.java b/src/main/java/org/bukkit/entity/HumanEntity.java
-index 3adff676c85a6648fc85a088e12ea524f4567b12..2d413d720c828c7f334abde7eb02935317e2fd17 100644
+index d212d5123b6294f7873d72f125505a006c290b05..7430bc85301d0fcb34c6035fbe08ae245c76e043 100644
 --- a/src/main/java/org/bukkit/entity/HumanEntity.java
 +++ b/src/main/java/org/bukkit/entity/HumanEntity.java
-@@ -468,4 +468,13 @@ public interface HumanEntity extends LivingEntity, AnimalTamer, InventoryHolder
+@@ -461,6 +461,14 @@ public interface HumanEntity extends LivingEntity, AnimalTamer, InventoryHolder
       */
      @Deprecated
      public void setShoulderEntityRight(@Nullable Entity entity);
-+
 +    // Paper start - Add method to open already placed sign
 +    /**
 +     * Opens an editor window for the specified sign
@@ -21,4 +20,6 @@ index 3adff676c85a6648fc85a088e12ea524f4567b12..2d413d720c828c7f334abde7eb029353
 +     */
 +    void openSign(@NotNull org.bukkit.block.Sign sign);
 +    // Paper end
- }
+ 
+     /**
+      * Make the entity drop the item in their hand.

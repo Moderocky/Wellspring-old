@@ -19,15 +19,15 @@ index 345ac63e281bb3372b2ae879d587d658243581ba..62e793b71b313146b86b466421e7a5f8
 +    }
  }
 diff --git a/src/main/java/net/minecraft/server/EntitySlime.java b/src/main/java/net/minecraft/server/EntitySlime.java
-index 8e8526f371ec967862891e371faa0e4b9c2c11c3..3ecf732192f7f1bd20b9d766bedef08e64434fda 100644
+index dd7ceb679c1b03c419bb2a2799328aed889b1caf..cb7cf185cc93813de97fbab830856573af8b6e73 100644
 --- a/src/main/java/net/minecraft/server/EntitySlime.java
 +++ b/src/main/java/net/minecraft/server/EntitySlime.java
-@@ -289,7 +289,7 @@ public class EntitySlime extends EntityInsentient implements IMonster {
-                 }
+@@ -285,7 +285,7 @@ public class EntitySlime extends EntityInsentient implements IMonster {
+             }
  
-                 ChunkCoordIntPair chunkcoordintpair = new ChunkCoordIntPair(blockposition);
--                boolean flag = SeededRandom.a(chunkcoordintpair.x, chunkcoordintpair.z, generatoraccess.getSeed(), generatoraccess.getMinecraftWorld().spigotConfig.slimeSeed).nextInt(10) == 0; // Spigot
-+                boolean flag = generatoraccess.getMinecraftWorld().paperConfig.allChunksAreSlimeChunks || SeededRandom.a(chunkcoordintpair.x, chunkcoordintpair.z, generatoraccess.getSeed(), generatoraccess.getMinecraftWorld().spigotConfig.slimeSeed).nextInt(10) == 0; // Spigot // Paper
+             ChunkCoordIntPair chunkcoordintpair = new ChunkCoordIntPair(blockposition);
+-            boolean flag = SeededRandom.a(chunkcoordintpair.x, chunkcoordintpair.z, ((GeneratorAccessSeed) generatoraccess).getSeed(), generatoraccess.getMinecraftWorld().spigotConfig.slimeSeed).nextInt(10) == 0; // Spigot
++            boolean flag = generatoraccess.getMinecraftWorld().paperConfig.allChunksAreSlimeChunks || SeededRandom.a(chunkcoordintpair.x, chunkcoordintpair.z, ((GeneratorAccessSeed) generatoraccess).getSeed(), generatoraccess.getMinecraftWorld().spigotConfig.slimeSeed).nextInt(10) == 0; // Spigot // Paper
  
-                 if (random.nextInt(10) == 0 && flag && blockposition.getY() < 40) {
-                     return a(entitytypes, generatoraccess, enummobspawn, blockposition, random);
+             if (random.nextInt(10) == 0 && flag && blockposition.getY() < 40) {
+                 return a(entitytypes, generatoraccess, enummobspawn, blockposition, random);
