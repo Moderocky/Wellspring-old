@@ -1,0 +1,22 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Sat, 5 Sep 2020 10:04:43 +0100
+Subject: [PATCH] Exceptions for missing attachments.
+
+
+diff --git a/src/main/java/org/bukkit/attachment/Attachable.java b/src/main/java/org/bukkit/attachment/Attachable.java
+index d8dc28f847cb1101e70dfc17bfffa6cc272cb8df..558f72add89278da14f9d0515f63898dbb5ee0a5 100644
+--- a/src/main/java/org/bukkit/attachment/Attachable.java
++++ b/src/main/java/org/bukkit/attachment/Attachable.java
+@@ -12,9 +12,10 @@ public interface Attachable {
+      * @param attachmentClass The class that the attachment belongs to.
+      * @param <T> The specific attachment type.
+      * @return The attachment instance unique to this object.
++     * @throws NullPointerException - if the attachment is not present. Use {@link this#getAttachment(Class)} first.
+      */
+     @NotNull
+-    <T extends Attachment<?>> T getAttachment(@NotNull Class<T> attachmentClass);
++    <T extends Attachment<?>> T getAttachment(@NotNull Class<T> attachmentClass) throws NullPointerException;
+ 
+     /**
+      * Check whether this object has an attachment of a specific type.
