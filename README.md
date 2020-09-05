@@ -10,10 +10,10 @@ Current additional features:
  * Extended potion registry allowing for custom potion types to be registered.
  * Conversion of attributes from an enum to a field to allow for custom attribute types to work properly with Bukkit.
  * Entity default attribute map is now mutable, allowing for more freedom to customise and edit entity types, and to add new ones.
+ * Code changes to allow for the proper creation, storage and viewing of custom entity types.
 
 Planned future features:
 -----
- * Split off the Entity#getType() method to allow custom entities to be registered and saved under their own true type, but displayed as an existing valid type to the client.
  * Interface layer with Bukkit for creating attributes, goals, custom entities, potions and enchantments.
  * Replacement of all of the idiotic Bukkit enums - allowing for mod content, items, APIs, etc. to be added easily.
  * Interface layer with Bukkit for a simple packet-sending system.
