@@ -1,0 +1,50 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Sat, 5 Sep 2020 15:40:11 +0100
+Subject: [PATCH] Basic visual type overrides.
+
+
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutSpawnEntity.java b/src/main/java/net/minecraft/server/PacketPlayOutSpawnEntity.java
+index 5172fb5ab86d0e60cca85282f321ee2892c95915..6a1d535ffe488c595aacda89910e07403c1177b8 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutSpawnEntity.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutSpawnEntity.java
+@@ -40,7 +40,7 @@ public class PacketPlayOutSpawnEntity implements Packet<PacketListenerPlayOut> {
+     }
+ 
+     public PacketPlayOutSpawnEntity(Entity entity, int i) {
+-        this(entity.getId(), entity.getUniqueID(), entity.locX(), entity.locY(), entity.locZ(), entity.pitch, entity.yaw, entity.getEntityType(), i, entity.getMot());
++        this(entity.getId(), entity.getUniqueID(), entity.locX(), entity.locY(), entity.locZ(), entity.pitch, entity.yaw, entity.getVisualType(), i, entity.getMot()); // Kenzie - visual types
+     }
+ 
+     public PacketPlayOutSpawnEntity(Entity entity, EntityTypes<?> entitytypes, int i, BlockPosition blockposition) {
+@@ -51,7 +51,7 @@ public class PacketPlayOutSpawnEntity implements Packet<PacketListenerPlayOut> {
+     public void a(PacketDataSerializer packetdataserializer) throws IOException {
+         this.a = packetdataserializer.i();
+         this.b = packetdataserializer.k();
+-        this.k = (EntityTypes) IRegistry.ENTITY_TYPE.fromId(packetdataserializer.i());
++        this.k = IRegistry.ENTITY_TYPE.fromId(packetdataserializer.i());
+         this.c = packetdataserializer.readDouble();
+         this.d = packetdataserializer.readDouble();
+         this.e = packetdataserializer.readDouble();
+@@ -67,7 +67,7 @@ public class PacketPlayOutSpawnEntity implements Packet<PacketListenerPlayOut> {
+     public void b(PacketDataSerializer packetdataserializer) throws IOException {
+         packetdataserializer.d(this.a);
+         packetdataserializer.a(this.b);
+-        packetdataserializer.d(IRegistry.ENTITY_TYPE.a((Object) this.k));
++        packetdataserializer.d(IRegistry.ENTITY_TYPE.a(this.k));
+         packetdataserializer.writeDouble(this.c);
+         packetdataserializer.writeDouble(this.d);
+         packetdataserializer.writeDouble(this.e);
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutSpawnEntityLiving.java b/src/main/java/net/minecraft/server/PacketPlayOutSpawnEntityLiving.java
+index 2ce69d8feae9a4f1281c9e0422459ad23c2aab5f..77cabb55749302ccd2b4f8002d8f9ef9e21e4294 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutSpawnEntityLiving.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutSpawnEntityLiving.java
+@@ -23,7 +23,7 @@ public class PacketPlayOutSpawnEntityLiving implements Packet<PacketListenerPlay
+     public PacketPlayOutSpawnEntityLiving(EntityLiving entityliving) {
+         this.a = entityliving.getId();
+         this.b = entityliving.getUniqueID();
+-        this.c = IRegistry.ENTITY_TYPE.a((Object) entityliving.getEntityType());
++        this.c = IRegistry.ENTITY_TYPE.a(entityliving.getVisualType()); // Kenzie - visual types
+         this.d = entityliving.locX();
+         this.e = entityliving.locY();
+         this.f = entityliving.locZ();
