@@ -1,0 +1,36 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Sun, 6 Sep 2020 12:52:39 +0100
+Subject: [PATCH] Dealing with Bukkit's tests...
+
+
+diff --git a/src/main/java/org/bukkit/Bukkit.java b/src/main/java/org/bukkit/Bukkit.java
+index cf89cebd4c24f6d8829e409ea975031a4e17166f..03879e63800a30cdf8271197a0a5d2341ad8a33a 100644
+--- a/src/main/java/org/bukkit/Bukkit.java
++++ b/src/main/java/org/bukkit/Bukkit.java
+@@ -1730,6 +1730,8 @@ public final class Bukkit {
+         return server.getPermissionMessage();
+     }
+ 
++    // Kenzie start - attachments
++
+     /**
+      * Allows the registration of an attachment for specific entity types.
+      * The corresponding entity types will receive a new instance of the attachment
+@@ -1760,6 +1762,16 @@ public final class Bukkit {
+         server.registerAttachment(plugin, creatorFunction, target);
+     }
+ 
++    /**
++     * Unregisters the attachments provided by a plugin.
++     * @param plugin The providing plugin.
++     */
++    public static void unregisterAttachments(@NotNull Plugin plugin) {
++        server.unregisterAttachments(plugin);
++    }
++
++    // Kenzie end - attachments
++
+     /**
+      * Creates a PlayerProfile for the specified uuid, with name as null
+      * @param uuid UUID to create profile for
