@@ -1,0 +1,25 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Sun, 6 Sep 2020 14:06:59 +0100
+Subject: [PATCH] Accidental exclusionary check removal.
+
+
+diff --git a/src/main/java/org/bukkit/craftbukkit/attachment/AttachmentFactory.java b/src/main/java/org/bukkit/craftbukkit/attachment/AttachmentFactory.java
+index 8b00cd87c74b144220c1c96bd3fe571ede1ef211..6f7604fd4b6c98520171ce871ee950f5fc89b569 100644
+--- a/src/main/java/org/bukkit/craftbukkit/attachment/AttachmentFactory.java
++++ b/src/main/java/org/bukkit/craftbukkit/attachment/AttachmentFactory.java
+@@ -64,12 +64,11 @@ public class AttachmentFactory {
+     }
+ 
+     public Set<Function<Attachable, Attachment<?>>> getAttachmentProviders(Class<? extends Attachable> target) {
+-        if (target == null) return new HashSet<>();
++        Validate.notNull(target, "Target class cannot be null!");
+         Set<Function<Attachable, Attachment<?>>> providers = new HashSet<>();
+         for (Map<Class<? extends Attachable>, Set<Function<Attachable, Attachment<?>>>> map : pluginFactoryMethods.values()) {
+             for (Class<? extends Attachable> cls : map.keySet()) {
+-                if (!cls.equals(target)) continue;
+-                if (!cls.isAssignableFrom(target)) continue;
++                if (!cls.equals(target) && !cls.isAssignableFrom(target)) continue;
+                 if (map.get(cls) == null) continue;
+                 providers.addAll(map.get(cls));
+             }
