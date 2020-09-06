@@ -1,0 +1,39 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Sun, 6 Sep 2020 18:32:53 +0100
+Subject: [PATCH] Missing annotations.
+
+
+diff --git a/src/main/java/mx/kenzie/wellspring/nbt/NBT.java b/src/main/java/mx/kenzie/wellspring/nbt/NBT.java
+index afd8f571d37056bfda1ed85592b81adfeb27f5ee..ca884b390840c35689365131536e6375a4732d83 100644
+--- a/src/main/java/mx/kenzie/wellspring/nbt/NBT.java
++++ b/src/main/java/mx/kenzie/wellspring/nbt/NBT.java
+@@ -23,13 +23,12 @@ public interface NBT {
+ 
+     public @NotNull NBT clone();
+ 
+-    @NotNull
+-    default BaseComponent[] display() {
++    default @NotNull BaseComponent[] display() {
+         return display(0, "");
+     }
+ 
+     @NotNull
+-    BaseComponent[] display(int indentation, String unit);
++    BaseComponent[] display(int indentation, @NotNull String unit);
+ 
+     enum Type {
+         /**
+diff --git a/src/main/java/mx/kenzie/wellspring/nbt/NBTCompound.java b/src/main/java/mx/kenzie/wellspring/nbt/NBTCompound.java
+index 54b28b7e48859cae8f1f84c5e75692aa7f6eb28d..8a4c6e831dff18ae348396fc62e28e77952f1363 100644
+--- a/src/main/java/mx/kenzie/wellspring/nbt/NBTCompound.java
++++ b/src/main/java/mx/kenzie/wellspring/nbt/NBTCompound.java
+@@ -109,7 +109,7 @@ public interface NBTCompound extends NBT {
+     @NotNull Map<String, NBT> getAsMap();
+ 
+     @SuppressWarnings({"unchecked", "deprecation"})
+-    default @Nullable <T> T get(@NotNull String key, Type type) {
++    default @Nullable <T> T get(@NotNull String key, @NotNull Type type) {
+         switch (type) {
+             case NULL_TERMINATOR:
+             case PRIMITIVE_TYPE:
