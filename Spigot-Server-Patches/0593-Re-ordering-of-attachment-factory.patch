@@ -1,0 +1,65 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Sun, 6 Sep 2020 22:06:06 +0100
+Subject: [PATCH] Re-ordering of attachment factory.
+
+
+diff --git a/src/main/java/org/bukkit/craftbukkit/attachment/AttachmentFactory.java b/src/main/java/org/bukkit/craftbukkit/attachment/AttachmentFactory.java
+index b74dc2327de9de4635b411813596810a19b8c689..7b6371ddd900234671a8aaf807aadc84dd1580ce 100644
+--- a/src/main/java/org/bukkit/craftbukkit/attachment/AttachmentFactory.java
++++ b/src/main/java/org/bukkit/craftbukkit/attachment/AttachmentFactory.java
+@@ -22,7 +22,7 @@ public class AttachmentFactory {
+         this.pluginFactoryMethods = new HashMap<>();
+     }
+ 
+-    protected void registerAttachmentHolder(AttachmentHolder holder) {
++    public void registerAttachmentHolder(AttachmentHolder holder) {
+         holders.add(new WeakReference<>(holder));
+     }
+ 
+@@ -88,6 +88,7 @@ public class AttachmentFactory {
+                 holder.removeAll(plugin);
+             }
+         }
++        pluginFactoryMethods.remove(plugin);
+     }
+ 
+     public void disposeOfAll() {
+@@ -98,6 +99,7 @@ public class AttachmentFactory {
+             }
+         }
+         holders.clear();
++        pluginFactoryMethods.clear();;
+     }
+ 
+ }
+diff --git a/src/main/java/org/bukkit/craftbukkit/attachment/AttachmentHolder.java b/src/main/java/org/bukkit/craftbukkit/attachment/AttachmentHolder.java
+index 38739f855d72be6c5706abcd34d75220eb3582b4..838e2bc8eea60b5f4f3ca3b6f98704c506655ca4 100644
+--- a/src/main/java/org/bukkit/craftbukkit/attachment/AttachmentHolder.java
++++ b/src/main/java/org/bukkit/craftbukkit/attachment/AttachmentHolder.java
+@@ -11,7 +11,7 @@ public class AttachmentHolder extends ArrayList<Attachment<?>> {
+ 
+     public final Attachable target;
+ 
+-    protected AttachmentHolder(Attachable target) {
++    public AttachmentHolder(Attachable target) {
+         this.target = target;
+     }
+ 
+diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
+index 91fe98cb716abcaa0f90bf933cf2e8ac9b0c6bf3..8d0c389be2be28beb8e2f867933240f977a73251 100644
+--- a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
++++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
+@@ -188,7 +188,11 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
+     public CraftEntity(final CraftServer server, final Entity entity) {
+         this.server = server;
+         this.entity = entity;
+-        this.attachments = server.attachmentFactory.createAttachments(this); // Kenzie
++        // Kenzie start - attachments
++        this.attachments = new AttachmentHolder(this);
++        server.attachmentFactory.addAttachments(this, attachments);
++        server.attachmentFactory.registerAttachmentHolder(attachments);
++        // Kenzie end
+     }
+ 
+     // Kenzie start - NBT holder
