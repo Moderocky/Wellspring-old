@@ -6,8 +6,9 @@ No breaking changes will be made to existing features. Wellspring's sole aim is 
 
 Current additional features:
 -----
- * Entity attachment system to allow for custom fields and methods to be added to entities.
+ * Attachment system to allow for custom fields, methods and utilities to be added to entities and other 'Attachable' objects.
  * Extended potion registry allowing for custom potion types to be registered.
+ * Custom entities can now be saved properly over restarts, and displayed correctly to the client.
  * Conversion of attributes from an enum to a field to allow for custom attribute types to work properly with Bukkit.
  * Entity default attribute map is now mutable, allowing for more freedom to customise and edit entity types, and to add new ones.
  * Code changes to allow for the proper creation, storage and viewing of custom entity types.
