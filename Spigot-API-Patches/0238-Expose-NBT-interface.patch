@@ -1,0 +1,483 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Sun, 6 Sep 2020 18:28:52 +0100
+Subject: [PATCH] Expose NBT interface.
+
+
+diff --git a/src/main/java/mx/kenzie/wellspring/nbt/NBT.java b/src/main/java/mx/kenzie/wellspring/nbt/NBT.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..afd8f571d37056bfda1ed85592b81adfeb27f5ee
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/nbt/NBT.java
+@@ -0,0 +1,85 @@
++package mx.kenzie.wellspring.nbt;
++
++import net.md_5.bungee.api.chat.BaseComponent;
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
++
++public interface NBT {
++
++    /**
++     * Magic value.
++     * @return The raw numerical type.
++     */
++    @Deprecated
++    byte getTypeId();
++
++    default boolean isOfType(@NotNull Type type) {
++        return getType() == type;
++    }
++
++    default @NotNull Type getType() {
++        return Type.fromId(getTypeId());
++    }
++
++    public @NotNull NBT clone();
++
++    @NotNull
++    default BaseComponent[] display() {
++        return display(0, "");
++    }
++
++    @NotNull
++    BaseComponent[] display(int indentation, String unit);
++
++    enum Type {
++        /**
++         * Marked for internal type-comparison use.
++         * Very unsafe - used to mark termination of the data.
++         */
++        @Deprecated
++        NULL_TERMINATOR(0, void.class),
++        BYTE(1, byte.class),
++        SHORT(2, short.class),
++        INT(3, int.class),
++        LONG(4, long.class),
++        FLOAT(5, float.class),
++        DOUBLE(6, double.class),
++        BYTE_ARRAY(7, byte[].class),
++        STRING(8, String.class),
++        LIST(9, NBTList.class),
++        COMPOUND(10, NBTCompound.class),
++        INT_ARRAY(11, int[].class),
++        LONG_ARRAY(12, long[].class),
++        BOOLEAN(1, boolean.class),
++        /**
++         * Used internally to signify any primitive type.
++         */
++        PRIMITIVE_TYPE(99, Object.class);
++
++        final int raw;
++        final @NotNull Class<?> cls;
++
++        Type(int raw, @NotNull Class<?> cls) {
++            this.raw = raw;
++            this.cls = cls;
++        }
++
++        public int getRawId() {
++            return raw;
++        }
++
++        @NotNull
++        public Class<?> getEntryClass() {
++            return cls;
++        }
++
++        public static @NotNull
++        Type fromId(int raw) {
++            for (Type type : values()) {
++                if (type.raw == raw) return type;
++            }
++            throw new IllegalArgumentException("Unknown type passed to converter.");
++        }
++    }
++
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/nbt/NBTCompound.java b/src/main/java/mx/kenzie/wellspring/nbt/NBTCompound.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..54b28b7e48859cae8f1f84c5e75692aa7f6eb28d
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/nbt/NBTCompound.java
+@@ -0,0 +1,150 @@
++package mx.kenzie.wellspring.nbt;
++
++import org.bukkit.Bukkit;
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
++
++import java.util.Map;
++import java.util.UUID;
++
++public interface NBTCompound extends NBT {
++
++    static @NotNull NBTCompound create() {
++        return Bukkit.getNBTFactory().newCompound();
++    }
++
++    int size();
++
++    boolean isEmpty();
++
++    boolean containsKey(@NotNull String key);
++
++    default boolean containsKey(@NotNull String key, @NotNull Type type) {
++        return containsKey(key, type.raw);
++    }
++
++    @NotNull
++    @Override
++    default Type getType() {
++        return Type.COMPOUND;
++    }
++
++    /**
++     * Potentially version-dependent - easier to use {@link NBTCompound#containsKey(String, Type)}
++     * @param key The string key.
++     * @param rawType The NBT base type.
++     * @return Whether key is present.
++     */
++    @Deprecated
++    boolean containsKey(@NotNull String key, int rawType);
++
++    void setBoolean(@NotNull String key, boolean value);
++
++    void setByte(@NotNull String key, byte value);
++
++    void setShort(@NotNull String key, short value);
++
++    void setInt(@NotNull String key, int value);
++
++    void setLong(@NotNull String key, long value);
++
++    void setFloat(@NotNull String key, float value);
++
++    void setDouble(@NotNull String key, double value);
++
++    void setString(@NotNull String key, @Nullable String value);
++
++    void setUUID(@NotNull String keyPrefix, @Nullable UUID uuid);
++
++    void setByteArray(@NotNull String key, @Nullable byte[] bytes);
++
++    void setIntArray(@NotNull String key, @Nullable int[] ints);
++
++    void setLongArray(@NotNull String key, @Nullable long[] longs);
++
++    void setList(@NotNull String key, @Nullable NBTList list);
++
++    boolean getBoolean(@NotNull String key);
++
++    byte getByte(@NotNull String key);
++
++    short getShort(@NotNull String key);
++
++    int getInt(@NotNull String key);
++
++    long getLong(@NotNull String key);
++
++    float getFloat(@NotNull String key);
++
++    double getDouble(@NotNull String key);
++
++    @Nullable byte[] getByteArray(@NotNull String key);
++
++    @Nullable int[] getIntArray(@NotNull String key);
++
++    @Nullable long[] getLongArray(@NotNull String key);
++
++    @Nullable String getString(@NotNull String key);
++
++    @Nullable NBTCompound getCompound(@NotNull String key);
++
++    @Nullable NBTList getList(@NotNull String key);
++
++    @Nullable NBT get(@NotNull String key);
++
++    void remove(@NotNull String key);
++
++    @NotNull NBTCompound clone();
++
++    /**
++     * Merges the second compound into this. Entries from the new compound will override and replace this.
++     * @param compound The compound to merge.
++     * @return This compound.
++     */
++    @NotNull NBTCompound merge(@NotNull NBTCompound compound);
++
++    /**
++     * @return A clone of this NBT compound as a map of keys/NBT bases.
++     */
++    @NotNull Map<String, NBT> getAsMap();
++
++    @SuppressWarnings({"unchecked", "deprecation"})
++    default @Nullable <T> T get(@NotNull String key, Type type) {
++        switch (type) {
++            case NULL_TERMINATOR:
++            case PRIMITIVE_TYPE:
++                throw new IllegalArgumentException("The type " + type + " cannot be used here.");
++            case BYTE:
++                return (T) type.cls.cast(getByte(key));
++            case INT:
++                return (T) type.cls.cast(getInt(key));
++            case SHORT:
++                return (T) type.cls.cast(getShort(key));
++            case LONG:
++                return (T) type.cls.cast(getLong(key));
++            case FLOAT:
++                return (T) type.cls.cast(getFloat(key));
++            case DOUBLE:
++                return (T) type.cls.cast(getDouble(key));
++            case BYTE_ARRAY:
++                return (T) type.cls.cast(getByteArray(key));
++            case INT_ARRAY:
++                return (T) type.cls.cast(getIntArray(key));
++            case LONG_ARRAY:
++                return (T) type.cls.cast(getLongArray(key));
++            case STRING:
++                return (T) type.cls.cast(getString(key));
++            case LIST:
++                return (T) type.cls.cast(getList(key));
++            case COMPOUND:
++                return (T) type.cls.cast(getCompound(key));
++        }
++        return null;
++    }
++
++    @Nullable
++    UUID getUUID(@NotNull String keyPrefix);
++
++    boolean hasUUID(@NotNull String keyPrefix);
++
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/nbt/NBTFactory.java b/src/main/java/mx/kenzie/wellspring/nbt/NBTFactory.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..b1a8fd6ff92a6dea54253f5896a00a4cddcd7165
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/nbt/NBTFactory.java
+@@ -0,0 +1,26 @@
++package mx.kenzie.wellspring.nbt;
++
++import org.bukkit.entity.Entity;
++import org.bukkit.inventory.ItemStack;
++import org.jetbrains.annotations.NotNull;
++
++public abstract class NBTFactory {
++
++    public NBTFactory() {
++    }
++
++    public abstract @NotNull NBTCompound newCompound();
++
++    public abstract @NotNull NBTList newList();
++
++    public @NotNull NBTCompound getNBT(@NotNull NBTHolder holder) {
++        return holder.getNBT();
++    }
++
++    public abstract @NotNull NBTCompound getNBT(@NotNull Entity entity);
++
++    public abstract @NotNull NBTCompound getNBT(@NotNull ItemStack itemStack);
++
++    public abstract @NotNull NBTCompound getTagCompound(@NotNull ItemStack itemStack);
++
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/nbt/NBTHolder.java b/src/main/java/mx/kenzie/wellspring/nbt/NBTHolder.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..bc473f435deb68527296c9d51aec051e3591f241
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/nbt/NBTHolder.java
+@@ -0,0 +1,17 @@
++package mx.kenzie.wellspring.nbt;
++
++import org.jetbrains.annotations.NotNull;
++
++public interface NBTHolder {
++
++    @NotNull NBTCompound getNBT();
++
++    default void mergeNBT(@NotNull NBTCompound compound) {
++        NBTCompound original = getNBT();
++        original.merge(compound);
++        loadNBT(original.merge(compound));
++    }
++
++    void loadNBT(@NotNull NBTCompound compound);
++
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/nbt/NBTList.java b/src/main/java/mx/kenzie/wellspring/nbt/NBTList.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..8a366f29cf413b906d80e9cf3405555fff57218f
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/nbt/NBTList.java
+@@ -0,0 +1,38 @@
++package mx.kenzie.wellspring.nbt;
++
++import org.bukkit.Bukkit;
++import org.jetbrains.annotations.NotNull;
++
++import java.util.Iterator;
++
++public interface NBTList extends NBT {
++
++    static @NotNull NBTList create() {
++        return Bukkit.getNBTFactory().newList();
++    }
++
++    int size() throws IndexOutOfBoundsException;
++
++    boolean isEmpty();
++
++    void clear();
++
++    @NotNull
++    @Override
++    default Type getType() {
++        return Type.LIST;
++    }
++
++    void add(@NotNull NBT entry);
++
++    void remove(@NotNull NBT entry);
++
++    @NotNull Iterator<NBT> getIterator();
++
++    @NotNull NBT remove(int index) throws IndexOutOfBoundsException;
++
++    @NotNull NBT get(int index) throws IndexOutOfBoundsException;
++
++    @NotNull NBTList clone();
++
++}
+diff --git a/src/main/java/org/bukkit/Bukkit.java b/src/main/java/org/bukkit/Bukkit.java
+index 9f6d506de244e5c26a9ffc52ac7c205212fed55f..85caa5f216547106289381b00f4dc7af5c9afc17 100644
+--- a/src/main/java/org/bukkit/Bukkit.java
++++ b/src/main/java/org/bukkit/Bukkit.java
+@@ -14,6 +14,8 @@ import java.util.UUID;
+ import java.util.function.Consumer;
+ import java.util.function.Function;
+ import java.util.logging.Logger;
++
++import mx.kenzie.wellspring.nbt.NBTFactory;
+ import org.bukkit.Warning.WarningState;
+ import org.bukkit.advancement.Advancement;
+ import org.bukkit.attachment.Attachable;
+@@ -1772,6 +1774,17 @@ public final class Bukkit {
+ 
+     // Kenzie end - attachments
+ 
++    // Kenzie start - NBT factory
++    /**
++     * Retrieves the server's NBT factory, used for instantiating compound tags,
++     * NBT lists and other version-dependent types.
++     * @return The factory instance.
++     */
++    public static @NotNull NBTFactory getNBTFactory() {
++        return server.getNBTFactory();
++    }
++    // Kenzie end
++
+     /**
+      * Creates a PlayerProfile for the specified uuid, with name as null
+      * @param uuid UUID to create profile for
+diff --git a/src/main/java/org/bukkit/Server.java b/src/main/java/org/bukkit/Server.java
+index c65a865abc0713b2a91d6bb4316b4c46ef4f3783..d90684ada9360c0ec9b3f6c0f62bf0c646c0d7a3 100644
+--- a/src/main/java/org/bukkit/Server.java
++++ b/src/main/java/org/bukkit/Server.java
+@@ -14,6 +14,8 @@ import java.util.UUID;
+ import java.util.function.Consumer;
+ import java.util.function.Function;
+ import java.util.logging.Logger;
++
++import mx.kenzie.wellspring.nbt.NBTFactory;
+ import org.bukkit.Warning.WarningState;
+ import org.bukkit.advancement.Advancement;
+ import org.bukkit.attachment.Attachable;
+@@ -1460,6 +1462,15 @@ public interface Server extends PluginMessageRecipient {
+     void unregisterAttachments(@NotNull Plugin plugin);
+     // Kenzie end
+ 
++    // Kenzie start - NBT factory
++    /**
++     * Retrieves the server's NBT factory, used for instantiating compound tags,
++     * NBT lists and other version-dependent types.
++     * @return The factory instance.
++     */
++    @NotNull NBTFactory getNBTFactory();
++    // Kenzie end
++
+     /**
+      * @see UnsafeValues
+      * @return the unsafe values instance
+diff --git a/src/main/java/org/bukkit/attachment/Attachment.java b/src/main/java/org/bukkit/attachment/Attachment.java
+index 38772af5fda63a6f51229a7737eda8e13a2f35bd..fdc77f05fb36870312521d5c9b046b63aba00e89 100644
+--- a/src/main/java/org/bukkit/attachment/Attachment.java
++++ b/src/main/java/org/bukkit/attachment/Attachment.java
+@@ -1,5 +1,6 @@
+ package org.bukkit.attachment;
+ 
++import mx.kenzie.wellspring.nbt.NBTCompound;
+ import org.bukkit.plugin.Plugin;
+ import org.bukkit.plugin.java.JavaPlugin;
+ import org.jetbrains.annotations.NotNull;
+@@ -45,11 +46,34 @@ public abstract class Attachment<T extends Attachable> {
+     }
+ 
+     /**
+-     * This ought to be called when the holder's data is requested, for example
++     * This will to be called if and when the holder's data is requested, for example
+      * during the saving process. It should not be thought of as a catch-all,
+-     * but it might help to be notified of potential unloading.
++     * but it allows for basic storage.
++     *
++     * It is also called whenever the holder's NBT compound is requested, such
++     * as by commands or plugins.
++     *
++     * This can be used to store your own data within the entity's NBT over
++     * restarts - so long as your plugin is loaded before the entity is.
++     * @param compound The mutable NBT compound to be saved.
+      */
+-    public synchronized void onDataRequest() {
++    public synchronized void onDataRequest(@NotNull NBTCompound compound) {
++
++    }
++
++    /**
++     * This will to be called if and when the holder's NBT data is requested, for example
++     * during the loading process. It should not be thought of as a catch-all,
++     * but it might help to be able to store simple primitive data.
++     *
++     * It is also called whenever the holder's NBT compound is edited, such
++     * as by commands or plugins.
++     *
++     * This can be used to store your own data within the entity's NBT over
++     * restarts - so long as your plugin is loaded before the entity is.
++     * @param compound The mutable NBT compound to be loaded.
++     */
++    public synchronized void onDataLoad(@NotNull NBTCompound compound) {
+ 
+     }
+ 
+diff --git a/src/main/java/org/bukkit/entity/Entity.java b/src/main/java/org/bukkit/entity/Entity.java
+index 91eb02036b8ba64575c23bd1e04829d0fca9f720..a6aba7701fa3ce864e51413f45d643b4477dd33b 100644
+--- a/src/main/java/org/bukkit/entity/Entity.java
++++ b/src/main/java/org/bukkit/entity/Entity.java
+@@ -3,6 +3,8 @@ package org.bukkit.entity;
+ import java.util.List;
+ import java.util.Set;
+ import java.util.UUID;
++
++import mx.kenzie.wellspring.nbt.NBTHolder;
+ import org.bukkit.Chunk; // Paper
+ import org.bukkit.EntityEffect;
+ import org.bukkit.Location;
+@@ -27,7 +29,7 @@ import org.jetbrains.annotations.Nullable;
+ /**
+  * Represents a base entity in the world
+  */
+-public interface Entity extends Metadatable, CommandSender, Nameable, PersistentDataHolder, Attachable {
++public interface Entity extends Metadatable, CommandSender, Nameable, PersistentDataHolder, Attachable, NBTHolder {
+ 
+     /*
+      * Gets the entity's current position

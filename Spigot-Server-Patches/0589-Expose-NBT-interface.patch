@@ -1,0 +1,511 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Sun, 6 Sep 2020 18:29:05 +0100
+Subject: [PATCH] Expose NBT interface.
+
+
+diff --git a/src/main/java/net/minecraft/server/Entity.java b/src/main/java/net/minecraft/server/Entity.java
+index 3ab7fa2f8e4a0ff04f5d80c260a7a11cd32073ea..e6a733dd2d109809c658193d3763301bf42446d9 100644
+--- a/src/main/java/net/minecraft/server/Entity.java
++++ b/src/main/java/net/minecraft/server/Entity.java
+@@ -1619,7 +1619,8 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
+ 
+             // CraftBukkit start - stores eventually existing bukkit values
+             if (this.bukkitEntity != null) {
+-                this.bukkitEntity.attachments.request(); // Kenzie - mark as data requested in case of changes
++                this.bukkitEntity.attachments.request(nbttagcompound); // Kenzie - mark as data requested in case of changes
++                // Done before bukkit values to prevent any illegal editing.
+                 this.bukkitEntity.storeBukkitValues(nbttagcompound);
+             }
+             // CraftBukkit end
+@@ -1786,6 +1787,10 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
+                 spawnReason = org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason.DEFAULT;
+             }
+             // Paper end
++            // Kenzie start - attachments
++
++            this.bukkitEntity.attachments.load(nbttagcompound); // Kenzie - mark as data loaded in case of changes
++            // Done after bukkit values to prevent any illegal editing.
+ 
+         } catch (Throwable throwable) {
+             CrashReport crashreport = CrashReport.a(throwable, "Loading entity NBT");
+diff --git a/src/main/java/net/minecraft/server/NBTBase.java b/src/main/java/net/minecraft/server/NBTBase.java
+index 8b9e47b4c7f5dc464fa617a59583df9e30a54045..4c06b83cd713bb7f0f20cd64b6be9315e12459df 100644
+--- a/src/main/java/net/minecraft/server/NBTBase.java
++++ b/src/main/java/net/minecraft/server/NBTBase.java
+@@ -1,9 +1,13 @@
+ package net.minecraft.server;
+ 
++import mx.kenzie.wellspring.nbt.NBT;
++import net.md_5.bungee.api.chat.BaseComponent;
++import net.md_5.bungee.chat.ComponentSerializer;
++
+ import java.io.DataOutput;
+ import java.io.IOException;
+ 
+-public interface NBTBase {
++public interface NBTBase extends NBT {
+ 
+     EnumChatFormat d = EnumChatFormat.AQUA;
+     EnumChatFormat e = EnumChatFormat.GREEN;
+@@ -29,4 +33,14 @@ public interface NBTBase {
+     }
+ 
+     IChatBaseComponent a(String s, int i);
++
++    @Override
++    default BaseComponent[] display() { // Kenzie - NBT interface
++        return ComponentSerializer.parse(IChatBaseComponent.ChatSerializer.componentToJson(l()));
++    }
++
++    @Override
++    default BaseComponent[] display(int indentation, String unit) { // Kenzie - NBT interface
++        return ComponentSerializer.parse(IChatBaseComponent.ChatSerializer.componentToJson(a(unit, indentation)));
++    }
+ }
+diff --git a/src/main/java/net/minecraft/server/NBTTagCompound.java b/src/main/java/net/minecraft/server/NBTTagCompound.java
+index 06d5acab794e3ee139a11f9b068e8a359c46db2c..bed35aca2fe5d5e0d8650ff6c73c36a5580ada63 100644
+--- a/src/main/java/net/minecraft/server/NBTTagCompound.java
++++ b/src/main/java/net/minecraft/server/NBTTagCompound.java
+@@ -21,10 +21,12 @@ import java.util.UUID;
+ import java.util.regex.Pattern;
+ import javax.annotation.Nullable;
+ import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap; // Paper
++import mx.kenzie.wellspring.nbt.NBT;
++import mx.kenzie.wellspring.nbt.NBTCompound;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+ 
+-public class NBTTagCompound implements NBTBase {
++public class NBTTagCompound implements NBTBase, NBTCompound {
+ 
+     public static final Codec<NBTTagCompound> a = Codec.PASSTHROUGH.comapFlatMap((dynamic) -> {
+         NBTBase nbtbase = (NBTBase) dynamic.convert(DynamicOpsNBT.a).getValue();
+@@ -113,27 +115,37 @@ public class NBTTagCompound implements NBTBase {
+         return this.map.size();
+     }
+ 
++    @Override
++    public int size() { // Kenzie - NBT interface
++        return e();
++    }
++
+     @Nullable
+     public NBTBase set(String s, NBTBase nbtbase) {
+         return (NBTBase) this.map.put(s, nbtbase);
+     }
+ 
++    @Override
+     public void setByte(String s, byte b0) {
+         this.map.put(s, NBTTagByte.a(b0));
+     }
+ 
++    @Override
+     public void setShort(String s, short short0) {
+         this.map.put(s, NBTTagShort.a(short0));
+     }
+ 
++    @Override
+     public void setInt(String s, int i) {
+         this.map.put(s, NBTTagInt.a(i));
+     }
+ 
++    @Override
+     public void setLong(String s, long i) {
+         this.map.put(s, NBTTagLong.a(i));
+     }
+ 
++    @Override
+     public void setUUID(String prefix, UUID uuid) { a(prefix, uuid); } // Paper - OBFHELPER
+     public void a(String s, UUID uuid) {
+         // Paper start - support old format
+@@ -145,7 +157,7 @@ public class NBTTagCompound implements NBTBase {
+         this.map.put(s, GameProfileSerializer.a(uuid));
+     }
+ 
+-
++    @Override
+     @Nullable public UUID getUUID(String prefix) { return a(prefix); } // Paper - OBFHELPER
+     @Nullable
+     public UUID a(String s) {
+@@ -157,6 +169,7 @@ public class NBTTagCompound implements NBTBase {
+         return GameProfileSerializer.a(this.get(s));
+     }
+ 
++    @Override
+     public final boolean hasUUID(String s) { return this.b(s); } // Paper - OBFHELPER
+     public boolean b(String s) {
+         // Paper start - support old format
+@@ -169,26 +182,41 @@ public class NBTTagCompound implements NBTBase {
+         return nbtbase != null && nbtbase.b() == NBTTagIntArray.a && ((NBTTagIntArray) nbtbase).getInts().length == 4;
+     }
+ 
++    @Override
+     public void setFloat(String s, float f) {
+         this.map.put(s, NBTTagFloat.a(f));
+     }
+ 
++    @Override
+     public void setDouble(String s, double d0) {
+         this.map.put(s, NBTTagDouble.a(d0));
+     }
+ 
++    @Override
+     public void setString(String s, String s1) {
+         this.map.put(s, NBTTagString.a(s1));
+     }
+ 
++    @Override
+     public void setByteArray(String s, byte[] abyte) {
+         this.map.put(s, new NBTTagByteArray(abyte));
+     }
+ 
++    @Override
+     public void setIntArray(String s, int[] aint) {
+         this.map.put(s, new NBTTagIntArray(aint));
+     }
+ 
++    @Override
++    public void setLongArray(String key, long[] longs) {
++        this.map.put(key, new NBTTagLongArray(longs));
++    }
++
++    @Override
++    public void setList(String key, mx.kenzie.wellspring.nbt.NBTList list) {
++        this.map.put(key, (NBTTagList) list);
++    }
++
+     public void b(String s, List<Integer> list) {
+         this.map.put(s, new NBTTagIntArray(list));
+     }
+@@ -220,6 +248,16 @@ public class NBTTagCompound implements NBTBase {
+         return this.map.containsKey(s);
+     }
+ 
++    @Override
++    public boolean containsKey(String key, int rawType) {
++        return hasKeyOfType(key, rawType);
++    }
++
++    @Override
++    public boolean containsKey(String key) {
++        return hasKey(key);
++    }
++
+     public boolean hasKeyOfType(String s, int i) {
+         byte b0 = this.d(s);
+ 
+@@ -358,6 +396,12 @@ public class NBTTagCompound implements NBTBase {
+         return new NBTTagCompound();
+     }
+ 
++    @Override
++    public mx.kenzie.wellspring.nbt.NBTList getList(String key) { // Kenzie
++        NBTBase base = get(key);
++        return base instanceof NBTTagList ? (mx.kenzie.wellspring.nbt.NBTList) base : null;
++    }
++
+     public NBTTagList getList(String s, int i) {
+         try {
+             if (this.d(s) == 9) {
+@@ -476,6 +520,13 @@ public class NBTTagCompound implements NBTBase {
+         }
+     }
+ 
++    @Override
++    public NBTCompound merge(NBTCompound compound) {
++        if (!(compound instanceof NBTTagCompound)) throw new IllegalArgumentException("Unknown compound extender type!");
++        NBTTagCompound raw = ((NBTTagCompound) compound);
++        return this.a(raw);
++    }
++
+     public NBTTagCompound a(NBTTagCompound nbttagcompound) {
+         Iterator iterator = nbttagcompound.map.keySet().iterator();
+ 
+@@ -554,6 +605,11 @@ public class NBTTagCompound implements NBTBase {
+         }
+     }
+ 
++    @Override
++    public Map<String, NBT> getAsMap() {
++        return new HashMap<>(h());
++    }
++
+     protected Map<String, NBTBase> h() {
+         return Collections.unmodifiableMap(this.map);
+     }
+diff --git a/src/main/java/net/minecraft/server/NBTTagList.java b/src/main/java/net/minecraft/server/NBTTagList.java
+index ad4807e0bdd6409bd798f995da8f43cec1d0b385..29ff18174b02d410a609ad2c88b35c6c67e69e2c 100644
+--- a/src/main/java/net/minecraft/server/NBTTagList.java
++++ b/src/main/java/net/minecraft/server/NBTTagList.java
+@@ -5,6 +5,8 @@ import com.google.common.collect.Iterables;
+ import com.google.common.collect.Lists;
+ import it.unimi.dsi.fastutil.bytes.ByteOpenHashSet;
+ import it.unimi.dsi.fastutil.bytes.ByteSet;
++import mx.kenzie.wellspring.nbt.NBT;
++
+ import java.io.DataInput;
+ import java.io.DataOutput;
+ import java.io.IOException;
+@@ -13,7 +15,7 @@ import java.util.Iterator;
+ import java.util.List;
+ import java.util.Objects;
+ 
+-public class NBTTagList extends NBTList<NBTBase> {
++public class NBTTagList extends NBTList<NBTBase> implements mx.kenzie.wellspring.nbt.NBTList {
+ 
+     public static final NBTTagType<NBTTagList> a = new NBTTagType<NBTTagList>() {
+         @Override
+@@ -356,4 +358,20 @@ public class NBTTagList extends NBTList<NBTBase> {
+         this.list.clear();
+         this.type = 0;
+     }
++
++    @Override
++    public void add(NBT base) {
++        super.add((NBTBase) base);
++    }
++
++    @Override
++    public void remove(NBT entry) {
++        super.remove(entry);
++    }
++
++    @Override
++    @SuppressWarnings("unchecked")
++    public Iterator<NBT> getIterator() {
++        return (Iterator<NBT>) (Iterator<?>) iterator();
++    }
+ }
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+index 4f6e98713398d7ab39cc205277a42479637eae05..1f6b5278b62496a2c722227b6a01a51d996ec3e6 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+@@ -33,62 +33,10 @@ import java.util.logging.Level;
+ import java.util.logging.Logger;
+ import javax.imageio.ImageIO;
+ //import jline.console.ConsoleReader; // Paper
+-import net.minecraft.server.Advancement;
+-import net.minecraft.server.ArgumentEntity;
+-import net.minecraft.server.BiomeManager;
+-import net.minecraft.server.Block;
+-import net.minecraft.server.BlockPosition;
+-import net.minecraft.server.BossBattleCustom;
+-import net.minecraft.server.CommandDispatcher;
+-import net.minecraft.server.CommandListenerWrapper;
+-import net.minecraft.server.CommandReload;
+-import net.minecraft.server.Convertable;
+-import net.minecraft.server.DataConverterRegistry;
+-import net.minecraft.server.DedicatedPlayerList;
+-import net.minecraft.server.DedicatedServer;
+-import net.minecraft.server.DedicatedServerProperties;
+-import net.minecraft.server.DedicatedServerSettings;
+-import net.minecraft.server.DimensionManager;
+-import net.minecraft.server.DynamicOpsNBT;
+-import net.minecraft.server.Enchantments;
+-import net.minecraft.server.EntityPlayer;
+-import net.minecraft.server.EnumDifficulty;
+-import net.minecraft.server.EnumGamemode;
+-import net.minecraft.server.GameRules;
+-import net.minecraft.server.GeneratorSettings;
+-import net.minecraft.server.IRecipe;
+-import net.minecraft.server.IRegistry;
+-import net.minecraft.server.IRegistryCustom;
+-import net.minecraft.server.Item;
+-import net.minecraft.server.ItemWorldMap;
+-import net.minecraft.server.Items;
+-import net.minecraft.server.JsonListEntry;
+-import net.minecraft.server.LootTableRegistry;
+-import net.minecraft.server.MapIcon;
+-import net.minecraft.server.MinecraftKey;
+-import net.minecraft.server.MinecraftServer;
+-import net.minecraft.server.MobEffects;
+-import net.minecraft.server.MobSpawner;
+-import net.minecraft.server.MobSpawnerCat;
+-import net.minecraft.server.MobSpawnerPatrol;
+-import net.minecraft.server.MobSpawnerPhantom;
+-import net.minecraft.server.MobSpawnerTrader;
+-import net.minecraft.server.NBTBase;
+-import net.minecraft.server.PlayerList;
+-import net.minecraft.server.RegistryMaterials;
+-import net.minecraft.server.RegistryReadOps;
+-import net.minecraft.server.ResourceKey;
+-import net.minecraft.server.ServerCommand;
+-import net.minecraft.server.Tags;
+-import net.minecraft.server.TicketType;
+-import net.minecraft.server.Vec3D;
+-import net.minecraft.server.VillageSiege;
+-import net.minecraft.server.WorldDataServer;
+-import net.minecraft.server.WorldDimension;
+-import net.minecraft.server.WorldMap;
+-import net.minecraft.server.WorldNBTStorage;
+-import net.minecraft.server.WorldServer;
+-import net.minecraft.server.WorldSettings;
++import mx.kenzie.wellspring.nbt.NBTCompound;
++import mx.kenzie.wellspring.nbt.NBTFactory;
++import mx.kenzie.wellspring.nbt.NBTList;
++import net.minecraft.server.*;
+ import org.apache.commons.lang.Validate;
+ import org.apache.commons.lang3.StringUtils;
+ import org.bukkit.BanList;
+@@ -131,6 +79,7 @@ import org.bukkit.craftbukkit.boss.CraftKeyedBossbar;
+ import org.bukkit.craftbukkit.command.BukkitCommandWrapper;
+ import org.bukkit.craftbukkit.command.CraftCommandMap;
+ import org.bukkit.craftbukkit.command.VanillaCommandWrapper;
++import org.bukkit.craftbukkit.entity.CraftEntity;
+ import org.bukkit.craftbukkit.entity.CraftPlayer;
+ import org.bukkit.craftbukkit.generator.CraftChunkData;
+ import org.bukkit.craftbukkit.help.SimpleHelpMap;
+@@ -258,6 +207,7 @@ public final class CraftServer implements Server {
+     public int reloadCount;
+     public static Exception excessiveVelEx; // Paper - Velocity warnings
+     public final AttachmentFactory attachmentFactory = new AttachmentFactory(this);
++    public final NBTFactory nbtFactory;
+ 
+     static {
+         ConfigurationSerialization.registerClass(CraftOfflinePlayer.class);
+@@ -277,6 +227,8 @@ public final class CraftServer implements Server {
+ 
+         Bukkit.setServer(this);
+ 
++        nbtFactory = new NBTFactoryImpl();
++
+         // Register all the Enchantments and PotionTypes now so we can stop new registration immediately after
+         Enchantments.DAMAGE_ALL.getClass();
+         org.bukkit.enchantments.Enchantment.stopAcceptingRegistrations();
+@@ -2367,7 +2319,7 @@ public final class CraftServer implements Server {
+         return mobGoals;
+     }
+ 
+-    // Kenzie start - attachments
++    // Kenzie start
+     @Override
+     public void registerAttachment(Plugin plugin, java.util.function.Function<Entity, Attachment<?>> creatorFunction, EntityType... types) {
+         for (EntityType type : types) {
+@@ -2384,6 +2336,42 @@ public final class CraftServer implements Server {
+     public void unregisterAttachments(Plugin plugin) {
+         attachmentFactory.removeAll(plugin);
+     }
++
++    @Override
++    public NBTFactory getNBTFactory() {
++        return nbtFactory;
++    }
++
++    static class NBTFactoryImpl extends NBTFactory {
++
++        @Override
++        public NBTCompound newCompound() {
++            return new NBTTagCompound();
++        }
++
++        @Override
++        public NBTList newList() {
++            return new NBTTagList();
++        }
++
++        @Override
++        public NBTCompound getNBT(Entity entity) {
++            NBTTagCompound compound = new NBTTagCompound();
++            return ((CraftEntity) entity).getHandle().save(compound);
++        }
++
++        @Override
++        public NBTCompound getNBT(ItemStack itemStack) {
++            NBTTagCompound compound = new NBTTagCompound();
++            return CraftItemStack.asNMSCopy(itemStack).save(compound);
++        }
++
++        @Override
++        public NBTCompound getTagCompound(ItemStack itemStack) {
++            return CraftItemStack.asNMSCopy(itemStack).getOrCreateTag();
++        }
++    }
++
+     // Kenzie end
+ 
+     // Paper end
+diff --git a/src/main/java/org/bukkit/craftbukkit/attachment/AttachmentHolder.java b/src/main/java/org/bukkit/craftbukkit/attachment/AttachmentHolder.java
+index f153f890e2e1af8e6eb996534aadefa9c16c4a39..38739f855d72be6c5706abcd34d75220eb3582b4 100644
+--- a/src/main/java/org/bukkit/craftbukkit/attachment/AttachmentHolder.java
++++ b/src/main/java/org/bukkit/craftbukkit/attachment/AttachmentHolder.java
+@@ -1,5 +1,6 @@
+ package org.bukkit.craftbukkit.attachment;
+ 
++import mx.kenzie.wellspring.nbt.NBTCompound;
+ import org.bukkit.attachment.Attachable;
+ import org.bukkit.attachment.Attachment;
+ import org.bukkit.plugin.Plugin;
+@@ -50,10 +51,21 @@ public class AttachmentHolder extends ArrayList<Attachment<?>> {
+         });
+     }
+ 
+-    public void request() {
++    public void load(NBTCompound compound) {
+         for (Attachment<?> attachment : this) {
+             try {
+-                attachment.onDataRequest();
++                attachment.onDataLoad(compound);
++            } catch (Throwable throwable) {
++                throwable.printStackTrace();
++            }
++        }
++        this.clear();
++    }
++
++    public void request(NBTCompound compound) {
++        for (Attachment<?> attachment : this) {
++            try {
++                attachment.onDataRequest(compound);
+             } catch (Throwable throwable) {
+                 throwable.printStackTrace();
+             }
+diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
+index 273d822f3dc52e425ea6ebce7a487bf4745bb8bf..91fe98cb716abcaa0f90bf933cf2e8ac9b0c6bf3 100644
+--- a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
++++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
+@@ -6,6 +6,7 @@ import com.google.common.collect.Lists;
+ 
+ import java.util.*;
+ 
++import mx.kenzie.wellspring.nbt.NBTCompound;
+ import net.minecraft.server.AxisAlignedBB;
+ import net.minecraft.server.BlockPosition;
+ import net.minecraft.server.DamageSource;
+@@ -190,6 +191,36 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
+         this.attachments = server.attachmentFactory.createAttachments(this); // Kenzie
+     }
+ 
++    // Kenzie start - NBT holder
++    @Override
++    public NBTCompound getNBT() {
++        NBTTagCompound compound = new NBTTagCompound();
++        return getHandle().save(compound);
++    }
++
++    @Override
++    public void mergeNBT(NBTCompound compound) {
++        try {
++            NBTTagCompound nbt = (NBTTagCompound) compound;
++            NBTTagCompound original = new NBTTagCompound();
++            getHandle().save(original);
++            original.merge(nbt);
++            getHandle().load(original);
++        } catch (Throwable ex) {
++            throw new IllegalArgumentException("Illegal compound was merged!", ex);
++        }
++    }
++
++    @Override
++    public void loadNBT(NBTCompound compound) {
++        try {
++            getHandle().load((NBTTagCompound) compound);
++        } catch (Throwable ex) {
++            throw new IllegalArgumentException("Illegal compound was loaded!", ex);
++        }
++    }
++    // Kenzie end
++
+     // Kenzie start - attachment system
+ 
+     @Override
