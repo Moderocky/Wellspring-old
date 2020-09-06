@@ -1,0 +1,137 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Sun, 6 Sep 2020 13:53:00 +0100
+Subject: [PATCH] Retroactive application.
+
+
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+index 73eb5fda470dc3524727dfde080fe4b4e7893e00..4f6e98713398d7ab39cc205277a42479637eae05 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+@@ -2371,12 +2371,12 @@ public final class CraftServer implements Server {
+     @Override
+     public void registerAttachment(Plugin plugin, java.util.function.Function<Entity, Attachment<?>> creatorFunction, EntityType... types) {
+         for (EntityType type : types) {
+-            registerAttachment(plugin, creatorFunction, type.getEntityClass());
++            attachmentFactory.registerAttachment(plugin, type.getEntityClass(), (java.util.function.Function<Attachable, Attachment<?>>) (java.util.function.Function) creatorFunction);
+         }
+     }
+ 
+     @Override
+-    public void registerAttachment(Plugin plugin, java.util.function.Function<? extends Attachable, Attachment<?>> creatorFunction, Class<? extends Attachable> target) {
++    public <T extends Attachable> void registerAttachment(Plugin plugin, java.util.function.Function<? extends T, Attachment<?>> creatorFunction, Class<T> target) {
+         attachmentFactory.registerAttachment(plugin, target, (java.util.function.Function<Attachable, Attachment<?>>) creatorFunction);
+     }
+ 
+diff --git a/src/main/java/org/bukkit/craftbukkit/attachment/AttachmentFactory.java b/src/main/java/org/bukkit/craftbukkit/attachment/AttachmentFactory.java
+index 304e9a116b204c1c73c094e757094e55a1097767..8b00cd87c74b144220c1c96bd3fe571ede1ef211 100644
+--- a/src/main/java/org/bukkit/craftbukkit/attachment/AttachmentFactory.java
++++ b/src/main/java/org/bukkit/craftbukkit/attachment/AttachmentFactory.java
+@@ -1,12 +1,10 @@
+ package org.bukkit.craftbukkit.attachment;
+ 
+-import org.bukkit.Bukkit;
++import org.apache.commons.lang3.Validate;
+ import org.bukkit.attachment.Attachable;
+ import org.bukkit.attachment.Attachment;
+ import org.bukkit.craftbukkit.CraftServer;
+-import org.bukkit.entity.Entity;
+ import org.bukkit.plugin.Plugin;
+-import org.bukkit.plugin.java.JavaPlugin;
+ 
+ import java.lang.ref.WeakReference;
+ import java.util.*;
+@@ -15,13 +13,13 @@ import java.util.function.Function;
+ public class AttachmentFactory {
+ 
+     private final CraftServer server;
+-    private final Map<Plugin, Map<Class<? extends Attachable>, Set<Function<Attachable, Attachment<?>>>>> factoryMethods;
++    private final Map<Plugin, Map<Class<? extends Attachable>, Set<Function<Attachable, Attachment<?>>>>> pluginFactoryMethods;
+     private final Set<WeakReference<AttachmentHolder>> holders;
+ 
+     public AttachmentFactory(CraftServer server) {
+         this.server = server;
+         this.holders = new HashSet<>();
+-        this.factoryMethods = new HashMap<>();
++        this.pluginFactoryMethods = new HashMap<>();
+     }
+ 
+     protected void registerAttachmentHolder(AttachmentHolder holder) {
+@@ -29,31 +27,26 @@ public class AttachmentFactory {
+     }
+ 
+     public void registerAttachment(Plugin plugin, Class<? extends Attachable> target, Function<Attachable, Attachment<?>> provider) {
+-        if (target == null) return;
+-        if (provider == null) return;
++        Validate.notNull(plugin, "Plugin cannot be null!");
++        Validate.notNull(target, "Target type cannot be null!");
++        Validate.notNull(provider, "Provider function cannot be null!");
+         final Map<Class<? extends Attachable>, Set<Function<Attachable, Attachment<?>>>> factories;
+-        if (factoryMethods.containsKey(plugin)) {
+-            factories = factoryMethods.get(plugin);
+-            final Set<java.util.function.Function<Attachable, Attachment<?>>> set;
+-            if (factories.containsKey(target)) {
+-                set = factories.get(target);
+-                set.add(provider);
+-            } else {
+-                set = new HashSet<>();
+-                set.add(provider);
+-                factories.put(target, set);
++        pluginFactoryMethods.putIfAbsent(plugin, new HashMap<>());
++        factories = pluginFactoryMethods.get(plugin);
++        factories.putIfAbsent(target, new HashSet<>());
++        factories.get(target).add(provider);
++        for (WeakReference<AttachmentHolder> reference : holders) {
++            AttachmentHolder holder = reference.get();
++            if (holder == null) continue;
++            if (holder.target.getClass() == target || target.isAssignableFrom(holder.target.getClass())) {
++                Attachment<?> attachment = provider.apply(holder.target);
++                holder.add(attachment);
+             }
+-        } else {
+-            factories = new HashMap<>();
+-            final Set<java.util.function.Function<Attachable, Attachment<?>>> set = new HashSet<>();
+-            set.add(provider);
+-            factories.put(target, set);
+-            factoryMethods.put(plugin, factories);
+         }
+     }
+ 
+     public <T extends Attachable> AttachmentHolder createAttachments(T target) {
+-        AttachmentHolder holder = new AttachmentHolder();
++        AttachmentHolder holder = new AttachmentHolder(target);
+         addAttachments(target, holder);
+         return holder;
+     }
+@@ -73,7 +66,7 @@ public class AttachmentFactory {
+     public Set<Function<Attachable, Attachment<?>>> getAttachmentProviders(Class<? extends Attachable> target) {
+         if (target == null) return new HashSet<>();
+         Set<Function<Attachable, Attachment<?>>> providers = new HashSet<>();
+-        for (Map<Class<? extends Attachable>, Set<Function<Attachable, Attachment<?>>>> map : factoryMethods.values()) {
++        for (Map<Class<? extends Attachable>, Set<Function<Attachable, Attachment<?>>>> map : pluginFactoryMethods.values()) {
+             for (Class<? extends Attachable> cls : map.keySet()) {
+                 if (!cls.equals(target)) continue;
+                 if (!cls.isAssignableFrom(target)) continue;
+diff --git a/src/main/java/org/bukkit/craftbukkit/attachment/AttachmentHolder.java b/src/main/java/org/bukkit/craftbukkit/attachment/AttachmentHolder.java
+index 73fc378dedfa5f27f8f27d31d10f1275464a623e..6369d9b70a28a527281e9aaebeab2bf1e65927bf 100644
+--- a/src/main/java/org/bukkit/craftbukkit/attachment/AttachmentHolder.java
++++ b/src/main/java/org/bukkit/craftbukkit/attachment/AttachmentHolder.java
+@@ -1,5 +1,6 @@
+ package org.bukkit.craftbukkit.attachment;
+ 
++import org.bukkit.attachment.Attachable;
+ import org.bukkit.attachment.Attachment;
+ import org.bukkit.plugin.Plugin;
+ 
+@@ -7,7 +8,10 @@ import java.util.*;
+ 
+ public class AttachmentHolder extends ArrayList<Attachment<?>> {
+ 
+-    protected AttachmentHolder() {
++    public final Attachable target;
++
++    protected AttachmentHolder(Attachable target) {
++        this.target = target;
+     }
+ 
+     public Attachment<?> getByClass(Class<? extends Attachment<?>> cls) {
