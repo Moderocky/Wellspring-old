@@ -1,0 +1,39 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Sun, 6 Sep 2020 19:41:22 +0100
+Subject: [PATCH] List iterators.
+
+
+diff --git a/src/main/java/net/minecraft/server/NBTTagList.java b/src/main/java/net/minecraft/server/NBTTagList.java
+index 29ff18174b02d410a609ad2c88b35c6c67e69e2c..4e902a8c6340d51c015aa6f00f13997a0710210e 100644
+--- a/src/main/java/net/minecraft/server/NBTTagList.java
++++ b/src/main/java/net/minecraft/server/NBTTagList.java
+@@ -10,10 +10,7 @@ import mx.kenzie.wellspring.nbt.NBT;
+ import java.io.DataInput;
+ import java.io.DataOutput;
+ import java.io.IOException;
+-import java.util.Arrays;
+-import java.util.Iterator;
+-import java.util.List;
+-import java.util.Objects;
++import java.util.*;
+ 
+ public class NBTTagList extends NBTList<NBTBase> implements mx.kenzie.wellspring.nbt.NBTList {
+ 
+@@ -369,6 +366,16 @@ public class NBTTagList extends NBTList<NBTBase> implements mx.kenzie.wellspring
+         super.remove(entry);
+     }
+ 
++    @Override
++    public Collection<NBT> getAsList() {
++        return Arrays.asList(this.getAsArray());
++    }
++
++    @Override
++    public NBT[] getAsArray() {
++        return this.toArray(new NBT[0]);
++    }
++
+     @Override
+     @SuppressWarnings("unchecked")
+     public Iterator<NBT> getIterator() {

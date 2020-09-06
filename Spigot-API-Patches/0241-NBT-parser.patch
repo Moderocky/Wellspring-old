@@ -1,0 +1,19 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Sun, 6 Sep 2020 19:43:18 +0100
+Subject: [PATCH] NBT parser.
+
+
+diff --git a/src/main/java/mx/kenzie/wellspring/nbt/NBTFactory.java b/src/main/java/mx/kenzie/wellspring/nbt/NBTFactory.java
+index b1a8fd6ff92a6dea54253f5896a00a4cddcd7165..688a8b97a7943de19bced917668879ad1a8b34c3 100644
+--- a/src/main/java/mx/kenzie/wellspring/nbt/NBTFactory.java
++++ b/src/main/java/mx/kenzie/wellspring/nbt/NBTFactory.java
+@@ -9,6 +9,8 @@ public abstract class NBTFactory {
+     public NBTFactory() {
+     }
+ 
++    public abstract @NotNull NBTCompound parse(@NotNull String string) throws IllegalArgumentException;
++
+     public abstract @NotNull NBTCompound newCompound();
+ 
+     public abstract @NotNull NBTList newList();

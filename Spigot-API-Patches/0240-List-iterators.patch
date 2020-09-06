@@ -1,0 +1,39 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Sun, 6 Sep 2020 19:41:10 +0100
+Subject: [PATCH] List iterators.
+
+
+diff --git a/src/main/java/mx/kenzie/wellspring/nbt/NBTList.java b/src/main/java/mx/kenzie/wellspring/nbt/NBTList.java
+index 8a366f29cf413b906d80e9cf3405555fff57218f..cef00258e60d663aa6c5bd2139843f431e2beec8 100644
+--- a/src/main/java/mx/kenzie/wellspring/nbt/NBTList.java
++++ b/src/main/java/mx/kenzie/wellspring/nbt/NBTList.java
+@@ -3,7 +3,7 @@ package mx.kenzie.wellspring.nbt;
+ import org.bukkit.Bukkit;
+ import org.jetbrains.annotations.NotNull;
+ 
+-import java.util.Iterator;
++import java.util.*;
+ 
+ public interface NBTList extends NBT {
+ 
+@@ -27,6 +27,19 @@ public interface NBTList extends NBT {
+ 
+     void remove(@NotNull NBT entry);
+ 
++    /**
++     * Produces a collection of this list's entries.
++     * The collection is NOT backed by the original list, but the
++     * NBT bases in the list are the originals.
++     * @return A new fixed-length collection.
++     */
++    @NotNull Collection<NBT> getAsList();
++
++    /**
++     * @return An array of this list's entries.
++     */
++    @NotNull NBT[] getAsArray();
++
+     @NotNull Iterator<NBT> getIterator();
+ 
+     @NotNull NBT remove(int index) throws IndexOutOfBoundsException;

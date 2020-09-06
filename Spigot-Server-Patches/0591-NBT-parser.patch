@@ -1,0 +1,26 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Sun, 6 Sep 2020 19:43:27 +0100
+Subject: [PATCH] NBT parser.
+
+
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+index 1f6b5278b62496a2c722227b6a01a51d996ec3e6..a15404642d21c4d2964d42ec15fd795861ab95c7 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+@@ -2344,6 +2344,15 @@ public final class CraftServer implements Server {
+ 
+     static class NBTFactoryImpl extends NBTFactory {
+ 
++        @Override
++        public NBTCompound parse(String string) throws IllegalArgumentException {
++            try {
++                return MojangsonParser.parse(string);
++            } catch (Throwable ex) {
++                throw new IllegalArgumentException("NBT compound could not be parsed!", ex);
++            }
++        }
++
+         @Override
+         public NBTCompound newCompound() {
+             return new NBTTagCompound();
