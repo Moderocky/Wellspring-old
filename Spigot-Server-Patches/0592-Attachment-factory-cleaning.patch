@@ -1,0 +1,32 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Sun, 6 Sep 2020 21:44:10 +0100
+Subject: [PATCH] Attachment factory cleaning.
+
+
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+index a15404642d21c4d2964d42ec15fd795861ab95c7..1d0989c0e94af7ebbe8fdcc86177c22bc0238bae 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+@@ -833,6 +833,7 @@ public final class CraftServer implements Server {
+             world.paperConfig.init(); // Paper
+         }
+ 
++        attachmentFactory.disposeOfAll(); // Kenzie
+         Plugin[] pluginClone = pluginManager.getPlugins().clone(); // Paper
+         pluginManager.clearPlugins();
+         commandMap.clearCommands();
+diff --git a/src/main/java/org/bukkit/craftbukkit/attachment/AttachmentFactory.java b/src/main/java/org/bukkit/craftbukkit/attachment/AttachmentFactory.java
+index 6f7604fd4b6c98520171ce871ee950f5fc89b569..b74dc2327de9de4635b411813596810a19b8c689 100644
+--- a/src/main/java/org/bukkit/craftbukkit/attachment/AttachmentFactory.java
++++ b/src/main/java/org/bukkit/craftbukkit/attachment/AttachmentFactory.java
+@@ -46,7 +46,8 @@ public class AttachmentFactory {
+     }
+ 
+     public <T extends Attachable> AttachmentHolder createAttachments(T target) {
+-        AttachmentHolder holder = new AttachmentHolder(target);
++        final AttachmentHolder holder = new AttachmentHolder(target);
++        registerAttachmentHolder(holder);
+         addAttachments(target, holder);
+         return holder;
+     }
