@@ -1,0 +1,90 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Sun, 6 Sep 2020 16:06:33 +0100
+Subject: [PATCH] Improvements to attachment system.
+
+
+diff --git a/src/main/java/org/bukkit/attachment/Attachable.java b/src/main/java/org/bukkit/attachment/Attachable.java
+index ab3b85f72b42d2c71ea8d6dfa9a8668eac3aa4c8..7c43789552792db96fbaaea148e042ccf696cfaa 100644
+--- a/src/main/java/org/bukkit/attachment/Attachable.java
++++ b/src/main/java/org/bukkit/attachment/Attachable.java
+@@ -2,6 +2,8 @@ package org.bukkit.attachment;
+ 
+ import org.jetbrains.annotations.NotNull;
+ 
++import java.util.function.Consumer;
++
+ /**
+  * This allows objects to have unique attachments added to them.
+  */
+@@ -25,4 +27,18 @@ public interface Attachable {
+      */
+     <T extends Attachment<?>> boolean hasAttachment(@NotNull Class<T> attachmentClass);
+ 
++    /**
++     * Run a consumer on the attachment if and only if it is present.
++     * @param attachmentClass The class that the attachment belongs to.
++     * @param consumer The action to be run on the attachment.
++     * @param <T> The specific attachment type.
++     * @return True if the attachment was present, otherwise false.
++     */
++    default <T extends Attachment<?>> boolean ifAttachmentPresent(@NotNull Class<T> attachmentClass, @NotNull Consumer<T> consumer) {
++        boolean present;
++        if (present = hasAttachment(attachmentClass))
++            consumer.accept(getAttachment(attachmentClass));
++        return present;
++    }
++
+ }
+diff --git a/src/main/java/org/bukkit/attachment/Attachment.java b/src/main/java/org/bukkit/attachment/Attachment.java
+index 7005bf62c0f79b3a81abd90048b7bf263649bbaa..38772af5fda63a6f51229a7737eda8e13a2f35bd 100644
+--- a/src/main/java/org/bukkit/attachment/Attachment.java
++++ b/src/main/java/org/bukkit/attachment/Attachment.java
+@@ -1,6 +1,7 @@
+ package org.bukkit.attachment;
+ 
+ import org.bukkit.plugin.Plugin;
++import org.bukkit.plugin.java.JavaPlugin;
+ import org.jetbrains.annotations.NotNull;
+ 
+ public abstract class Attachment<T extends Attachable> {
+@@ -12,9 +13,17 @@ public abstract class Attachment<T extends Attachable> {
+     }
+ 
+     /**
++     * This can be overridden if a particular implementation
++     * requires that the attachment belong to a different plugin
++     * from the one that provided the class.
++     * For example, if a plugin happened to use an attachment from
++     * an external library, but the attachment referenced data from
++     * the plugin instance, then this should return the provider.
+      * @return The providing plugin.
+      */
+-    public abstract @NotNull Plugin getOwningPlugin();
++    public @NotNull Plugin getOwningPlugin() {
++        return JavaPlugin.getProvidingPlugin(getClass());
++    }
+ 
+     /**
+      * @return The subject of this attachment.
+@@ -28,9 +37,20 @@ public abstract class Attachment<T extends Attachable> {
+      * to potentially save or otherwise deal with the data.
+      * This will occur before the owning plugin is disabled, or
+      * pre-destruction of the attachment's subject.
++     * It may not be called in all cases (for example if the subject is
++     * removed from memory silently!)
+      */
+     public synchronized void onDisposal() {
+ 
+     }
+ 
++    /**
++     * This ought to be called when the holder's data is requested, for example
++     * during the saving process. It should not be thought of as a catch-all,
++     * but it might help to be notified of potential unloading.
++     */
++    public synchronized void onDataRequest() {
++
++    }
++
+ }

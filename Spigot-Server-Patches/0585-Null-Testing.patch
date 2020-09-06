@@ -1,0 +1,43 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Sun, 6 Sep 2020 13:23:22 +0100
+Subject: [PATCH] Null Testing
+
+
+diff --git a/src/main/java/org/bukkit/craftbukkit/attachment/AttachmentFactory.java b/src/main/java/org/bukkit/craftbukkit/attachment/AttachmentFactory.java
+index 7d88743ea0f9cc910231da4dae9d7d7fb4947de8..304e9a116b204c1c73c094e757094e55a1097767 100644
+--- a/src/main/java/org/bukkit/craftbukkit/attachment/AttachmentFactory.java
++++ b/src/main/java/org/bukkit/craftbukkit/attachment/AttachmentFactory.java
+@@ -29,6 +29,8 @@ public class AttachmentFactory {
+     }
+ 
+     public void registerAttachment(Plugin plugin, Class<? extends Attachable> target, Function<Attachable, Attachment<?>> provider) {
++        if (target == null) return;
++        if (provider == null) return;
+         final Map<Class<? extends Attachable>, Set<Function<Attachable, Attachment<?>>>> factories;
+         if (factoryMethods.containsKey(plugin)) {
+             factories = factoryMethods.get(plugin);
+@@ -43,8 +45,7 @@ public class AttachmentFactory {
+             }
+         } else {
+             factories = new HashMap<>();
+-            final Set<java.util.function.Function<Attachable, Attachment<?>>> set;
+-            set = new HashSet<>();
++            final Set<java.util.function.Function<Attachable, Attachment<?>>> set = new HashSet<>();
+             set.add(provider);
+             factories.put(target, set);
+             factoryMethods.put(plugin, factories);
+@@ -70,11 +71,13 @@ public class AttachmentFactory {
+     }
+ 
+     public Set<Function<Attachable, Attachment<?>>> getAttachmentProviders(Class<? extends Attachable> target) {
++        if (target == null) return new HashSet<>();
+         Set<Function<Attachable, Attachment<?>>> providers = new HashSet<>();
+         for (Map<Class<? extends Attachable>, Set<Function<Attachable, Attachment<?>>>> map : factoryMethods.values()) {
+             for (Class<? extends Attachable> cls : map.keySet()) {
+                 if (!cls.equals(target)) continue;
+                 if (!cls.isAssignableFrom(target)) continue;
++                if (map.get(cls) == null) continue;
+                 providers.addAll(map.get(cls));
+             }
+         }

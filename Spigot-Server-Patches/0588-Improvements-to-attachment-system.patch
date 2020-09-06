@@ -1,0 +1,123 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Sun, 6 Sep 2020 16:06:43 +0100
+Subject: [PATCH] Improvements to attachment system.
+
+
+diff --git a/src/main/java/net/minecraft/server/Entity.java b/src/main/java/net/minecraft/server/Entity.java
+index 36ee3cd77611deac252863302d684478d66a04a8..3ab7fa2f8e4a0ff04f5d80c260a7a11cd32073ea 100644
+--- a/src/main/java/net/minecraft/server/Entity.java
++++ b/src/main/java/net/minecraft/server/Entity.java
+@@ -336,6 +336,8 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
+     }
+ 
+     public void die() {
++        if (!(this instanceof EntityPlayer))
++            getBukkitEntity().attachments.dispose(); // Kenzie - attachment disposal
+         this.dead = true;
+     }
+ 
+@@ -1617,6 +1619,7 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
+ 
+             // CraftBukkit start - stores eventually existing bukkit values
+             if (this.bukkitEntity != null) {
++                this.bukkitEntity.attachments.request(); // Kenzie - mark as data requested in case of changes
+                 this.bukkitEntity.storeBukkitValues(nbttagcompound);
+             }
+             // CraftBukkit end
+diff --git a/src/main/java/net/minecraft/server/EntityArmorStand.java b/src/main/java/net/minecraft/server/EntityArmorStand.java
+index 15e91aca1707d3c6398c4348d9f30d9486f826d0..81df71b7e165b8702575176550a587cdb8744beb 100644
+--- a/src/main/java/net/minecraft/server/EntityArmorStand.java
++++ b/src/main/java/net/minecraft/server/EntityArmorStand.java
+@@ -705,7 +705,6 @@ public class EntityArmorStand extends EntityLiving {
+     public void killEntity() {
+         org.bukkit.event.entity.EntityDeathEvent event = org.bukkit.craftbukkit.event.CraftEventFactory.callEntityDeathEvent(this, drops); // CraftBukkit - call event // Paper - make cancellable
+         if (event.isCancelled()) return; // Paper - make cancellable
+-        getBukkitEntity().attachments.dispose(); // Kenzie - dispose of attachments
+         this.die();
+     }
+ 
+diff --git a/src/main/java/net/minecraft/server/EntityLiving.java b/src/main/java/net/minecraft/server/EntityLiving.java
+index 5533564e45cbdc8fd3412d9e4555a753e8ffffc7..2ff835f12ad4dd5ed9ab15832056268a0361f8dd 100644
+--- a/src/main/java/net/minecraft/server/EntityLiving.java
++++ b/src/main/java/net/minecraft/server/EntityLiving.java
+@@ -1489,7 +1489,7 @@ public abstract class EntityLiving extends Entity {
+         }
+         // CraftBukkit start - Call death event
+         org.bukkit.event.entity.EntityDeathEvent deathEvent = CraftEventFactory.callEntityDeathEvent(this, this.drops); // Paper
+-        if (!deathEvent.isCancelled())
++        if (!deathEvent.isCancelled() && !(this instanceof EntityPlayer)) // Kenzie - players re-use the entity after death
+             this.getBukkitEntity().attachments.dispose(); // Kenzie - dispose of attachments
+         this.postDeathDropItems(deathEvent); // Paper
+         this.drops = new ArrayList<>();
+diff --git a/src/main/java/net/minecraft/server/EntityPlayer.java b/src/main/java/net/minecraft/server/EntityPlayer.java
+index 68cdadd50da2373680c8afa2c70d9544c3f22bb8..8b1e866b3e0362d3a391586bbf14702dc25b8c00 100644
+--- a/src/main/java/net/minecraft/server/EntityPlayer.java
++++ b/src/main/java/net/minecraft/server/EntityPlayer.java
+@@ -674,8 +674,6 @@ public class EntityPlayer extends EntityHuman implements ICrafting {
+                 this.setHealth((float) event.getReviveHealth());
+             }
+             return;
+-        } else {
+-            this.getBukkitEntity().attachments.dispose(); // Kenzie - dispose of attachments
+         }
+         // Paper end
+ 
+diff --git a/src/main/java/net/minecraft/server/PlayerConnection.java b/src/main/java/net/minecraft/server/PlayerConnection.java
+index e0c3eab9aef950d91920076990215d79d2b710c6..9a54f0aa40fc8bf14ca87563c1dab84a193882d0 100644
+--- a/src/main/java/net/minecraft/server/PlayerConnection.java
++++ b/src/main/java/net/minecraft/server/PlayerConnection.java
+@@ -284,6 +284,7 @@ public class PlayerConnection implements PacketListenerPlayIn {
+             // Do not kick the player
+             return;
+         }
++        player.getBukkitEntity().attachments.dispose(); // Kenzie - attachment disposal
+         // Send the possibly modified leave message
+         s = event.getReason();
+         final IChatBaseComponent ichatbasecomponent = CraftChatMessage.fromString(s, true)[0];
+diff --git a/src/main/java/net/minecraft/server/PlayerList.java b/src/main/java/net/minecraft/server/PlayerList.java
+index 787e80c50a61d6bd80efd8bd0d4b5140908aaeed..308664c63ec4f640015c129a0721be416d81a797 100644
+--- a/src/main/java/net/minecraft/server/PlayerList.java
++++ b/src/main/java/net/minecraft/server/PlayerList.java
+@@ -509,6 +509,7 @@ public abstract class PlayerList {
+         PlayerQuitEvent playerQuitEvent = new PlayerQuitEvent(cserver.getPlayer(entityplayer), "\u00A7e" + entityplayer.getName() + " left the game");
+         if (entityplayer.didPlayerJoinEvent) cserver.getPluginManager().callEvent(playerQuitEvent); // Paper - if we disconnected before join ever fired, don't fire quit
+         entityplayer.getBukkitEntity().disconnect(playerQuitEvent.getQuitMessage());
++        entityplayer.getBukkitEntity().attachments.dispose(); // Kenzie - attachment disposal
+ 
+         if (server.isMainThread()) entityplayer.playerTick(); // SPIGOT-924 // Paper - don't tick during emergency shutdowns (Watchdog)
+         // CraftBukkit end
+diff --git a/src/main/java/org/bukkit/craftbukkit/attachment/AttachmentHolder.java b/src/main/java/org/bukkit/craftbukkit/attachment/AttachmentHolder.java
+index 6369d9b70a28a527281e9aaebeab2bf1e65927bf..f153f890e2e1af8e6eb996534aadefa9c16c4a39 100644
+--- a/src/main/java/org/bukkit/craftbukkit/attachment/AttachmentHolder.java
++++ b/src/main/java/org/bukkit/craftbukkit/attachment/AttachmentHolder.java
+@@ -50,6 +50,17 @@ public class AttachmentHolder extends ArrayList<Attachment<?>> {
+         });
+     }
+ 
++    public void request() {
++        for (Attachment<?> attachment : this) {
++            try {
++                attachment.onDataRequest();
++            } catch (Throwable throwable) {
++                throwable.printStackTrace();
++            }
++        }
++        this.clear();
++    }
++
+     public void dispose() {
+         for (Attachment<?> attachment : this) {
+             try {
+diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
+index 2ffd4345fd4986a0c42d503b8698ac286e1fe4e6..273d822f3dc52e425ea6ebce7a487bf4745bb8bf 100644
+--- a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
++++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
+@@ -622,7 +622,6 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
+ 
+     @Override
+     public void remove() {
+-        attachments.dispose(); // Kenzie - attachment disposal
+         entity.die();
+     }
+ 

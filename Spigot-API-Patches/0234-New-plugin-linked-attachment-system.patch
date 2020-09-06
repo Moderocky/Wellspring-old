@@ -1,0 +1,157 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Sun, 6 Sep 2020 12:47:17 +0100
+Subject: [PATCH] New plugin-linked attachment system.
+
+
+diff --git a/src/main/java/org/bukkit/Bukkit.java b/src/main/java/org/bukkit/Bukkit.java
+index d7d8911a2e322737e7000e78d7e0f6b6d51c99be..cf89cebd4c24f6d8829e409ea975031a4e17166f 100644
+--- a/src/main/java/org/bukkit/Bukkit.java
++++ b/src/main/java/org/bukkit/Bukkit.java
+@@ -16,6 +16,7 @@ import java.util.function.Function;
+ import java.util.logging.Logger;
+ import org.bukkit.Warning.WarningState;
+ import org.bukkit.advancement.Advancement;
++import org.bukkit.attachment.Attachable;
+ import org.bukkit.attachment.Attachment;
+ import org.bukkit.block.data.BlockData;
+ import org.bukkit.boss.BarColor;
+@@ -44,6 +45,7 @@ import org.bukkit.inventory.meta.ItemMeta;
+ import org.bukkit.loot.LootTable;
+ import org.bukkit.map.MapView;
+ import org.bukkit.permissions.Permissible;
++import org.bukkit.plugin.Plugin;
+ import org.bukkit.plugin.PluginManager;
+ import org.bukkit.plugin.ServicesManager;
+ import org.bukkit.plugin.messaging.Messenger;
+@@ -1735,11 +1737,27 @@ public final class Bukkit {
+      *
+      * Attachments ought to be final, due to the need to match their class when
+      * retrieving the attachment instance from the object.
++     * @param plugin The providing plugin.
+      * @param creatorFunction A function to create a new attachment instance.
+      * @param types The entity types this attachment should be registered for.
+      */
+-    public static void registerAttachment(@NotNull Function<Entity, Attachment<?>> creatorFunction, @NotNull EntityType... types) {
+-        server.registerAttachment(creatorFunction, types);
++    public static void registerAttachment(@NotNull Plugin plugin, @NotNull Function<Entity, Attachment<?>> creatorFunction, @NotNull EntityType... types) {
++        server.registerAttachment(plugin, creatorFunction, types);
++    }
++
++    /**
++     * Allows the registration of an attachment for specific entity types.
++     * The corresponding entity types will receive a new instance of the attachment
++     * (as per the creator function) upon their creation.
++     *
++     * Attachments ought to be final, due to the need to match their class when
++     * retrieving the attachment instance from the object.
++     * @param plugin The providing plugin.
++     * @param creatorFunction A function to create a new attachment instance.
++     * @param target The target class.
++     */
++    public static void registerAttachment(@NotNull Plugin plugin, @NotNull Function<? extends Attachable, Attachment<?>> creatorFunction, @NotNull Class<? extends Attachable> target) {
++        server.registerAttachment(plugin, creatorFunction, target);
+     }
+ 
+     /**
+diff --git a/src/main/java/org/bukkit/Server.java b/src/main/java/org/bukkit/Server.java
+index 4d7bb902fede4fef56ff53c68bd802d96066ad2b..cbd3e2924aeb5789c88f68f91cffd839c4c3bb4e 100644
+--- a/src/main/java/org/bukkit/Server.java
++++ b/src/main/java/org/bukkit/Server.java
+@@ -16,6 +16,7 @@ import java.util.function.Function;
+ import java.util.logging.Logger;
+ import org.bukkit.Warning.WarningState;
+ import org.bukkit.advancement.Advancement;
++import org.bukkit.attachment.Attachable;
+ import org.bukkit.attachment.Attachment;
+ import org.bukkit.block.data.BlockData;
+ import org.bukkit.boss.BarColor;
+@@ -44,6 +45,7 @@ import org.bukkit.inventory.meta.ItemMeta;
+ import org.bukkit.loot.LootTable;
+ import org.bukkit.map.MapView;
+ import org.bukkit.permissions.Permissible;
++import org.bukkit.plugin.Plugin;
+ import org.bukkit.plugin.PluginManager;
+ import org.bukkit.plugin.ServicesManager;
+ import org.bukkit.plugin.messaging.Messenger;
+@@ -1431,10 +1433,30 @@ public interface Server extends PluginMessageRecipient {
+      *
+      * Attachments ought to be final, due to the need to match their class when
+      * retrieving the attachment instance from the object.
++     * @param plugin The providing plugin.
+      * @param creatorFunction A function to create a new attachment instance.
+      * @param types The entity types this attachment should be registered for.
+      */
+-    void registerAttachment(@NotNull Function<Entity, Attachment<?>> creatorFunction, @NotNull EntityType... types);
++    void registerAttachment(@NotNull Plugin plugin, @NotNull Function<Entity, Attachment<?>> creatorFunction, @NotNull EntityType... types);
++
++    /**
++     * Allows the registration of an attachment for specific entity types.
++     * The corresponding entity types will receive a new instance of the attachment
++     * (as per the creator function) upon their creation.
++     *
++     * Attachments ought to be final, due to the need to match their class when
++     * retrieving the attachment instance from the object.
++     * @param plugin The providing plugin.
++     * @param creatorFunction A function to create a new attachment instance.
++     * @param target The target class.
++     */
++    void registerAttachment(@NotNull Plugin plugin, @NotNull Function<? extends Attachable, Attachment<?>> creatorFunction, @NotNull Class<? extends Attachable> target);
++
++    /**
++     * Unregisters the attachments provided by a plugin.
++     * @param plugin The providing plugin.
++     */
++    void unregisterAttachments(@NotNull Plugin plugin);
+     // Kenzie end
+ 
+     /**
+diff --git a/src/main/java/org/bukkit/attachment/Attachment.java b/src/main/java/org/bukkit/attachment/Attachment.java
+index 99834bb7b00515e644b1d2cdf71e4b7d44191969..7005bf62c0f79b3a81abd90048b7bf263649bbaa 100644
+--- a/src/main/java/org/bukkit/attachment/Attachment.java
++++ b/src/main/java/org/bukkit/attachment/Attachment.java
+@@ -11,9 +11,26 @@ public abstract class Attachment<T extends Attachable> {
+         this.subject = subject;
+     }
+ 
++    /**
++     * @return The providing plugin.
++     */
+     public abstract @NotNull Plugin getOwningPlugin();
+ 
++    /**
++     * @return The subject of this attachment.
++     */
+     public @NotNull T getSubject() {
+         return subject;
+     }
++
++    /**
++     * Called before the attachment is disposed of, allowing the provider
++     * to potentially save or otherwise deal with the data.
++     * This will occur before the owning plugin is disabled, or
++     * pre-destruction of the attachment's subject.
++     */
++    public synchronized void onDisposal() {
++
++    }
++
+ }
+diff --git a/src/main/java/org/bukkit/plugin/SimplePluginManager.java b/src/main/java/org/bukkit/plugin/SimplePluginManager.java
+index 26685f59b235ea5b4c4fb7ae21acb5149edaa2b3..a8f762034dfaa2472e30a60caeafc25e31f6117d 100644
+--- a/src/main/java/org/bukkit/plugin/SimplePluginManager.java
++++ b/src/main/java/org/bukkit/plugin/SimplePluginManager.java
+@@ -512,6 +512,13 @@ public final class SimplePluginManager implements PluginManager {
+     public synchronized void disablePlugin(@NotNull final Plugin plugin, boolean closeClassloader) { // Paper - synchronize
+         // Paper end - close Classloader on disable
+         if (plugin.isEnabled()) {
++            try { // Kenzie - destroy attachments
++                server.unregisterAttachments(plugin);
++            } catch (Throwable ex) {
++                handlePluginException("Error occurred (in the plugin loader) while disabling attachments "
++                    + plugin.getDescription().getFullName() + " (Is it up to date?)", ex, plugin); // Kenzie
++            }
++
+             try {
+                 plugin.getPluginLoader().disablePlugin(plugin, closeClassloader); // Paper - close Classloader on disable
+             } catch (Throwable ex) {

@@ -1,0 +1,37 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Sun, 6 Sep 2020 13:52:47 +0100
+Subject: [PATCH] Better use of generics.
+
+
+diff --git a/src/main/java/org/bukkit/Bukkit.java b/src/main/java/org/bukkit/Bukkit.java
+index 03879e63800a30cdf8271197a0a5d2341ad8a33a..9f6d506de244e5c26a9ffc52ac7c205212fed55f 100644
+--- a/src/main/java/org/bukkit/Bukkit.java
++++ b/src/main/java/org/bukkit/Bukkit.java
+@@ -1758,7 +1758,7 @@ public final class Bukkit {
+      * @param creatorFunction A function to create a new attachment instance.
+      * @param target The target class.
+      */
+-    public static void registerAttachment(@NotNull Plugin plugin, @NotNull Function<? extends Attachable, Attachment<?>> creatorFunction, @NotNull Class<? extends Attachable> target) {
++    public static <T extends Attachable> void registerAttachment(@NotNull Plugin plugin, @NotNull Function<? extends T, Attachment<?>> creatorFunction, @NotNull Class<T> target) {
+         server.registerAttachment(plugin, creatorFunction, target);
+     }
+ 
+diff --git a/src/main/java/org/bukkit/Server.java b/src/main/java/org/bukkit/Server.java
+index cbd3e2924aeb5789c88f68f91cffd839c4c3bb4e..c65a865abc0713b2a91d6bb4316b4c46ef4f3783 100644
+--- a/src/main/java/org/bukkit/Server.java
++++ b/src/main/java/org/bukkit/Server.java
+@@ -1446,11 +1446,12 @@ public interface Server extends PluginMessageRecipient {
+      *
+      * Attachments ought to be final, due to the need to match their class when
+      * retrieving the attachment instance from the object.
++     * @param <T> The attachment target type.
+      * @param plugin The providing plugin.
+      * @param creatorFunction A function to create a new attachment instance.
+      * @param target The target class.
+      */
+-    void registerAttachment(@NotNull Plugin plugin, @NotNull Function<? extends Attachable, Attachment<?>> creatorFunction, @NotNull Class<? extends Attachable> target);
++    <T extends Attachable> void registerAttachment(@NotNull Plugin plugin, @NotNull Function<? extends T, Attachment<?>> creatorFunction, @NotNull Class<T> target);
+ 
+     /**
+      * Unregisters the attachments provided by a plugin.
