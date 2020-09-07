@@ -1,0 +1,26 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Mon, 7 Sep 2020 09:31:58 +0100
+Subject: [PATCH] Removal warnings.
+
+
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+index 1d0989c0e94af7ebbe8fdcc86177c22bc0238bae..ad3310f18d69c397f1f2592d4f087ddf224c0184 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+@@ -833,6 +833,7 @@ public final class CraftServer implements Server {
+             world.paperConfig.init(); // Paper
+         }
+ 
++        logger.log(Level.WARNING, "Disposing of all attachments.");
+         attachmentFactory.disposeOfAll(); // Kenzie
+         Plugin[] pluginClone = pluginManager.getPlugins().clone(); // Paper
+         pluginManager.clearPlugins();
+@@ -2335,6 +2336,7 @@ public final class CraftServer implements Server {
+ 
+     @Override
+     public void unregisterAttachments(Plugin plugin) {
++        logger.log(Level.WARNING, "Disposing of attachments from: " + plugin.getName());
+         attachmentFactory.removeAll(plugin);
+     }
+ 
