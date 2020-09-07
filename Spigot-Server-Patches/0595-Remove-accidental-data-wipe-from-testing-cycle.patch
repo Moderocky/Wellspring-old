@@ -1,0 +1,26 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Mon, 7 Sep 2020 10:17:40 +0100
+Subject: [PATCH] Remove accidental data wipe from testing cycle.
+
+
+diff --git a/src/main/java/org/bukkit/craftbukkit/attachment/AttachmentHolder.java b/src/main/java/org/bukkit/craftbukkit/attachment/AttachmentHolder.java
+index 838e2bc8eea60b5f4f3ca3b6f98704c506655ca4..09b8c03a9e8f658bf08e7ded10c291e70b85bd02 100644
+--- a/src/main/java/org/bukkit/craftbukkit/attachment/AttachmentHolder.java
++++ b/src/main/java/org/bukkit/craftbukkit/attachment/AttachmentHolder.java
+@@ -59,7 +59,6 @@ public class AttachmentHolder extends ArrayList<Attachment<?>> {
+                 throwable.printStackTrace();
+             }
+         }
+-        this.clear();
+     }
+ 
+     public void request(NBTCompound compound) {
+@@ -70,7 +69,6 @@ public class AttachmentHolder extends ArrayList<Attachment<?>> {
+                 throwable.printStackTrace();
+             }
+         }
+-        this.clear();
+     }
+ 
+     public void dispose() {
