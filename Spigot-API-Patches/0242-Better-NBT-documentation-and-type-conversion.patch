@@ -1,0 +1,269 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Mon, 7 Sep 2020 11:10:38 +0100
+Subject: [PATCH] Better NBT documentation and type conversion.
+
+
+diff --git a/src/main/java/mx/kenzie/wellspring/nbt/NBT.java b/src/main/java/mx/kenzie/wellspring/nbt/NBT.java
+index ca884b390840c35689365131536e6375a4732d83..cc82ff5d56b5674578eba24e63378f623994d9cb 100644
+--- a/src/main/java/mx/kenzie/wellspring/nbt/NBT.java
++++ b/src/main/java/mx/kenzie/wellspring/nbt/NBT.java
+@@ -1,11 +1,61 @@
+ package mx.kenzie.wellspring.nbt;
+ 
+ import net.md_5.bungee.api.chat.BaseComponent;
++import org.bukkit.Bukkit;
+ import org.jetbrains.annotations.NotNull;
+ import org.jetbrains.annotations.Nullable;
+ 
++import java.util.List;
++
++/**
++ * This represents an NBT 'base' object, which could be either a map-compound,
++ * a list of bases, or a simple wrapped value.
++ *
++ * In order to determine which, {@link NBT#getType()} can be used.
++ */
+ public interface NBT {
+ 
++    /**
++     * Convert an object to an NBT base.
++     * This works with primitives, strings, some numerical arrays and objects that
++     * are already NBT types.
++     *
++     * @param object An object of a valid type.
++     * @param type The type of the object, for conversion.
++     * @return The converted NBT base.
++     * @throws IllegalArgumentException If the type was invalid or the object could not be converted.
++     */
++    @SuppressWarnings("deprecation")
++    static @NotNull NBT convert(@NotNull Object object, @NotNull Type type) throws IllegalArgumentException {
++        return Bukkit.getNBTFactory().newBase(object, type);
++    }
++
++    /**
++     * This is a utility for converting objects without knowing their type.
++     * This works with primitives, strings, some numerical arrays and objects that
++     * are already NBT types.
++     *
++     * It will not convert objects of invalid types!
++     * @param object An object of a valid type.
++     * @return The converted NBT base.
++     * @throws IllegalArgumentException If the type was invalid or the object could not be converted.
++     */
++    static @NotNull NBT convert(@NotNull Object object) throws IllegalArgumentException {
++        if (object instanceof NBT) return (NBT) object;
++        if (object instanceof Boolean) return convert(object, Type.BOOLEAN);
++        if (object instanceof Byte) return convert(object, Type.BYTE);
++        if (object instanceof Short) return convert(object, Type.SHORT);
++        if (object instanceof Integer) return convert(object, Type.INT);
++        if (object instanceof Long) return convert(object, Type.LONG);
++        if (object instanceof Float) return convert(object, Type.FLOAT);
++        if (object instanceof Double) return convert(object, Type.DOUBLE);
++        if (object instanceof byte[]) return convert(object, Type.BYTE_ARRAY);
++        if (object instanceof int[]) return convert(object, Type.INT_ARRAY);
++        if (object instanceof long[]) return convert(object, Type.LONG_ARRAY);
++        if (object instanceof String) return convert(object, Type.STRING);
++        throw new IllegalArgumentException("Unsupported type for conversion: " + object.getClass());
++    }
++
+     /**
+      * Magic value.
+      * @return The raw numerical type.
+diff --git a/src/main/java/mx/kenzie/wellspring/nbt/NBTCompound.java b/src/main/java/mx/kenzie/wellspring/nbt/NBTCompound.java
+index 8a4c6e831dff18ae348396fc62e28e77952f1363..4c127e2332afdd01d6b56113246e0ad04227cb30 100644
+--- a/src/main/java/mx/kenzie/wellspring/nbt/NBTCompound.java
++++ b/src/main/java/mx/kenzie/wellspring/nbt/NBTCompound.java
+@@ -7,6 +7,9 @@ import org.jetbrains.annotations.Nullable;
+ import java.util.Map;
+ import java.util.UUID;
+ 
++/**
++ * This represents an NBT 'compound,' which is a (String) key -> (NBT base) value map.
++ */
+ public interface NBTCompound extends NBT {
+ 
+     static @NotNull NBTCompound create() {
+diff --git a/src/main/java/mx/kenzie/wellspring/nbt/NBTFactory.java b/src/main/java/mx/kenzie/wellspring/nbt/NBTFactory.java
+index 688a8b97a7943de19bced917668879ad1a8b34c3..d4b2ad5c5a98db95819b08e1d73b045d0e2566c1 100644
+--- a/src/main/java/mx/kenzie/wellspring/nbt/NBTFactory.java
++++ b/src/main/java/mx/kenzie/wellspring/nbt/NBTFactory.java
+@@ -4,17 +4,52 @@ import org.bukkit.entity.Entity;
+ import org.bukkit.inventory.ItemStack;
+ import org.jetbrains.annotations.NotNull;
+ 
++/**
++ * The NBT factory is provided by the server as a means of managing NBT implementations.
++ *
++ * Generally speaking, it should not be used as most of the functions can be
++ * employed via their respective classes.
++ */
+ public abstract class NBTFactory {
+ 
+     public NBTFactory() {
+     }
+ 
++    /**
++     * Allows for the conversion of a stringified NBT compound to an NBT compound.
++     * This should generally NOT be used, except for the purposes of NBT storage.
++     *
++     * This is NOT an excuse to write out NBT manually! Please use the map system instead.
++     *
++     * @param string The stringified NBT.
++     * @return The compound.
++     * @throws IllegalArgumentException If the string is invalid, malformed or otherwise
++     * un-parsable.
++     */
+     public abstract @NotNull NBTCompound parse(@NotNull String string) throws IllegalArgumentException;
+ 
++    /**
++     * Produces a new NBT compound.
++     * @return A new empty compound.
++     */
+     public abstract @NotNull NBTCompound newCompound();
+ 
++    /**
++     * Produces a new NBT list.
++     * @return A new empty list.
++     */
+     public abstract @NotNull NBTList newList();
+ 
++    /**
++     * For internal use only - potentially unsafe!
++     * @param object The object to convert. MUST be a valid {@link NBT.Type}!
++     * @param type The base type.
++     * @return The converted base.
++     * @throws IllegalArgumentException If the type cannot be wrapped as an NBT base.
++     */
++    @Deprecated
++    public abstract @NotNull NBT newBase(@NotNull Object object, @NotNull NBT.Type type) throws IllegalArgumentException;
++
+     public @NotNull NBTCompound getNBT(@NotNull NBTHolder holder) {
+         return holder.getNBT();
+     }
+diff --git a/src/main/java/mx/kenzie/wellspring/nbt/NBTHolder.java b/src/main/java/mx/kenzie/wellspring/nbt/NBTHolder.java
+index bc473f435deb68527296c9d51aec051e3591f241..6879c4edf4547a2bce61eaf7d228fe717b7b427c 100644
+--- a/src/main/java/mx/kenzie/wellspring/nbt/NBTHolder.java
++++ b/src/main/java/mx/kenzie/wellspring/nbt/NBTHolder.java
+@@ -2,16 +2,65 @@ package mx.kenzie.wellspring.nbt;
+ 
+ import org.jetbrains.annotations.NotNull;
+ 
++/**
++ * An object that holds (or is stored as) data in the NBT (Named Binary Tag) format.
++ * This includes entities, items, world events and potentially structures.
++ *
++ * Not all NBT-holders are currently implemented.
++ *
++ * This is generally an unsafe class to mess with! Please refrain especially from
++ * merging or loading new compounds unless you know what you are doing - it may
++ * lead to data corruption or unexpected consequences.
++ *
++ * NBT access is potentially SLOWER than using the direct methods! It should not be
++ * treated as an alternative to the existing entity/item API.
++ */
+ public interface NBTHolder {
+ 
++    /**
++     * Retrieves the current NBT tag compound of the object.
++     * Please note that this internally triggers the saving method, which serialises
++     * all of the holder's persistent data - not something that ought to be done
++     * frequently.
++     *
++     * It will also trigger any attachment accessors.
++     *
++     * @return A clone of the holder's stored data as an NBT compound.
++     */
+     @NotNull NBTCompound getNBT();
+ 
++    /**
++     * This will merge the provided compound with the holder's existing data.
++     * Values from the new compound will OVERWRITE existing values.
++     *
++     * This is preferable to {@link NBTHolder#loadNBT(NBTCompound)} as it has less chance
++     * of breaking anything important due to missing values.
++     *
++     * Note that this internally reloads the holder's data, as if from file.
++     * It will also trigger any attachment accessors. As such, it should not be
++     * done too frequently as it can cause unnecessary delays.
++     *
++     * @param compound The new NBT compound to merge.
++     */
+     default void mergeNBT(@NotNull NBTCompound compound) {
+         NBTCompound original = getNBT();
+-        original.merge(compound);
+         loadNBT(original.merge(compound));
+     }
+ 
++    /**
++     * This will replace the holder's existing data with the provided compound.
++     * This is potentially UNSAFE! Please refrain from using this unless you know
++     * what you are doing.
++     *
++     * {@link NBTHolder#mergeNBT(NBTCompound)} is preferable as it has less chance
++     * of breaking anything important.
++     *
++     * Note that this internally reloads the holder's data, as if from file.
++     * It will also trigger any attachment accessors. As such, it should not be
++     * done too frequently as it can cause unnecessary delays.
++     *
++     * @param compound The new NBT compound to replace the original with.
++     */
+     void loadNBT(@NotNull NBTCompound compound);
+ 
+ }
+diff --git a/src/main/java/mx/kenzie/wellspring/nbt/NBTList.java b/src/main/java/mx/kenzie/wellspring/nbt/NBTList.java
+index cef00258e60d663aa6c5bd2139843f431e2beec8..cf0ff09019c802a36b67fc83827d6f52a5ce2127 100644
+--- a/src/main/java/mx/kenzie/wellspring/nbt/NBTList.java
++++ b/src/main/java/mx/kenzie/wellspring/nbt/NBTList.java
+@@ -5,13 +5,22 @@ import org.jetbrains.annotations.NotNull;
+ 
+ import java.util.*;
+ 
++/**
++ * A list of NBT bases. This includes compounds or primitive types.
++ *
++ * This is (internally) a {@link Collection} but cannot be typed as such.
++ * You may safely use {@link NBTList#getAsArray()} or {@link NBTList#getAsList()} for iteration.
++ */
+ public interface NBTList extends NBT {
+ 
++    /**
++     * @return A new NBT list.
++     */
+     static @NotNull NBTList create() {
+         return Bukkit.getNBTFactory().newList();
+     }
+ 
+-    int size() throws IndexOutOfBoundsException;
++    int size();
+ 
+     boolean isEmpty();
+ 
+@@ -23,14 +32,26 @@ public interface NBTList extends NBT {
+         return Type.LIST;
+     }
+ 
++    /**
++     * Adds a new NBT entry.
++     * @param entry The entry to add.
++     */
+     void add(@NotNull NBT entry);
+ 
++    /**
++     * Removes the specified entry.
++     * @param entry The entry to remove.
++     */
+     void remove(@NotNull NBT entry);
+ 
+     /**
+      * Produces a collection of this list's entries.
+      * The collection is NOT backed by the original list, but the
+      * NBT bases in the list are the originals.
++     *
++     * It is safe to remove elements of this from the original list
++     * during iteration, as it is a copy.
++     *
+      * @return A new fixed-length collection.
+      */
+     @NotNull Collection<NBT> getAsList();
