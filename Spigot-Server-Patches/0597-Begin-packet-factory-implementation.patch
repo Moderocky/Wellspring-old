@@ -1,0 +1,391 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Thu, 10 Sep 2020 17:14:52 +0100
+Subject: [PATCH] Begin packet factory implementation.
+
+
+diff --git a/pom.xml b/pom.xml
+index d018f900db595ab1cbf1d6d68496235e5c146217..041ba61439271468eff46840917fed6ee8e6c51d 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -337,6 +337,10 @@
+                         <version>3.22.0</version>
+                     </dependency>
+                 </dependencies>
++                <configuration>
++                    <source>8</source>
++                    <target>8</target>
++                </configuration>
+             </plugin>
+             <plugin>
+                 <groupId>org.apache.maven.plugins</groupId>
+diff --git a/src/main/java/net/minecraft/server/Packet.java b/src/main/java/net/minecraft/server/Packet.java
+index 545dbe6ddcce1d172f465b4a7ab85654ee5fdbb4..2b66dea2c86ce29452e8544f3e1c45c14fb087c3 100644
+--- a/src/main/java/net/minecraft/server/Packet.java
++++ b/src/main/java/net/minecraft/server/Packet.java
+@@ -3,7 +3,7 @@ package net.minecraft.server;
+ import io.netty.channel.ChannelFuture; // Paper
+ import java.io.IOException;
+ 
+-public interface Packet<T extends PacketListener> {
++public interface Packet<T extends PacketListener> extends mx.kenzie.wellspring.packet.Packet {
+ 
+     void a(PacketDataSerializer packetdataserializer) throws IOException;
+ 
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutMapChunk.java b/src/main/java/net/minecraft/server/PacketPlayOutMapChunk.java
+index 5094a5d6fb3c1a84d6e8f6abe79e894c047d9cfa..77e6cbcb837873463a7cc03c117aea94aee10551 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutMapChunk.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutMapChunk.java
+@@ -4,6 +4,7 @@ import com.destroystokyo.paper.antixray.ChunkPacketInfo; // Paper - Anti-Xray -
+ import com.google.common.collect.Lists;
+ import io.netty.buffer.ByteBuf;
+ import io.netty.buffer.Unpooled;
++
+ import java.io.IOException;
+ import java.util.Iterator;
+ import java.util.List;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutMultiBlockChange.java b/src/main/java/net/minecraft/server/PacketPlayOutMultiBlockChange.java
+index f260459d70053ffd17952aebf3e0410666f9bcd0..6209fd9fed136c9a146287124633623ff51ac1eb 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutMultiBlockChange.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutMultiBlockChange.java
+@@ -2,6 +2,7 @@ package net.minecraft.server;
+ 
+ import it.unimi.dsi.fastutil.shorts.ShortIterator;
+ import it.unimi.dsi.fastutil.shorts.ShortSet;
++
+ import java.io.IOException;
+ import java.util.function.BiConsumer;
+ 
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutScoreboardTeam.java b/src/main/java/net/minecraft/server/PacketPlayOutScoreboardTeam.java
+index 99dc43159f240135957aee35f6129f19419c6c25..27cf029e0704d59481621543fb1283767f166e2d 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutScoreboardTeam.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutScoreboardTeam.java
+@@ -1,6 +1,7 @@
+ package net.minecraft.server;
+ 
+ import com.google.common.collect.Lists;
++
+ import java.io.IOException;
+ import java.util.Collection;
+ import java.util.Iterator;
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+index 3d0888173f43f6e9d9623ba5660e702391604de9..9d6ceb5ddd9bf5cac1c2326c2fd17657d9469f53 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+@@ -37,6 +37,7 @@ import mx.kenzie.wellspring.nbt.NBT;
+ import mx.kenzie.wellspring.nbt.NBTCompound;
+ import mx.kenzie.wellspring.nbt.NBTFactory;
+ import mx.kenzie.wellspring.nbt.NBTList;
++import mx.kenzie.wellspring.packet.PacketFactory;
+ import net.minecraft.server.*;
+ import org.apache.commons.lang.Validate;
+ import org.apache.commons.lang3.StringUtils;
+@@ -102,6 +103,7 @@ import org.bukkit.craftbukkit.map.CraftMapView;
+ import org.bukkit.craftbukkit.metadata.EntityMetadataStore;
+ import org.bukkit.craftbukkit.metadata.PlayerMetadataStore;
+ import org.bukkit.craftbukkit.metadata.WorldMetadataStore;
++import org.bukkit.craftbukkit.packet.PacketFactoryImpl;
+ import org.bukkit.craftbukkit.potion.CraftPotionBrewer;
+ import org.bukkit.craftbukkit.scheduler.CraftScheduler;
+ import org.bukkit.craftbukkit.scoreboard.CraftScoreboardManager;
+@@ -209,6 +211,7 @@ public final class CraftServer implements Server {
+     public static Exception excessiveVelEx; // Paper - Velocity warnings
+     public final AttachmentFactory attachmentFactory = new AttachmentFactory(this);
+     public final NBTFactory nbtFactory;
++    public final PacketFactoryImpl packetFactory = new PacketFactoryImpl();
+ 
+     static {
+         ConfigurationSerialization.registerClass(CraftOfflinePlayer.class);
+@@ -2346,6 +2349,11 @@ public final class CraftServer implements Server {
+         return nbtFactory;
+     }
+ 
++    @Override
++    public PacketFactory getPacketFactory() {
++        return packetFactory;
++    }
++
+     static class NBTFactoryImpl extends NBTFactory {
+ 
+         @Override
+diff --git a/src/main/java/org/bukkit/craftbukkit/advancement/CraftAdvancementProgress.java b/src/main/java/org/bukkit/craftbukkit/advancement/CraftAdvancementProgress.java
+index 60fc5aff80697cb4c85080350542c0f46056f74a..7c23add0fc7ba47ba7c2af1da5b5b3ae359ab5f7 100644
+--- a/src/main/java/org/bukkit/craftbukkit/advancement/CraftAdvancementProgress.java
++++ b/src/main/java/org/bukkit/craftbukkit/advancement/CraftAdvancementProgress.java
+@@ -56,4 +56,8 @@ public class CraftAdvancementProgress implements AdvancementProgress {
+     public Collection<String> getAwardedCriteria() {
+         return Collections.unmodifiableCollection(Lists.newArrayList(handle.getAwardedCriteria()));
+     }
++
++    public net.minecraft.server.AdvancementProgress getHandle() {
++        return handle;
++    }
+ }
+diff --git a/src/main/java/org/bukkit/craftbukkit/packet/PacketFactoryImpl.java b/src/main/java/org/bukkit/craftbukkit/packet/PacketFactoryImpl.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..ad4168bb15b514d4edad31e9b85153762864d34e
+--- /dev/null
++++ b/src/main/java/org/bukkit/craftbukkit/packet/PacketFactoryImpl.java
+@@ -0,0 +1,262 @@
++package org.bukkit.craftbukkit.packet;
++
++import mx.kenzie.wellspring.packet.Packet;
++import mx.kenzie.wellspring.packet.PacketFactory;
++import mx.kenzie.wellspring.packet.PacketType;
++import net.minecraft.server.*;
++import org.bukkit.Bukkit;
++import org.bukkit.Location;
++import org.bukkit.NamespacedKey;
++import org.bukkit.Server;
++import org.bukkit.advancement.Advancement;
++import org.bukkit.advancement.AdvancementProgress;
++import org.bukkit.block.Container;
++import org.bukkit.block.data.BlockData;
++import org.bukkit.craftbukkit.CraftServer;
++import org.bukkit.craftbukkit.CraftWorld;
++import org.bukkit.craftbukkit.advancement.CraftAdvancement;
++import org.bukkit.craftbukkit.advancement.CraftAdvancementProgress;
++import org.bukkit.craftbukkit.block.CraftBlock;
++import org.bukkit.craftbukkit.block.CraftContainer;
++import org.bukkit.craftbukkit.block.data.CraftBlockData;
++import org.bukkit.craftbukkit.entity.CraftEntity;
++import org.bukkit.craftbukkit.inventory.*;
++import org.bukkit.craftbukkit.util.CraftMagicNumbers;
++import org.bukkit.entity.Entity;
++import org.bukkit.inventory.*;
++import org.bukkit.inventory.FurnaceRecipe;
++
++import java.lang.reflect.Field;
++import java.lang.reflect.InvocationTargetException;
++import java.lang.reflect.Modifier;
++import java.util.*;
++
++import static mx.kenzie.wellspring.packet.PacketType.*;
++
++public class PacketFactoryImpl extends PacketFactory {
++
++    static {
++        incoming: {
++            Incoming.LOGIN_CUSTOM_PAYLOAD = new Incoming(PacketLoginInCustomPayload::new);
++            Incoming.ABILITIES = new Incoming(PacketPlayInAbilities::new);
++            Incoming.ADVANCEMENTS = new Incoming(PacketPlayInAdvancements::new);
++            Incoming.ARM_ANIMATION = new Incoming(PacketPlayInArmAnimation::new);
++            Incoming.AUTO_RECIPE = new Incoming(PacketPlayInAutoRecipe::new);
++            Incoming.BEACON = new Incoming(PacketPlayInBeacon::new);
++            Incoming.BOOK_EDIT = new Incoming(PacketPlayInBEdit::new);
++            Incoming.BLOCK_DIG = new Incoming(PacketPlayInBlockDig::new);
++            Incoming.BLOCK_PLACE = new Incoming(PacketPlayInBlockPlace::new);
++            Incoming.BOAT_MOVE = new Incoming(PacketPlayInBoatMove::new);
++            Incoming.CHAT = new Incoming(PacketPlayInChat::new);
++            Incoming.CLIENT_COMMAND = new Incoming(PacketPlayInClientCommand::new);
++            Incoming.CLOSE_WINDOW = new Incoming(PacketPlayInCloseWindow::new);
++            Incoming.CUSTOM_PAYLOAD = new Incoming(PacketPlayInCustomPayload::new);
++            Incoming.DIFFICULTY_CHANGE = new Incoming(PacketPlayInDifficultyChange::new);
++            Incoming.DIFFICULTY_LOCK = new Incoming(PacketPlayInDifficultyLock::new);
++            Incoming.ENCHANT_ITEM = new Incoming(PacketPlayInEnchantItem::new);
++            Incoming.ENTITY_ACTION = new Incoming(PacketPlayInEntityAction::new);
++            Incoming.ENTITY_NBT_QUERY = new Incoming(PacketPlayInEntityNBTQuery::new);
++            Incoming.FLYING = new Incoming(PacketPlayInFlying::new);
++            Incoming.HELD_ITEM_SLOT = new Incoming(PacketPlayInHeldItemSlot::new);
++            Incoming.ITEM_NAME = new Incoming(PacketPlayInItemName::new);
++            Incoming.JIGSAW_GENERATE = new Incoming(PacketPlayInJigsawGenerate::new);
++            Incoming.KEEP_ALIVE = new Incoming(PacketPlayInKeepAlive::new);
++            Incoming.PICK_ITEM = new Incoming(PacketPlayInPickItem::new);
++            Incoming.RECIPE_DISPLAYED = new Incoming(PacketPlayInRecipeDisplayed::new);
++            Incoming.RESOURCE_PACK_STATUS = new Incoming(PacketPlayInResourcePackStatus::new);
++            Incoming.SET_COMMAND_BLOCK = new Incoming(PacketPlayInSetCommandBlock::new);
++            Incoming.SET_COMMAND_MINECART = new Incoming(PacketPlayInSetCommandMinecart::new);
++            Incoming.SET_CREATIVE_SLOT = new Incoming(PacketPlayInSetCreativeSlot::new);
++            Incoming.SET_JIGSAW = new Incoming(PacketPlayInSetJigsaw::new);
++            Incoming.SETTINGS = new Incoming(PacketPlayInSettings::new);
++            Incoming.SPECTATE = new Incoming(PacketPlayInSpectate::new);
++            Incoming.STEER_VEHICLE = new Incoming(PacketPlayInSteerVehicle::new);
++            Incoming.STRUCTURE = new Incoming(PacketPlayInStruct::new);
++            Incoming.TAB_COMPLETE = new Incoming(PacketPlayInTabComplete::new);
++            Incoming.TELEPORT_ACCEPT = new Incoming(PacketPlayInTeleportAccept::new);
++            Incoming.TILE_NBT_QUERY = new Incoming(PacketPlayInTileNBTQuery::new);
++            Incoming.TRANSACTION = new Incoming(PacketPlayInTransaction::new);
++            Incoming.TRADE_SELECT = new Incoming(PacketPlayInTrSel::new);
++            Incoming.UPDATE_SIGN = new Incoming(PacketPlayInUpdateSign::new);
++            Incoming.USE_ENTITY = new Incoming(PacketPlayInUseEntity::new);
++            Incoming.USE_ITEM = new Incoming(PacketPlayInUseItem::new);
++            Incoming.VEHICLE_MOVE = new Incoming(PacketPlayInVehicleMove::new);
++            Incoming.WINDOW_CLICK = new Incoming(PacketPlayInWindowClick::new);
++        }
++        outgoing: {
++            Outgoing.LOGIN_CUSTOM_PAYLOAD = new PacketType.Outgoing(PacketLoginOutCustomPayload::new);
++            Outgoing.ABILITIES = new PacketType.Outgoing(PacketPlayOutAbilities::new);
++            Outgoing.ADVANCEMENTS = new PacketType.Outgoing(PacketPlayOutAdvancements::new);
++            Outgoing.ANIMATION = new PacketType.Outgoing(PacketPlayOutAnimation::new);
++            Outgoing.ATTACH_ENTITY = new PacketType.Outgoing(PacketPlayOutAttachEntity::new);
++            Outgoing.AUTO_RECIPE = new PacketType.Outgoing(PacketPlayOutAutoRecipe::new);
++            Outgoing.BLOCK_ACTION = new PacketType.Outgoing(PacketPlayOutBlockAction::new);
++            Outgoing.BLOCK_BREAK = new PacketType.Outgoing(PacketPlayOutBlockBreak::new);
++            Outgoing.BLOCK_BREAK_ANIMATION = new PacketType.Outgoing(PacketPlayOutBlockBreakAnimation::new);
++            Outgoing.BLOCK_CHANGE = new PacketType.Outgoing(PacketPlayOutBlockChange::new);
++            Outgoing.BOSS = new PacketType.Outgoing(PacketPlayOutBoss::new);
++            Outgoing.CAMERA = new PacketType.Outgoing(PacketPlayOutCamera::new);
++            Outgoing.CHAT = new PacketType.Outgoing(PacketPlayOutChat::new);
++            Outgoing.CLOSE_WINDOW = new PacketType.Outgoing(PacketPlayOutCloseWindow::new);
++            Outgoing.COLLECT = new PacketType.Outgoing(PacketPlayOutCollect::new);
++            Outgoing.COMBAT_EVENT = new PacketType.Outgoing(PacketPlayOutCombatEvent::new);
++            Outgoing.COMMANDS = new PacketType.Outgoing(PacketPlayOutCommands::new);
++            Outgoing.CUSTOM_PAYLOAD = new PacketType.Outgoing(PacketPlayOutCustomPayload::new);
++            Outgoing.CUSTOM_SOUND_EFFECT = new PacketType.Outgoing(PacketPlayOutCustomSoundEffect::new);
++            Outgoing.ENTITY = new PacketType.Outgoing(PacketPlayOutEntity::new);
++            Outgoing.ENTITY_DESTROY = new PacketType.Outgoing(PacketPlayOutEntityDestroy::new);
++            Outgoing.ENTITY_EFFECT = new PacketType.Outgoing(PacketPlayOutEntityEffect::new);
++            Outgoing.ENTITY_EQUIPMENT = new PacketType.Outgoing(PacketPlayOutEntityEquipment::new);
++            Outgoing.ENTITY_HEAD_ROTATION = new PacketType.Outgoing(PacketPlayOutEntityHeadRotation::new);
++            Outgoing.ENTITY_METADATA = new PacketType.Outgoing(PacketPlayOutEntityMetadata::new);
++            Outgoing.ENTITY_SOUND = new PacketType.Outgoing(PacketPlayOutEntitySound::new);
++            Outgoing.ENTITY_STATUS = new PacketType.Outgoing(PacketPlayOutEntityStatus::new);
++            Outgoing.ENTITY_TELEPORT = new PacketType.Outgoing(PacketPlayOutEntityTeleport::new);
++            Outgoing.ENTITY_VELOCITY = new PacketType.Outgoing(PacketPlayOutEntityVelocity::new);
++            Outgoing.ENTITY_LOOK = new PacketType.Outgoing(PacketPlayOutEntity.PacketPlayOutEntityLook::new);
++            Outgoing.EXPERIENCE = new PacketType.Outgoing(PacketPlayOutExperience::new);
++            Outgoing.EXPLOSION = new PacketType.Outgoing(PacketPlayOutExplosion::new);
++            Outgoing.GAME_STATE_CHANGE = new PacketType.Outgoing(PacketPlayOutGameStateChange::new);
++            Outgoing.HELD_ITEM_SLOT = new PacketType.Outgoing(PacketPlayOutHeldItemSlot::new);
++            Outgoing.KEEP_ALIVE = new PacketType.Outgoing(PacketPlayOutKeepAlive::new);
++            Outgoing.KICK_DISCONNECT = new PacketType.Outgoing(PacketPlayOutKickDisconnect::new);
++            Outgoing.LIGHT_UPDATE = new PacketType.Outgoing(PacketPlayOutLightUpdate::new);
++            Outgoing.LOGIN = new PacketType.Outgoing(PacketPlayOutLogin::new);
++            Outgoing.LOOK_AT = new PacketType.Outgoing(PacketPlayOutLookAt::new);
++            Outgoing.MAP = new PacketType.Outgoing(PacketPlayOutMap::new);
++            Outgoing.MAP_CHUNK = new PacketType.Outgoing(PacketPlayOutMapChunk::new);
++            Outgoing.MOUNT = new PacketType.Outgoing(PacketPlayOutMount::new);
++            Outgoing.MULTI_BLOCK_CHANGE = new PacketType.Outgoing(PacketPlayOutMultiBlockChange::new);
++            Outgoing.NAMED_ENTITY_SPAWN = new PacketType.Outgoing(PacketPlayOutNamedEntitySpawn::new);
++            Outgoing.NAMED_SOUND_EFFECT = new PacketType.Outgoing(PacketPlayOutNamedSoundEffect::new);
++            Outgoing.NBT_QUERY = new PacketType.Outgoing(PacketPlayOutNBTQuery::new);
++            Outgoing.OPEN_BOOK = new PacketType.Outgoing(PacketPlayOutOpenBook::new);
++            Outgoing.OPEN_SIGN_EDITOR = new PacketType.Outgoing(PacketPlayOutOpenSignEditor::new);
++            Outgoing.OPEN_WINDOW = new PacketType.Outgoing(PacketPlayOutOpenWindow::new);
++            Outgoing.OPEN_WINDOW_HORSE = new PacketType.Outgoing(PacketPlayOutOpenWindowHorse::new);
++            Outgoing.OPEN_WINDOW_MERCHANT = new PacketType.Outgoing(PacketPlayOutOpenWindowMerchant::new);
++            Outgoing.PLAYER_INFO = new PacketType.Outgoing(PacketPlayOutPlayerInfo::new);
++            Outgoing.PLAYER_LIST_HEADER_FOOTER = new PacketType.Outgoing(PacketPlayOutPlayerListHeaderFooter::new);
++            Outgoing.POSITION = new PacketType.Outgoing(PacketPlayOutPosition::new);
++            Outgoing.RECIPES = new PacketType.Outgoing(PacketPlayOutRecipes::new);
++            Outgoing.RECIPE_UPDATE = new PacketType.Outgoing(PacketPlayOutRecipeUpdate::new);
++            Outgoing.REMOVE_ENTITY_EFFECT = new PacketType.Outgoing(PacketPlayOutRemoveEntityEffect::new);
++            Outgoing.RESOURCE_PACK = new PacketType.Outgoing(PacketPlayOutResourcePackSend::new);
++            Outgoing.RESPAWN = new PacketType.Outgoing(PacketPlayOutRespawn::new);
++            Outgoing.SCOREBOARD_DISPLAY_OBJECTIVE = new PacketType.Outgoing(PacketPlayOutScoreboardDisplayObjective::new);
++            Outgoing.SCOREBOARD_OBJECTIVE = new PacketType.Outgoing(PacketPlayOutScoreboardObjective::new);
++            Outgoing.SCOREBOARD_SCORE = new PacketType.Outgoing(PacketPlayOutScoreboardScore::new);
++            Outgoing.SCOREBOARD_TEAM = new PacketType.Outgoing(PacketPlayOutScoreboardTeam::new);
++            Outgoing.SELECT_ADVANCEMENT_TAV = new PacketType.Outgoing(PacketPlayOutSelectAdvancementTab::new);
++            Outgoing.SERVER_DIFFICULTY = new PacketType.Outgoing(PacketPlayOutServerDifficulty::new);
++            Outgoing.SET_COOLDOWN = new PacketType.Outgoing(PacketPlayOutSetCooldown::new);
++            Outgoing.SET_SLOT = new PacketType.Outgoing(PacketPlayOutSetSlot::new);
++            Outgoing.SPAWN_ENTITY = new PacketType.Outgoing(PacketPlayOutSpawnEntity::new);
++            Outgoing.SPAWN_EXPERIENCE = new PacketType.Outgoing(PacketPlayOutSpawnEntityExperienceOrb::new);
++            Outgoing.SPAWN_LIVING_ENTITY = new PacketType.Outgoing(PacketPlayOutSpawnEntityLiving::new);
++            Outgoing.SPAWN_PAINTING = new PacketType.Outgoing(PacketPlayOutSpawnEntityPainting::new);
++            Outgoing.SPAWN_POSITION = new PacketType.Outgoing(PacketPlayOutSpawnPosition::new);
++            Outgoing.STATISTIC = new PacketType.Outgoing(PacketPlayOutStatistic::new);
++            Outgoing.STOP_SOUND = new PacketType.Outgoing(PacketPlayOutStopSound::new);
++            Outgoing.TAB_COMPLETE = new PacketType.Outgoing(PacketPlayOutTabComplete::new);
++            Outgoing.TAGS = new PacketType.Outgoing(PacketPlayOutTags::new);
++            Outgoing.TILE_ENTITY_DATA = new PacketType.Outgoing(PacketPlayOutTileEntityData::new);
++            Outgoing.TITLE = new PacketType.Outgoing(PacketPlayOutTitle::new);
++            Outgoing.TRANSACTION = new PacketType.Outgoing(PacketPlayOutTransaction::new);
++            Outgoing.UNLOAD_CHUNK = new PacketType.Outgoing(PacketPlayOutUnloadChunk::new);
++            Outgoing.UPDATE_ATTRIBUTES = new PacketType.Outgoing(PacketPlayOutUpdateAttributes::new);
++            Outgoing.UPDATE_HEALTH = new PacketType.Outgoing(PacketPlayOutUpdateHealth::new);
++            Outgoing.UPDATE_TIME = new PacketType.Outgoing(PacketPlayOutUpdateTime::new);
++            Outgoing.VEHICLE_MOVE = new PacketType.Outgoing(PacketPlayOutVehicleMove::new);
++            Outgoing.VIEW_CENTRE = new PacketType.Outgoing(PacketPlayOutViewCentre::new);
++            Outgoing.VIEW_DISTANCE = new PacketType.Outgoing(PacketPlayOutViewDistance::new);
++            Outgoing.WINDOW_DATA = new PacketType.Outgoing(PacketPlayOutWindowData::new);
++            Outgoing.WINDOW_ITEMS = new PacketType.Outgoing(PacketPlayOutWindowItems::new);
++            Outgoing.WORLD_BORDER = new PacketType.Outgoing(PacketPlayOutWorldBorder::new);
++            Outgoing.WORLD_EVENT = new PacketType.Outgoing(PacketPlayOutWorldEvent::new);
++            Outgoing.WORLD_PARTICLES = new PacketType.Outgoing(PacketPlayOutWorldParticles::new);
++        }
++    }
++
++    public Packet loginOutCustomPayload() {
++        return new PacketLoginInCustomPayload();
++    }
++
++    public Packet playOutAbilities(boolean invulnerable, boolean flying, boolean canFly, boolean canInstantlyBuild, float flySpeed, float walkSpeed) {
++        PlayerAbilities abilities = new PlayerAbilities();
++        abilities.isInvulnerable = invulnerable;
++        abilities.isFlying = flying;
++        abilities.canFly = canFly;
++        abilities.canInstantlyBuild = canInstantlyBuild;
++        abilities.flySpeed = flySpeed;
++        abilities.walkSpeed = walkSpeed;
++        return new PacketPlayOutAbilities(abilities);
++    }
++
++    public Packet playOutAdvancements(boolean reset, Collection<Advancement> toAdd, Set<NamespacedKey> toRemove, Map<NamespacedKey, AdvancementProgress> progress) {
++        List<net.minecraft.server.Advancement> adding = new ArrayList<>();
++        for (Advancement advancement : toAdd) {
++            adding.add(((CraftAdvancement) advancement).getHandle());
++        }
++        Set<MinecraftKey> removing = new HashSet<>();
++        for (NamespacedKey key : toRemove) {
++            removing.add(new MinecraftKey(key.toString()));
++        }
++        Map<MinecraftKey, net.minecraft.server.AdvancementProgress> progressing = new HashMap<>();
++        for (Map.Entry<NamespacedKey, AdvancementProgress> entry : progress.entrySet()) {
++            progressing.put(new MinecraftKey(entry.getKey().toString()), ((CraftAdvancementProgress) entry.getValue()).getHandle());
++        }
++        return new PacketPlayOutAdvancements(reset, adding, removing, progressing);
++    }
++
++    public Packet playOutAnimation(Entity entity, int animationId) {
++        return new PacketPlayOutAnimation(((CraftEntity) entity).getHandle(), animationId);
++    }
++
++    public Packet playOutAttachEntity(Entity target, Entity holder) {
++        return new PacketPlayOutAttachEntity(((CraftEntity) target).getHandle(), holder != null ? ((CraftEntity) holder).getHandle() : null);
++    }
++
++    public Packet playOutAutoRecipe(int container, NamespacedKey recipe) {
++        PacketPlayOutAutoRecipe packet = new PacketPlayOutAutoRecipe();
++        try {
++            Field id = PacketPlayOutAutoRecipe.class.getDeclaredField("a");
++            Field key = PacketPlayOutAutoRecipe.class.getDeclaredField("b");
++            id.setAccessible(true);
++            key.setAccessible(true);
++            id.set(packet, container);
++            key.set(packet, new MinecraftKey(recipe.toString()));
++        } catch (Throwable e) {
++            e.printStackTrace();
++        }
++        return packet;
++    }
++
++    public Packet playOutBlockAction(Location location, BlockData data, int action, int parameter) {
++        BlockPosition position = new BlockPosition(location.getX(), location.getY(), location.getZ());
++        Block block = CraftMagicNumbers.getBlock(data.getMaterial());
++        return new PacketPlayOutBlockAction(position, block, action, parameter);
++    }
++
++    @Override
++    public Packet createFrom(PacketType type, Object... fieldInputs) {
++        try {
++            Packet packet = (Packet) type.getConstructor().create();
++            List<Field> sample = Arrays.asList(packet.getClass().getDeclaredFields());
++            sample.removeIf(field -> (Modifier.isStatic(field.getModifiers())));
++            final Field[] fields = packet.getClass().getDeclaredFields();
++            for (int i = 0; i < fieldInputs.length; i++) {
++                if ((fields.length) <= i) break;
++                if (Modifier.isStatic(fields[i].getModifiers())) {
++                    i--;
++                    continue;
++                }
++                fields[i].setAccessible(true);
++                fields[i].set(packet, fieldInputs[i]);
++            }
++            return packet;
++        } catch (IllegalAccessException e) {
++            throw new IllegalArgumentException("Unable to create packet: ", e);
++        }
++    }
++}

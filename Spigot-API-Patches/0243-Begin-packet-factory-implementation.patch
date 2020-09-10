@@ -1,0 +1,409 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Thu, 10 Sep 2020 17:14:43 +0100
+Subject: [PATCH] Begin packet factory implementation.
+
+
+diff --git a/pom.xml b/pom.xml
+index 1a34f6880b45e3c46a8e29575b549f3a601721e7..91936a2d288aa767a2727b7584d8a2fed76cec80 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -181,6 +181,10 @@
+                         <version>3.22.0</version>
+                     </dependency>
+                 </dependencies>
++                <configuration>
++                    <source>8</source>
++                    <target>8</target>
++                </configuration>
+             </plugin>
+             <plugin>
+                 <groupId>org.apache.maven.plugins</groupId>
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/Packet.java b/src/main/java/mx/kenzie/wellspring/packet/Packet.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..9ca85a6e088e04c076be8b33170a6d740932524f
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/packet/Packet.java
+@@ -0,0 +1,19 @@
++package mx.kenzie.wellspring.packet;
++
++import org.jetbrains.annotations.NotNull;
++
++public interface Packet {
++
++    @NotNull
++    default Direction getDirection() {
++        if (this.getClass().getName().contains("PlayIn") || this.getClass().getName().contains("LoginIn"))
++            return Direction.INCOMING;
++        return Direction.OUTGOING;
++    }
++
++    enum Direction {
++        INCOMING,
++        OUTGOING;
++    }
++
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/PacketBuilder.java b/src/main/java/mx/kenzie/wellspring/packet/PacketBuilder.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..a02b4f3bbf2f20e12e168e279c93fe8235f37a68
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/packet/PacketBuilder.java
+@@ -0,0 +1,30 @@
++package mx.kenzie.wellspring.packet;
++
++import org.bukkit.Bukkit;
++import org.bukkit.Server;
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
++
++import java.util.ArrayList;
++import java.util.List;
++
++public class PacketBuilder {
++
++    private final @NotNull PacketType type;
++    private final @NotNull List<Object> list;
++
++    public PacketBuilder(@NotNull PacketType type) {
++        this.type = type;
++        this.list = new ArrayList<>();
++    }
++
++    public @NotNull PacketBuilder with(@Nullable Object object) {
++        list.add(object);
++        return this;
++    }
++
++    public @NotNull Packet create() {
++        return Bukkit.getPacketFactory().createFrom(type, list.toArray(new Object[0]));
++    }
++
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/PacketConstructor.java b/src/main/java/mx/kenzie/wellspring/packet/PacketConstructor.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..4288f24793983426fb098d4cd49aa7bcd949af1e
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/packet/PacketConstructor.java
+@@ -0,0 +1,10 @@
++package mx.kenzie.wellspring.packet;
++
++import org.jetbrains.annotations.NotNull;
++
++@FunctionalInterface
++public interface PacketConstructor<T> {
++
++    @NotNull T create();
++
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java b/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..b560116a01c906207ab6721fa29519cfcbe4a07b
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java
+@@ -0,0 +1,9 @@
++package mx.kenzie.wellspring.packet;
++
++import org.jetbrains.annotations.NotNull;
++
++public abstract class PacketFactory {
++
++    public abstract @NotNull Packet createFrom(@NotNull PacketType type, @NotNull Object... fieldInputs);
++
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/PacketListener.java b/src/main/java/mx/kenzie/wellspring/packet/PacketListener.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..cd00523be6423fc67225a2ca031e9c6c843ec576
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/packet/PacketListener.java
+@@ -0,0 +1,4 @@
++package mx.kenzie.wellspring.packet;
++
++public interface PacketListener {
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/PacketType.java b/src/main/java/mx/kenzie/wellspring/packet/PacketType.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..177e8f84f6174ea386b8367faba6bedbfa519a5a
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/packet/PacketType.java
+@@ -0,0 +1,219 @@
++package mx.kenzie.wellspring.packet;
++
++import org.jetbrains.annotations.NotNull;
++
++import javax.annotation.Nonnull;
++import java.util.Arrays;
++import java.util.function.Function;
++
++public class PacketType {
++
++    public static class Incoming extends PacketType {
++        public static PacketType LOGIN_CUSTOM_PAYLOAD;
++        public static PacketType ABILITIES;
++        public static PacketType ADVANCEMENTS;
++        public static PacketType ARM_ANIMATION;
++        public static PacketType AUTO_RECIPE;
++        public static PacketType BEACON;
++        public static PacketType BOOK_EDIT;
++        public static PacketType BLOCK_DIG;
++        public static PacketType BLOCK_PLACE;
++        public static PacketType BOAT_MOVE;
++        public static PacketType CHAT;
++        public static PacketType CLIENT_COMMAND;
++        public static PacketType CLOSE_WINDOW;
++        public static PacketType CUSTOM_PAYLOAD;
++        public static PacketType DIFFICULTY_CHANGE;
++        public static PacketType DIFFICULTY_LOCK;
++        public static PacketType ENCHANT_ITEM;
++        public static PacketType ENTITY_ACTION;
++        public static PacketType ENTITY_NBT_QUERY;
++        public static PacketType FLYING;
++        public static PacketType HELD_ITEM_SLOT;
++        public static PacketType ITEM_NAME;
++        public static PacketType JIGSAW_GENERATE;
++        public static PacketType KEEP_ALIVE;
++        public static PacketType PICK_ITEM;
++        public static PacketType RECIPE_DISPLAYED;
++        public static PacketType RESOURCE_PACK_STATUS;
++        public static PacketType SET_COMMAND_BLOCK;
++        public static PacketType SET_COMMAND_MINECART;
++        public static PacketType SET_CREATIVE_SLOT;
++        public static PacketType SET_JIGSAW;
++        public static PacketType SETTINGS;
++        public static PacketType SPECTATE;
++        public static PacketType STEER_VEHICLE;
++        public static PacketType STRUCTURE;
++        public static PacketType TAB_COMPLETE;
++        public static PacketType TELEPORT_ACCEPT;
++        public static PacketType TILE_NBT_QUERY;
++        public static PacketType TRANSACTION;
++        public static PacketType TRADE_SELECT;
++        public static PacketType UPDATE_SIGN;
++        public static PacketType USE_ENTITY;
++        public static PacketType USE_ITEM;
++        public static PacketType VEHICLE_MOVE;
++        public static PacketType WINDOW_CLICK;
++
++        public Incoming(@NotNull PacketConstructor<?> constructor, @NotNull Class<?>... fields) {
++            super(Packet.Direction.INCOMING, constructor, fields);
++        }
++
++        Incoming(@NotNull Packet.Direction direction, @NotNull PacketConstructor<?> constructor, @NotNull Class<?>... fields) {
++            super(direction, constructor, fields);
++        }
++    }
++
++    public static class Outgoing extends PacketType {
++        public static PacketType LOGIN_CUSTOM_PAYLOAD;
++        public static PacketType ABILITIES;
++        public static PacketType ADVANCEMENTS;
++        public static PacketType ANIMATION;
++        public static PacketType ATTACH_ENTITY;
++        public static PacketType AUTO_RECIPE;
++        public static PacketType BLOCK_ACTION;
++        public static PacketType BLOCK_BREAK;
++        public static PacketType BLOCK_BREAK_ANIMATION;
++        public static PacketType BLOCK_CHANGE;
++        public static PacketType BOSS;
++        public static PacketType CAMERA;
++        public static PacketType CHAT;
++        public static PacketType CLOSE_WINDOW;
++        public static PacketType COLLECT;
++        public static PacketType COMBAT_EVENT;
++        public static PacketType COMMANDS;
++        public static PacketType CUSTOM_PAYLOAD;
++        public static PacketType CUSTOM_SOUND_EFFECT;
++        public static PacketType ENTITY;
++        public static PacketType ENTITY_DESTROY;
++        public static PacketType ENTITY_EFFECT;
++        public static PacketType ENTITY_EQUIPMENT;
++        public static PacketType ENTITY_HEAD_ROTATION;
++        public static PacketType ENTITY_METADATA;
++        public static PacketType ENTITY_SOUND;
++        public static PacketType ENTITY_STATUS;
++        public static PacketType ENTITY_TELEPORT;
++        public static PacketType ENTITY_VELOCITY;
++        public static PacketType ENTITY_LOOK;
++        public static PacketType EXPERIENCE;
++        public static PacketType EXPLOSION;
++        public static PacketType GAME_STATE_CHANGE;
++        public static PacketType HELD_ITEM_SLOT;
++        public static PacketType KEEP_ALIVE;
++        public static PacketType KICK_DISCONNECT;
++        public static PacketType LIGHT_UPDATE;
++        public static PacketType LOGIN;
++        public static PacketType LOOK_AT;
++        public static PacketType MAP;
++        public static PacketType MAP_CHUNK;
++        public static PacketType MOUNT;
++        public static PacketType MULTI_BLOCK_CHANGE;
++        public static PacketType NAMED_ENTITY_SPAWN;
++        public static PacketType NAMED_SOUND_EFFECT;
++        public static PacketType NBT_QUERY;
++        public static PacketType OPEN_BOOK;
++        public static PacketType OPEN_SIGN_EDITOR;
++        public static PacketType OPEN_WINDOW;
++        public static PacketType OPEN_WINDOW_HORSE;
++        public static PacketType OPEN_WINDOW_MERCHANT;
++        public static PacketType PLAYER_INFO;
++        public static PacketType PLAYER_LIST_HEADER_FOOTER;
++        public static PacketType POSITION;
++        public static PacketType RECIPES;
++        public static PacketType RECIPE_UPDATE;
++        public static PacketType REMOVE_ENTITY_EFFECT;
++        public static PacketType RESOURCE_PACK;
++        public static PacketType RESPAWN;
++        public static PacketType SCOREBOARD_DISPLAY_OBJECTIVE;
++        public static PacketType SCOREBOARD_OBJECTIVE;
++        public static PacketType SCOREBOARD_SCORE;
++        public static PacketType SCOREBOARD_TEAM;
++        public static PacketType SELECT_ADVANCEMENT_TAV;
++        public static PacketType SERVER_DIFFICULTY;
++        public static PacketType SET_COOLDOWN;
++        public static PacketType SET_SLOT;
++        public static PacketType SPAWN_ENTITY;
++        public static PacketType SPAWN_EXPERIENCE;
++        public static PacketType SPAWN_LIVING_ENTITY;
++        public static PacketType SPAWN_PAINTING;
++        public static PacketType SPAWN_POSITION;
++        public static PacketType STATISTIC;
++        public static PacketType STOP_SOUND;
++        public static PacketType TAB_COMPLETE;
++        public static PacketType TAGS;
++        public static PacketType TILE_ENTITY_DATA;
++        public static PacketType TITLE;
++        public static PacketType TRANSACTION;
++        public static PacketType UNLOAD_CHUNK;
++        public static PacketType UPDATE_ATTRIBUTES;
++        public static PacketType UPDATE_HEALTH;
++        public static PacketType UPDATE_TIME;
++        public static PacketType VEHICLE_MOVE;
++        public static PacketType VIEW_CENTRE;
++        public static PacketType VIEW_DISTANCE;
++        public static PacketType WINDOW_DATA;
++        public static PacketType WINDOW_ITEMS;
++        public static PacketType WORLD_BORDER;
++        public static PacketType WORLD_EVENT;
++        public static PacketType WORLD_PARTICLES;
++
++        public Outgoing(@NotNull PacketConstructor<?> constructor, @NotNull Class<?>... fields) {
++            super(Packet.Direction.OUTGOING, constructor, fields);
++        }
++
++        Outgoing(@NotNull Packet.Direction direction, @NotNull PacketConstructor<?> constructor, @NotNull Class<?>... fields) {
++            super(direction, constructor, fields);
++        }
++    }
++
++    final @NotNull Packet.Direction direction;
++    final @NotNull Class<?>[] fields;
++    final @NotNull PacketConstructor<?> constructor;
++
++    PacketType(@NotNull Packet.Direction direction, @NotNull PacketConstructor<?> constructor, @NotNull Class<?>... fields) {
++        this.direction = direction;
++        this.fields = fields;
++        this.constructor = constructor;
++    }
++
++    public @NotNull Packet create(@NotNull Object... fields) {
++        if (fields.length < 1) return (Packet) constructor.create();
++        PacketBuilder builder = new PacketBuilder(this);
++        for (Object field : fields) {
++            builder.with(field);
++        }
++        return builder.create();
++    }
++
++    /**
++     * Internal use only - creates a packet using the nullary constructor.
++     * Packets made by this are essentially useless without tweaking via
++     * reflection.
++     *
++     * If you are creating a new implementation for some reason,
++     * PacketClassHere::new is sufficient for the functional-interface.
++     * @return The packet constructor function.
++     */
++    @NotNull
++    @Deprecated
++    public PacketConstructor<?> getConstructor() {
++        return constructor;
++    }
++
++    public @NotNull Class<?>[] getFields() {
++        return fields;
++    }
++
++    public @NotNull Packet.Direction getDirection() {
++        return direction;
++    }
++
++    @Override
++    public String toString() {
++        return "PacketType{" +
++            "direction=" + direction +
++            ", fields=" + Arrays.toString(fields) +
++            ", constructor=" + constructor +
++            '}';
++    }
++}
+diff --git a/src/main/java/org/bukkit/Bukkit.java b/src/main/java/org/bukkit/Bukkit.java
+index 85caa5f216547106289381b00f4dc7af5c9afc17..75a19e44c3e0edd2de0ee1e053b39c7eed948627 100644
+--- a/src/main/java/org/bukkit/Bukkit.java
++++ b/src/main/java/org/bukkit/Bukkit.java
+@@ -16,6 +16,7 @@ import java.util.function.Function;
+ import java.util.logging.Logger;
+ 
+ import mx.kenzie.wellspring.nbt.NBTFactory;
++import mx.kenzie.wellspring.packet.PacketFactory;
+ import org.bukkit.Warning.WarningState;
+ import org.bukkit.advancement.Advancement;
+ import org.bukkit.attachment.Attachable;
+@@ -1774,7 +1775,7 @@ public final class Bukkit {
+ 
+     // Kenzie end - attachments
+ 
+-    // Kenzie start - NBT factory
++    // Kenzie start - Factories
+     /**
+      * Retrieves the server's NBT factory, used for instantiating compound tags,
+      * NBT lists and other version-dependent types.
+@@ -1783,6 +1784,10 @@ public final class Bukkit {
+     public static @NotNull NBTFactory getNBTFactory() {
+         return server.getNBTFactory();
+     }
++
++    public static @NotNull PacketFactory getPacketFactory() {
++        return server.getPacketFactory();
++    }
+     // Kenzie end
+ 
+     /**
+diff --git a/src/main/java/org/bukkit/Server.java b/src/main/java/org/bukkit/Server.java
+index d90684ada9360c0ec9b3f6c0f62bf0c646c0d7a3..db827d89089361c8c0cf31b3489b440e1830e397 100644
+--- a/src/main/java/org/bukkit/Server.java
++++ b/src/main/java/org/bukkit/Server.java
+@@ -16,6 +16,7 @@ import java.util.function.Function;
+ import java.util.logging.Logger;
+ 
+ import mx.kenzie.wellspring.nbt.NBTFactory;
++import mx.kenzie.wellspring.packet.PacketFactory;
+ import org.bukkit.Warning.WarningState;
+ import org.bukkit.advancement.Advancement;
+ import org.bukkit.attachment.Attachable;
+@@ -1462,13 +1463,15 @@ public interface Server extends PluginMessageRecipient {
+     void unregisterAttachments(@NotNull Plugin plugin);
+     // Kenzie end
+ 
+-    // Kenzie start - NBT factory
++    // Kenzie start - Factories
+     /**
+      * Retrieves the server's NBT factory, used for instantiating compound tags,
+      * NBT lists and other version-dependent types.
+      * @return The factory instance.
+      */
+     @NotNull NBTFactory getNBTFactory();
++
++    @NotNull PacketFactory getPacketFactory();
+     // Kenzie end
+ 
+     /**
