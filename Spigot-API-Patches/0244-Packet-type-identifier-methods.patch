@@ -1,0 +1,154 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Fri, 11 Sep 2020 09:16:14 +0100
+Subject: [PATCH] Packet type identifier methods.
+
+
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/Packet.java b/src/main/java/mx/kenzie/wellspring/packet/Packet.java
+index 9ca85a6e088e04c076be8b33170a6d740932524f..e07599951e53daa83ca036647fb62623ed161132 100644
+--- a/src/main/java/mx/kenzie/wellspring/packet/Packet.java
++++ b/src/main/java/mx/kenzie/wellspring/packet/Packet.java
+@@ -1,14 +1,23 @@
+ package mx.kenzie.wellspring.packet;
+ 
++import org.bukkit.Bukkit;
++import org.bukkit.entity.Player;
+ import org.jetbrains.annotations.NotNull;
+ 
+ public interface Packet {
+ 
+     @NotNull
+     default Direction getDirection() {
+-        if (this.getClass().getName().contains("PlayIn") || this.getClass().getName().contains("LoginIn"))
+-            return Direction.INCOMING;
+-        return Direction.OUTGOING;
++        return getType().direction;
++    }
++
++    @NotNull
++    default PacketType getType() {
++        return PacketType.of(this);
++    }
++
++    default void send(@NotNull Player... recipients) {
++        Bukkit.getPacketFactory().send(this, recipients);
+     }
+ 
+     enum Direction {
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java b/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java
+index b560116a01c906207ab6721fa29519cfcbe4a07b..375d82b6c73905c73aa88ea349ed8262b5895f4a 100644
+--- a/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java
++++ b/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java
+@@ -1,9 +1,12 @@
+ package mx.kenzie.wellspring.packet;
+ 
++import org.bukkit.entity.Player;
+ import org.jetbrains.annotations.NotNull;
+ 
+ public abstract class PacketFactory {
+ 
+     public abstract @NotNull Packet createFrom(@NotNull PacketType type, @NotNull Object... fieldInputs);
+ 
++    public abstract void send(@NotNull Packet packet, @NotNull Player... recipients) throws IllegalArgumentException;
++
+ }
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/PacketType.java b/src/main/java/mx/kenzie/wellspring/packet/PacketType.java
+index 177e8f84f6174ea386b8367faba6bedbfa519a5a..e84c49753af1afe7848b666913124ffb0bfe4727 100644
+--- a/src/main/java/mx/kenzie/wellspring/packet/PacketType.java
++++ b/src/main/java/mx/kenzie/wellspring/packet/PacketType.java
+@@ -4,10 +4,14 @@ import org.jetbrains.annotations.NotNull;
+ 
+ import javax.annotation.Nonnull;
+ import java.util.Arrays;
++import java.util.HashMap;
++import java.util.Map;
+ import java.util.function.Function;
+ 
+ public class PacketType {
+ 
++    private static final Map<Class<?>, PacketType> PACKET_TYPE_MAP = new HashMap<>();
++
+     public static class Incoming extends PacketType {
+         public static PacketType LOGIN_CUSTOM_PAYLOAD;
+         public static PacketType ABILITIES;
+@@ -55,12 +59,12 @@ public class PacketType {
+         public static PacketType VEHICLE_MOVE;
+         public static PacketType WINDOW_CLICK;
+ 
+-        public Incoming(@NotNull PacketConstructor<?> constructor, @NotNull Class<?>... fields) {
+-            super(Packet.Direction.INCOMING, constructor, fields);
++        public Incoming(@NotNull Class<?> cls, @NotNull PacketConstructor<?> constructor, @NotNull Class<?>... fields) {
++            this(cls, Packet.Direction.INCOMING, constructor, fields);
+         }
+ 
+-        Incoming(@NotNull Packet.Direction direction, @NotNull PacketConstructor<?> constructor, @NotNull Class<?>... fields) {
+-            super(direction, constructor, fields);
++        Incoming(@NotNull Class<?> cls, @NotNull Packet.Direction direction, @NotNull PacketConstructor<?> constructor, @NotNull Class<?>... fields) {
++            super(cls, direction, constructor, fields);
+         }
+     }
+ 
+@@ -157,23 +161,26 @@ public class PacketType {
+         public static PacketType WORLD_EVENT;
+         public static PacketType WORLD_PARTICLES;
+ 
+-        public Outgoing(@NotNull PacketConstructor<?> constructor, @NotNull Class<?>... fields) {
+-            super(Packet.Direction.OUTGOING, constructor, fields);
++        public Outgoing(@NotNull Class<?> cls, @NotNull PacketConstructor<?> constructor, @NotNull Class<?>... fields) {
++            this(cls, Packet.Direction.OUTGOING, constructor, fields);
+         }
+ 
+-        Outgoing(@NotNull Packet.Direction direction, @NotNull PacketConstructor<?> constructor, @NotNull Class<?>... fields) {
+-            super(direction, constructor, fields);
++        Outgoing(@NotNull Class<?> cls, @NotNull Packet.Direction direction, @NotNull PacketConstructor<?> constructor, @NotNull Class<?>... fields) {
++            super(cls, direction, constructor, fields);
+         }
+     }
+ 
++    final @NotNull Class<?> packet;
+     final @NotNull Packet.Direction direction;
+     final @NotNull Class<?>[] fields;
+     final @NotNull PacketConstructor<?> constructor;
+ 
+-    PacketType(@NotNull Packet.Direction direction, @NotNull PacketConstructor<?> constructor, @NotNull Class<?>... fields) {
++    PacketType(@NotNull Class<?> packet, @NotNull Packet.Direction direction, @NotNull PacketConstructor<?> constructor, @NotNull Class<?>... fields) {
++        this.packet = packet;
+         this.direction = direction;
+         this.fields = fields;
+         this.constructor = constructor;
++        PACKET_TYPE_MAP.put(packet, this);
+     }
+ 
+     public @NotNull Packet create(@NotNull Object... fields) {
+@@ -185,6 +192,11 @@ public class PacketType {
+         return builder.create();
+     }
+ 
++    @NotNull
++    public Class<?> getPacketClass() {
++        return packet;
++    }
++
+     /**
+      * Internal use only - creates a packet using the nullary constructor.
+      * Packets made by this are essentially useless without tweaking via
+@@ -208,7 +220,19 @@ public class PacketType {
+         return direction;
+     }
+ 
++    public static @NotNull PacketType of(@NotNull Object object) {
++        final Class<?> cls;
++        if (object instanceof PacketType) return (PacketType) object;
++        else if (object instanceof Class) cls = ((Class<?>) object);
++        else cls = object.getClass();
++        for (Map.Entry<Class<?>, PacketType> entry : PACKET_TYPE_MAP.entrySet()) {
++            if (entry.getKey().isAssignableFrom(cls)) return entry.getValue();
++        }
++        throw new IllegalArgumentException("The provided object is neither a packet nor a packet class!");
++    }
++
+     @Override
++    @NotNull
+     public String toString() {
+         return "PacketType{" +
+             "direction=" + direction +
