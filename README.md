@@ -14,6 +14,10 @@ Current additional features:
  * Entity default attribute map is now mutable, allowing for more freedom to customise and edit entity types, and to add new ones.
  * Code changes to allow for the proper creation, storage and viewing of custom entity types.
 
+Current testing/in-progress features:
+-----
+ * Packet factory and outgoing packet builders. (Testing)
+
 Planned future features:
 -----
  * Interface layer with Bukkit for creating attributes, goals, custom entities, potions and enchantments.
@@ -22,6 +26,7 @@ Planned future features:
  * Interface layer with Bukkit for a simple packet-sending system.
  * Interface layer with Bukkit for managing basic client-side entities.
  * A proper way to create custom NBT-tag implementations, such as to allow for better storage or to store new types.
+ * Packet listening/events system.
 
 ##### Will this be maintained?
 Fairly. It ought to be kept up-to-date with Paper upstream. New major Minecraft versions require me to rewrite a large chunk manually, so those updates might take a little longer.
