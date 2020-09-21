@@ -1,0 +1,1134 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Mon, 21 Sep 2020 10:23:20 +0100
+Subject: [PATCH] Update to 1.16.3 test 1
+
+
+diff --git a/src/main/java/net/minecraft/server/NBTBase.java b/src/main/java/net/minecraft/server/NBTBase.java
+index 8b9e47b4c7f5dc464fa617a59583df9e30a54045..4c06b83cd713bb7f0f20cd64b6be9315e12459df 100644
+--- a/src/main/java/net/minecraft/server/NBTBase.java
++++ b/src/main/java/net/minecraft/server/NBTBase.java
+@@ -1,9 +1,13 @@
+ package net.minecraft.server;
+ 
++import mx.kenzie.wellspring.nbt.NBT;
++import net.md_5.bungee.api.chat.BaseComponent;
++import net.md_5.bungee.chat.ComponentSerializer;
++
+ import java.io.DataOutput;
+ import java.io.IOException;
+ 
+-public interface NBTBase {
++public interface NBTBase extends NBT {
+ 
+     EnumChatFormat d = EnumChatFormat.AQUA;
+     EnumChatFormat e = EnumChatFormat.GREEN;
+@@ -29,4 +33,14 @@ public interface NBTBase {
+     }
+ 
+     IChatBaseComponent a(String s, int i);
++
++    @Override
++    default BaseComponent[] display() { // Kenzie - NBT interface
++        return ComponentSerializer.parse(IChatBaseComponent.ChatSerializer.componentToJson(l()));
++    }
++
++    @Override
++    default BaseComponent[] display(int indentation, String unit) { // Kenzie - NBT interface
++        return ComponentSerializer.parse(IChatBaseComponent.ChatSerializer.componentToJson(a(unit, indentation)));
++    }
+ }
+diff --git a/src/main/java/net/minecraft/server/NBTTagCompound.java b/src/main/java/net/minecraft/server/NBTTagCompound.java
+index 06d5acab794e3ee139a11f9b068e8a359c46db2c..942af419f606b3ab22e5022812dd501a2f017240 100644
+--- a/src/main/java/net/minecraft/server/NBTTagCompound.java
++++ b/src/main/java/net/minecraft/server/NBTTagCompound.java
+@@ -21,10 +21,13 @@ import java.util.UUID;
+ import java.util.regex.Pattern;
+ import javax.annotation.Nullable;
+ import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap; // Paper
++import mx.kenzie.wellspring.nbt.NBT;
++import mx.kenzie.wellspring.nbt.NBTCompound;
++import mx.kenzie.wellspring.nbt.NBTList;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+ 
+-public class NBTTagCompound implements NBTBase {
++public class NBTTagCompound implements NBTBase, NBTCompound {
+ 
+     public static final Codec<NBTTagCompound> a = Codec.PASSTHROUGH.comapFlatMap((dynamic) -> {
+         NBTBase nbtbase = (NBTBase) dynamic.convert(DynamicOpsNBT.a).getValue();
+@@ -113,27 +116,37 @@ public class NBTTagCompound implements NBTBase {
+         return this.map.size();
+     }
+ 
++    @Override
++    public int size() { // Kenzie - NBT interface
++        return e();
++    }
++
+     @Nullable
+     public NBTBase set(String s, NBTBase nbtbase) {
+         return (NBTBase) this.map.put(s, nbtbase);
+     }
+ 
++    @Override
+     public void setByte(String s, byte b0) {
+         this.map.put(s, NBTTagByte.a(b0));
+     }
+ 
++    @Override
+     public void setShort(String s, short short0) {
+         this.map.put(s, NBTTagShort.a(short0));
+     }
+ 
++    @Override
+     public void setInt(String s, int i) {
+         this.map.put(s, NBTTagInt.a(i));
+     }
+ 
++    @Override
+     public void setLong(String s, long i) {
+         this.map.put(s, NBTTagLong.a(i));
+     }
+ 
++    @Override
+     public void setUUID(String prefix, UUID uuid) { a(prefix, uuid); } // Paper - OBFHELPER
+     public void a(String s, UUID uuid) {
+         // Paper start - support old format
+@@ -145,7 +158,7 @@ public class NBTTagCompound implements NBTBase {
+         this.map.put(s, GameProfileSerializer.a(uuid));
+     }
+ 
+-
++    @Override
+     @Nullable public UUID getUUID(String prefix) { return a(prefix); } // Paper - OBFHELPER
+     @Nullable
+     public UUID a(String s) {
+@@ -157,6 +170,7 @@ public class NBTTagCompound implements NBTBase {
+         return GameProfileSerializer.a(this.get(s));
+     }
+ 
++    @Override
+     public final boolean hasUUID(String s) { return this.b(s); } // Paper - OBFHELPER
+     public boolean b(String s) {
+         // Paper start - support old format
+@@ -169,26 +183,41 @@ public class NBTTagCompound implements NBTBase {
+         return nbtbase != null && nbtbase.b() == NBTTagIntArray.a && ((NBTTagIntArray) nbtbase).getInts().length == 4;
+     }
+ 
++    @Override
+     public void setFloat(String s, float f) {
+         this.map.put(s, NBTTagFloat.a(f));
+     }
+ 
++    @Override
+     public void setDouble(String s, double d0) {
+         this.map.put(s, NBTTagDouble.a(d0));
+     }
+ 
++    @Override
+     public void setString(String s, String s1) {
+         this.map.put(s, NBTTagString.a(s1));
+     }
+ 
++    @Override
+     public void setByteArray(String s, byte[] abyte) {
+         this.map.put(s, new NBTTagByteArray(abyte));
+     }
+ 
++    @Override
+     public void setIntArray(String s, int[] aint) {
+         this.map.put(s, new NBTTagIntArray(aint));
+     }
+ 
++    @Override
++    public void setLongArray(String key, long[] longs) {
++        this.map.put(key, new NBTTagLongArray(longs));
++    }
++
++    @Override
++    public void setList(String key, mx.kenzie.wellspring.nbt.NBTList list) {
++        this.map.put(key, (NBTTagList) list);
++    }
++
+     public void b(String s, List<Integer> list) {
+         this.map.put(s, new NBTTagIntArray(list));
+     }
+@@ -220,6 +249,16 @@ public class NBTTagCompound implements NBTBase {
+         return this.map.containsKey(s);
+     }
+ 
++    @Override
++    public boolean containsKey(String key, int rawType) {
++        return hasKeyOfType(key, rawType);
++    }
++
++    @Override
++    public boolean containsKey(String key) {
++        return hasKey(key);
++    }
++
+     public boolean hasKeyOfType(String s, int i) {
+         byte b0 = this.d(s);
+ 
+@@ -358,6 +397,12 @@ public class NBTTagCompound implements NBTBase {
+         return new NBTTagCompound();
+     }
+ 
++    @Override
++    public mx.kenzie.wellspring.nbt.NBTList getList(String key) { // Kenzie
++        NBTBase base = get(key);
++        return base instanceof NBTTagList ? (mx.kenzie.wellspring.nbt.NBTList) base : null;
++    }
++
+     public NBTTagList getList(String s, int i) {
+         try {
+             if (this.d(s) == 9) {
+@@ -476,6 +521,13 @@ public class NBTTagCompound implements NBTBase {
+         }
+     }
+ 
++    @Override
++    public NBTCompound merge(NBTCompound compound) {
++        if (!(compound instanceof NBTTagCompound)) throw new IllegalArgumentException("Unknown compound extender type!");
++        NBTTagCompound raw = ((NBTTagCompound) compound);
++        return this.a(raw);
++    }
++
+     public NBTTagCompound a(NBTTagCompound nbttagcompound) {
+         Iterator iterator = nbttagcompound.map.keySet().iterator();
+ 
+@@ -554,6 +606,11 @@ public class NBTTagCompound implements NBTBase {
+         }
+     }
+ 
++    @Override
++    public Map<String, NBT> getAsMap() {
++        return new HashMap<>(h());
++    }
++
+     protected Map<String, NBTBase> h() {
+         return Collections.unmodifiableMap(this.map);
+     }
+diff --git a/src/main/java/net/minecraft/server/NBTTagList.java b/src/main/java/net/minecraft/server/NBTTagList.java
+index ad4807e0bdd6409bd798f995da8f43cec1d0b385..4e902a8c6340d51c015aa6f00f13997a0710210e 100644
+--- a/src/main/java/net/minecraft/server/NBTTagList.java
++++ b/src/main/java/net/minecraft/server/NBTTagList.java
+@@ -5,15 +5,14 @@ import com.google.common.collect.Iterables;
+ import com.google.common.collect.Lists;
+ import it.unimi.dsi.fastutil.bytes.ByteOpenHashSet;
+ import it.unimi.dsi.fastutil.bytes.ByteSet;
++import mx.kenzie.wellspring.nbt.NBT;
++
+ import java.io.DataInput;
+ import java.io.DataOutput;
+ import java.io.IOException;
+-import java.util.Arrays;
+-import java.util.Iterator;
+-import java.util.List;
+-import java.util.Objects;
++import java.util.*;
+ 
+-public class NBTTagList extends NBTList<NBTBase> {
++public class NBTTagList extends NBTList<NBTBase> implements mx.kenzie.wellspring.nbt.NBTList {
+ 
+     public static final NBTTagType<NBTTagList> a = new NBTTagType<NBTTagList>() {
+         @Override
+@@ -356,4 +355,30 @@ public class NBTTagList extends NBTList<NBTBase> {
+         this.list.clear();
+         this.type = 0;
+     }
++
++    @Override
++    public void add(NBT base) {
++        super.add((NBTBase) base);
++    }
++
++    @Override
++    public void remove(NBT entry) {
++        super.remove(entry);
++    }
++
++    @Override
++    public Collection<NBT> getAsList() {
++        return Arrays.asList(this.getAsArray());
++    }
++
++    @Override
++    public NBT[] getAsArray() {
++        return this.toArray(new NBT[0]);
++    }
++
++    @Override
++    @SuppressWarnings("unchecked")
++    public Iterator<NBT> getIterator() {
++        return (Iterator<NBT>) (Iterator<?>) iterator();
++    }
+ }
+diff --git a/src/main/java/net/minecraft/server/Packet.java b/src/main/java/net/minecraft/server/Packet.java
+index 545dbe6ddcce1d172f465b4a7ab85654ee5fdbb4..2b66dea2c86ce29452e8544f3e1c45c14fb087c3 100644
+--- a/src/main/java/net/minecraft/server/Packet.java
++++ b/src/main/java/net/minecraft/server/Packet.java
+@@ -3,7 +3,7 @@ package net.minecraft.server;
+ import io.netty.channel.ChannelFuture; // Paper
+ import java.io.IOException;
+ 
+-public interface Packet<T extends PacketListener> {
++public interface Packet<T extends PacketListener> extends mx.kenzie.wellspring.packet.Packet {
+ 
+     void a(PacketDataSerializer packetdataserializer) throws IOException;
+ 
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+index d8d29d14559169f5e8d8b4cf63d8b427b823eb2f..06c30197f5aa22d82300cb23c60eccd1e636089b 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+@@ -47,63 +47,12 @@ import java.util.logging.Level;
+ import java.util.logging.Logger;
+ import javax.imageio.ImageIO;
+ //import jline.console.ConsoleReader; // Paper
+-import net.minecraft.server.Advancement;
+-import net.minecraft.server.ArgumentEntity;
+-import net.minecraft.server.BiomeManager;
+-import net.minecraft.server.Block;
+-import net.minecraft.server.BlockPosition;
+-import net.minecraft.server.BossBattleCustom;
+-import net.minecraft.server.CommandDispatcher;
+-import net.minecraft.server.CommandListenerWrapper;
+-import net.minecraft.server.CommandReload;
+-import net.minecraft.server.Convertable;
+-import net.minecraft.server.DataConverterRegistry;
+-import net.minecraft.server.DedicatedPlayerList;
+-import net.minecraft.server.DedicatedServer;
+-import net.minecraft.server.DedicatedServerProperties;
+-import net.minecraft.server.DedicatedServerSettings;
+-import net.minecraft.server.DimensionManager;
+-import net.minecraft.server.DynamicOpsNBT;
+-import net.minecraft.server.Enchantments;
+-import net.minecraft.server.EntityPlayer;
+-import net.minecraft.server.EnumDifficulty;
+-import net.minecraft.server.EnumGamemode;
+-import net.minecraft.server.FluidType;
+-import net.minecraft.server.GameRules;
+-import net.minecraft.server.GeneratorSettings;
+-import net.minecraft.server.IRecipe;
+-import net.minecraft.server.IRegistry;
+-import net.minecraft.server.IRegistryCustom;
+-import net.minecraft.server.Item;
+-import net.minecraft.server.ItemWorldMap;
+-import net.minecraft.server.Items;
+-import net.minecraft.server.JsonListEntry;
+-import net.minecraft.server.LootTableRegistry;
+-import net.minecraft.server.MapIcon;
+-import net.minecraft.server.MinecraftKey;
+-import net.minecraft.server.MinecraftServer;
+-import net.minecraft.server.MobEffects;
+-import net.minecraft.server.MobSpawner;
+-import net.minecraft.server.MobSpawnerCat;
+-import net.minecraft.server.MobSpawnerPatrol;
+-import net.minecraft.server.MobSpawnerPhantom;
+-import net.minecraft.server.MobSpawnerTrader;
+-import net.minecraft.server.NBTBase;
+-import net.minecraft.server.PlayerList;
+-import net.minecraft.server.RegistryMaterials;
+-import net.minecraft.server.RegistryReadOps;
+-import net.minecraft.server.ResourceKey;
+-import net.minecraft.server.ServerCommand;
+-import net.minecraft.server.Tags;
+-import net.minecraft.server.TicketType;
+-import net.minecraft.server.Vec3D;
+-import net.minecraft.server.VillageSiege;
+-import net.minecraft.server.WorldDataServer;
+-import net.minecraft.server.WorldDimension;
+-import net.minecraft.server.WorldMap;
+-import net.minecraft.server.WorldNBTStorage;
+-import net.minecraft.server.WorldServer;
+-import net.minecraft.server.WorldSettings;
++import mx.kenzie.wellspring.nbt.NBT;
++import mx.kenzie.wellspring.nbt.NBTCompound;
++import mx.kenzie.wellspring.nbt.NBTFactory;
++import mx.kenzie.wellspring.nbt.NBTList;
++import mx.kenzie.wellspring.packet.PacketFactory;
++import net.minecraft.server.*;
+ import org.apache.commons.lang.Validate;
+ import org.apache.commons.lang3.StringUtils;
+ import org.bukkit.BanList;
+@@ -121,6 +70,8 @@ import org.bukkit.Warning.WarningState;
+ import org.bukkit.World;
+ import org.bukkit.World.Environment;
+ import org.bukkit.WorldCreator;
++import org.bukkit.attachment.Attachable;
++import org.bukkit.attachment.Attachment;
+ import org.bukkit.block.data.BlockData;
+ import org.bukkit.boss.BarColor;
+ import org.bukkit.boss.BarFlag;
+@@ -137,12 +88,14 @@ import org.bukkit.configuration.ConfigurationSection;
+ import org.bukkit.configuration.file.YamlConfiguration;
+ import org.bukkit.configuration.serialization.ConfigurationSerialization;
+ import org.bukkit.conversations.Conversable;
++import org.bukkit.craftbukkit.attachment.AttachmentFactory;
+ import org.bukkit.craftbukkit.block.data.CraftBlockData;
+ import org.bukkit.craftbukkit.boss.CraftBossBar;
+ import org.bukkit.craftbukkit.boss.CraftKeyedBossbar;
+ import org.bukkit.craftbukkit.command.BukkitCommandWrapper;
+ import org.bukkit.craftbukkit.command.CraftCommandMap;
+ import org.bukkit.craftbukkit.command.VanillaCommandWrapper;
++import org.bukkit.craftbukkit.entity.CraftEntity;
+ import org.bukkit.craftbukkit.entity.CraftPlayer;
+ import org.bukkit.craftbukkit.generator.CraftChunkData;
+ import org.bukkit.craftbukkit.help.SimpleHelpMap;
+@@ -164,6 +117,7 @@ import org.bukkit.craftbukkit.map.CraftMapView;
+ import org.bukkit.craftbukkit.metadata.EntityMetadataStore;
+ import org.bukkit.craftbukkit.metadata.PlayerMetadataStore;
+ import org.bukkit.craftbukkit.metadata.WorldMetadataStore;
++import org.bukkit.craftbukkit.packet.PacketFactoryImpl;
+ import org.bukkit.craftbukkit.potion.CraftPotionBrewer;
+ import org.bukkit.craftbukkit.scheduler.CraftScheduler;
+ import org.bukkit.craftbukkit.scoreboard.CraftScoreboardManager;
+@@ -178,6 +132,7 @@ import org.bukkit.craftbukkit.util.DatFileFilter;
+ import org.bukkit.craftbukkit.util.Versioning;
+ import org.bukkit.craftbukkit.util.permissions.CraftDefaultPermissions;
+ import org.bukkit.entity.Entity;
++import org.bukkit.entity.EntityType;
+ import org.bukkit.entity.Player;
+ import org.bukkit.event.command.UnknownCommandEvent; // Paper
+ import org.bukkit.event.inventory.InventoryType;
+@@ -232,7 +187,7 @@ import javax.annotation.Nullable; // Paper
+ import javax.annotation.Nonnull; // Paper
+ 
+ public final class CraftServer implements Server {
+-    private final String serverName = "Paper"; // Paper
++    private final String serverName = "Wellspring"; // Kenzie - give us a version! :)
+     private final String serverVersion;
+     private final String bukkitVersion = Versioning.getBukkitVersion();
+     private final Logger logger = Logger.getLogger("Minecraft");
+@@ -269,6 +224,9 @@ public final class CraftServer implements Server {
+     private final List<CraftPlayer> playerView;
+     public int reloadCount;
+     public static Exception excessiveVelEx; // Paper - Velocity warnings
++    public final AttachmentFactory attachmentFactory = new AttachmentFactory(this); // Kenzie
++    public final NBTFactory nbtFactory; // Kenzie
++    public final PacketFactoryImpl packetFactory = new PacketFactoryImpl(); // Kenzie
+ 
+     static {
+         ConfigurationSerialization.registerClass(CraftOfflinePlayer.class);
+@@ -288,6 +246,8 @@ public final class CraftServer implements Server {
+ 
+         Bukkit.setServer(this);
+ 
++        nbtFactory = new NBTFactoryImpl(); // Kenzie
++
+         // Register all the Enchantments and PotionTypes now so we can stop new registration immediately after
+         Enchantments.DAMAGE_ALL.getClass();
+         org.bukkit.enchantments.Enchantment.stopAcceptingRegistrations();
+@@ -892,6 +852,9 @@ public final class CraftServer implements Server {
+             world.paperConfig.init(); // Paper
+         }
+ 
++        logger.log(Level.WARNING, "Disposing of all attachments.");
++        attachmentFactory.disposeOfAll(); // Kenzie
++
+         Plugin[] pluginClone = pluginManager.getPlugins().clone(); // Paper
+         pluginManager.clearPlugins();
+         commandMap.clearCommands();
+@@ -2386,5 +2349,127 @@ public final class CraftServer implements Server {
+     public com.destroystokyo.paper.entity.ai.MobGoals getMobGoals() {
+         return mobGoals;
+     }
++
++    // Kenzie start
++    @Override
++    public void registerAttachment(Plugin plugin, java.util.function.Function<Entity, Attachment<?>> creatorFunction, EntityType... types) {
++        for (EntityType type : types) {
++            attachmentFactory.registerAttachment(plugin, (Class<? extends Attachable>) type.getEntityClass(), (java.util.function.Function<Attachable, Attachment<?>>) (java.util.function.Function) creatorFunction);
++        }
++    }
++
++    @Override
++    public <T extends Attachable> void registerAttachment(Plugin plugin, java.util.function.Function<? extends T, Attachment<?>> creatorFunction, Class<T> target) {
++        attachmentFactory.registerAttachment(plugin, target, (java.util.function.Function<Attachable, Attachment<?>>) creatorFunction);
++    }
++
++    @Override
++    public void unregisterAttachments(Plugin plugin) {
++        logger.log(Level.WARNING, "Disposing of attachments from: " + plugin.getName());
++        attachmentFactory.removeAll(plugin);
++    }
++
++    @Override
++    public NBTFactory getNBTFactory() {
++        return nbtFactory;
++    }
++
++    @Override
++    public PacketFactory getPacketFactory() {
++        return packetFactory;
++    }
++
++    static class NBTFactoryImpl extends NBTFactory {
++
++        @Override
++        public NBTCompound parse(String string) throws IllegalArgumentException {
++            try {
++                return MojangsonParser.parse(string);
++            } catch (Throwable ex) {
++                throw new IllegalArgumentException("NBT compound could not be parsed!", ex);
++            }
++        }
++
++        @Override
++        public NBTCompound newCompound() {
++            return new NBTTagCompound();
++        }
++
++        @Override
++        public mx.kenzie.wellspring.nbt.NBTList newList() {
++            return new NBTTagList();
++        }
++
++        @Override
++        public NBT newBase(Object object, NBT.Type type) {
++            try {
++                switch (type) {
++                    case BOOLEAN:
++                        return NBTTagByte.a((Boolean) object);
++                    case BYTE:
++                        return NBTTagByte.a((Byte) object);
++                    case INT:
++                        return NBTTagInt.a((Integer) object);
++                    case SHORT:
++                        return NBTTagShort.a((Short) object);
++                    case LONG:
++                        return NBTTagLong.a((Long) object);
++                    case FLOAT:
++                        return NBTTagFloat.a((Float) object);
++                    case DOUBLE:
++                        return NBTTagDouble.a((Double) object);
++                    case BYTE_ARRAY:
++                        if (object instanceof byte[])
++                            return new NBTTagByteArray((byte[]) object);
++                        else if (object instanceof List)
++                            return new NBTTagByteArray((List<Byte>) object);
++                        break;
++                    case INT_ARRAY:
++                        if (object instanceof int[])
++                            return new NBTTagIntArray((int[]) object);
++                        else if (object instanceof List)
++                            return new NBTTagIntArray((List<Integer>) object);
++                        break;
++                    case LONG_ARRAY:
++                        if (object instanceof long[])
++                            return new NBTTagLongArray((long[]) object);
++                        else if (object instanceof List)
++                            return new NBTTagLongArray((List<Long>) object);
++                        break;
++                    case STRING:
++                        return NBTTagString.a((String) object);
++                    case LIST:
++                        return (NBTList) object;
++                    case COMPOUND:
++                        return (NBTCompound) object;
++                    default:
++                        return (NBT) object;
++                }
++                throw new IllegalArgumentException("Unable to convert argument: " + object + " to NBT base of type: " + type + "!");
++            } catch (Throwable ex) {
++                throw new IllegalArgumentException("Unable to convert argument: " + object + " to NBT base of type: " + type + "!", ex);
++            }
++        }
++
++        @Override
++        public NBTCompound getNBT(Entity entity) {
++            NBTTagCompound compound = new NBTTagCompound();
++            return ((CraftEntity) entity).getHandle().save(compound);
++        }
++
++        @Override
++        public NBTCompound getNBT(ItemStack itemStack) {
++            NBTTagCompound compound = new NBTTagCompound();
++            return CraftItemStack.asNMSCopy(itemStack).save(compound);
++        }
++
++        @Override
++        public NBTCompound getTagCompound(ItemStack itemStack) {
++            return CraftItemStack.asNMSCopy(itemStack).getOrCreateTag();
++        }
++    }
++
++    // Kenzie end
++
+     // Paper end
+ }
+diff --git a/src/main/java/org/bukkit/craftbukkit/advancement/CraftAdvancementProgress.java b/src/main/java/org/bukkit/craftbukkit/advancement/CraftAdvancementProgress.java
+index 60fc5aff80697cb4c85080350542c0f46056f74a..7c23add0fc7ba47ba7c2af1da5b5b3ae359ab5f7 100644
+--- a/src/main/java/org/bukkit/craftbukkit/advancement/CraftAdvancementProgress.java
++++ b/src/main/java/org/bukkit/craftbukkit/advancement/CraftAdvancementProgress.java
+@@ -56,4 +56,8 @@ public class CraftAdvancementProgress implements AdvancementProgress {
+     public Collection<String> getAwardedCriteria() {
+         return Collections.unmodifiableCollection(Lists.newArrayList(handle.getAwardedCriteria()));
+     }
++
++    public net.minecraft.server.AdvancementProgress getHandle() {
++        return handle;
++    }
+ }
+diff --git a/src/main/java/org/bukkit/craftbukkit/attachment/AttachmentFactory.java b/src/main/java/org/bukkit/craftbukkit/attachment/AttachmentFactory.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..7b6371ddd900234671a8aaf807aadc84dd1580ce
+--- /dev/null
++++ b/src/main/java/org/bukkit/craftbukkit/attachment/AttachmentFactory.java
+@@ -0,0 +1,105 @@
++package org.bukkit.craftbukkit.attachment;
++
++import org.apache.commons.lang3.Validate;
++import org.bukkit.attachment.Attachable;
++import org.bukkit.attachment.Attachment;
++import org.bukkit.craftbukkit.CraftServer;
++import org.bukkit.plugin.Plugin;
++
++import java.lang.ref.WeakReference;
++import java.util.*;
++import java.util.function.Function;
++
++public class AttachmentFactory {
++
++    private final CraftServer server;
++    private final Map<Plugin, Map<Class<? extends Attachable>, Set<Function<Attachable, Attachment<?>>>>> pluginFactoryMethods;
++    private final Set<WeakReference<AttachmentHolder>> holders;
++
++    public AttachmentFactory(CraftServer server) {
++        this.server = server;
++        this.holders = new HashSet<>();
++        this.pluginFactoryMethods = new HashMap<>();
++    }
++
++    public void registerAttachmentHolder(AttachmentHolder holder) {
++        holders.add(new WeakReference<>(holder));
++    }
++
++    public void registerAttachment(Plugin plugin, Class<? extends Attachable> target, Function<Attachable, Attachment<?>> provider) {
++        Validate.notNull(plugin, "Plugin cannot be null!");
++        Validate.notNull(target, "Target type cannot be null!");
++        Validate.notNull(provider, "Provider function cannot be null!");
++        final Map<Class<? extends Attachable>, Set<Function<Attachable, Attachment<?>>>> factories;
++        pluginFactoryMethods.putIfAbsent(plugin, new HashMap<>());
++        factories = pluginFactoryMethods.get(plugin);
++        factories.putIfAbsent(target, new HashSet<>());
++        factories.get(target).add(provider);
++        for (WeakReference<AttachmentHolder> reference : holders) {
++            AttachmentHolder holder = reference.get();
++            if (holder == null) continue;
++            if (holder.target.getClass() == target || target.isAssignableFrom(holder.target.getClass())) {
++                Attachment<?> attachment = provider.apply(holder.target);
++                holder.add(attachment);
++            }
++        }
++    }
++
++    public <T extends Attachable> AttachmentHolder createAttachments(T target) {
++        final AttachmentHolder holder = new AttachmentHolder(target);
++        registerAttachmentHolder(holder);
++        addAttachments(target, holder);
++        return holder;
++    }
++    
++    public <T extends Attachable> void addAttachments(T target, AttachmentHolder holder) {
++        Set<Function<Attachable, Attachment<?>>> providers = getAttachmentProviders(target.getClass());
++        for (Function<Attachable, Attachment<?>> provider : providers) {
++            try {
++                Attachment<? super T> attachment = (Attachment<? super T>) provider.apply(target);
++                holder.add(attachment);
++            } catch (Throwable throwable) {
++                throwable.printStackTrace();
++            }
++        }
++    }
++
++    public Set<Function<Attachable, Attachment<?>>> getAttachmentProviders(Class<? extends Attachable> target) {
++        Validate.notNull(target, "Target class cannot be null!");
++        Set<Function<Attachable, Attachment<?>>> providers = new HashSet<>();
++        for (Map<Class<? extends Attachable>, Set<Function<Attachable, Attachment<?>>>> map : pluginFactoryMethods.values()) {
++            for (Class<? extends Attachable> cls : map.keySet()) {
++                if (!cls.equals(target) && !cls.isAssignableFrom(target)) continue;
++                if (map.get(cls) == null) continue;
++                providers.addAll(map.get(cls));
++            }
++        }
++        return providers;
++    }
++
++    public void removeAll(Plugin plugin) {
++        Iterator<WeakReference<AttachmentHolder>> iterator = holders.iterator();
++        while (iterator.hasNext()) {
++            WeakReference<AttachmentHolder> reference = iterator.next();
++            AttachmentHolder holder = reference.get();
++            if (holder == null) {
++                iterator.remove();
++            } else {
++                holder.removeAll(plugin);
++            }
++        }
++        pluginFactoryMethods.remove(plugin);
++    }
++
++    public void disposeOfAll() {
++        for (WeakReference<AttachmentHolder> reference : holders) {
++            AttachmentHolder holder = reference.get();
++            if (holder != null) {
++                holder.dispose();
++            }
++        }
++        holders.clear();
++        pluginFactoryMethods.clear();;
++    }
++
++}
+diff --git a/src/main/java/org/bukkit/craftbukkit/attachment/AttachmentHolder.java b/src/main/java/org/bukkit/craftbukkit/attachment/AttachmentHolder.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..09b8c03a9e8f658bf08e7ded10c291e70b85bd02
+--- /dev/null
++++ b/src/main/java/org/bukkit/craftbukkit/attachment/AttachmentHolder.java
+@@ -0,0 +1,85 @@
++package org.bukkit.craftbukkit.attachment;
++
++import mx.kenzie.wellspring.nbt.NBTCompound;
++import org.bukkit.attachment.Attachable;
++import org.bukkit.attachment.Attachment;
++import org.bukkit.plugin.Plugin;
++
++import java.util.*;
++
++public class AttachmentHolder extends ArrayList<Attachment<?>> {
++
++    public final Attachable target;
++
++    public AttachmentHolder(Attachable target) {
++        this.target = target;
++    }
++
++    public Attachment<?> getByClass(Class<? extends Attachment<?>> cls) {
++        for (Attachment<?> attachment : this) {
++            if (attachment.getClass() == cls) return attachment;
++        }
++        return null;
++    }
++
++    public boolean containsByClass(Class<? extends Attachment<?>> cls) {
++        for (Attachment<?> attachment : this) {
++            if (attachment.getClass() == cls) return true;
++        }
++        return false;
++    }
++
++    public Set<Attachment<?>> getByProvider(Plugin plugin) {
++        Set<Attachment<?>> set = new HashSet<>();
++        for (Attachment<?> attachment : this) {
++            if (attachment.getOwningPlugin() == plugin) set.add(attachment);
++        }
++        return set;
++    }
++
++    public void removeAll(Plugin plugin) {
++        this.removeIf(attachment -> {
++           if (attachment.getOwningPlugin() == plugin) {
++               try {
++                   attachment.onDisposal();
++               } catch (Throwable throwable) {
++                   throwable.printStackTrace();
++               }
++               return true;
++           }
++           return false;
++        });
++    }
++
++    public void load(NBTCompound compound) {
++        for (Attachment<?> attachment : this) {
++            try {
++                attachment.onDataLoad(compound);
++            } catch (Throwable throwable) {
++                throwable.printStackTrace();
++            }
++        }
++    }
++
++    public void request(NBTCompound compound) {
++        for (Attachment<?> attachment : this) {
++            try {
++                attachment.onDataRequest(compound);
++            } catch (Throwable throwable) {
++                throwable.printStackTrace();
++            }
++        }
++    }
++
++    public void dispose() {
++        for (Attachment<?> attachment : this) {
++            try {
++                attachment.onDisposal();
++            } catch (Throwable throwable) {
++                throwable.printStackTrace();
++            }
++        }
++        this.clear();
++    }
++
++}
+diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
+index 6ceb2d50c59b63a337364605f8a5280d905f2662..62bafe99f25412caa4df86acd1a0bb4f7172b2b5 100644
+--- a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
++++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
+@@ -6,6 +6,8 @@ import com.google.common.collect.Lists;
+ import java.util.List;
+ import java.util.Set;
+ import java.util.UUID;
++
++import mx.kenzie.wellspring.nbt.NBTCompound;
+ import net.minecraft.server.AxisAlignedBB;
+ import net.minecraft.server.BlockPosition;
+ import net.minecraft.server.DamageSource;
+@@ -148,10 +150,12 @@ import org.bukkit.EntityEffect;
+ import org.bukkit.Location;
+ import org.bukkit.Server;
+ import org.bukkit.World;
++import org.bukkit.attachment.Attachment;
+ import org.bukkit.block.BlockFace;
+ import org.bukkit.block.PistonMoveReaction;
+ import org.bukkit.craftbukkit.CraftServer;
+ import org.bukkit.craftbukkit.CraftWorld;
++import org.bukkit.craftbukkit.attachment.AttachmentHolder;
+ import org.bukkit.craftbukkit.block.CraftBlock;
+ import org.bukkit.craftbukkit.persistence.CraftPersistentDataContainer;
+ import org.bukkit.craftbukkit.persistence.CraftPersistentDataTypeRegistry;
+@@ -179,11 +183,65 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
+     protected Entity entity;
+     private EntityDamageEvent lastDamageEvent;
+     private final CraftPersistentDataContainer persistentDataContainer = new CraftPersistentDataContainer(DATA_TYPE_REGISTRY);
++    public final AttachmentHolder attachments; // Kenzie
+ 
+     public CraftEntity(final CraftServer server, final Entity entity) {
+         this.server = server;
+         this.entity = entity;
++        // Kenzie start - attachments
++        this.attachments = new AttachmentHolder(this);
++        server.attachmentFactory.addAttachments(this, attachments);
++        server.attachmentFactory.registerAttachmentHolder(attachments);
++        // Kenzie end
++    }
++
++    // Kenzie start - NBT holder
++    @Override
++    public NBTCompound getNBT() {
++        NBTTagCompound compound = new NBTTagCompound();
++        return getHandle().save(compound);
++    }
++
++    @Override
++    public void mergeNBT(NBTCompound compound) {
++        try {
++            NBTTagCompound nbt = (NBTTagCompound) compound;
++            NBTTagCompound original = new NBTTagCompound();
++            getHandle().save(original);
++            original.merge(nbt);
++            getHandle().load(original);
++        } catch (Throwable ex) {
++            throw new IllegalArgumentException("Illegal compound was merged!", ex);
++        }
++    }
++
++    @Override
++    public void loadNBT(NBTCompound compound) {
++        try {
++            getHandle().load((NBTTagCompound) compound);
++        } catch (Throwable ex) {
++            throw new IllegalArgumentException("Illegal compound was loaded!", ex);
++        }
++    }
++    // Kenzie end
++
++    // Kenzie start - attachment system
++
++    @Override
++    @SuppressWarnings("unchecked")
++    public <T extends Attachment<?>> T getAttachment(Class<T> attachmentClass) {
++        T attachment = (T) attachments.getByClass(attachmentClass); // This cast is fine
++        if (attachment == null) {
++            throw new NullPointerException("No attachment for this class has been registered.");
++        }
++        return attachment;
++    }
++
++    @Override
++    public <T extends Attachment<?>> boolean hasAttachment(Class<T> attachmentClass) {
++        return attachments.containsByClass(attachmentClass);
+     }
++    // Kenzie end
+ 
+     @Override
+     public Chunk getChunk() {
+diff --git a/src/main/java/org/bukkit/craftbukkit/packet/PacketFactoryImpl.java b/src/main/java/org/bukkit/craftbukkit/packet/PacketFactoryImpl.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..b7b684a30e5369e90f8cc8b90cb28f0bab999ba8
+--- /dev/null
++++ b/src/main/java/org/bukkit/craftbukkit/packet/PacketFactoryImpl.java
+@@ -0,0 +1,261 @@
++package org.bukkit.craftbukkit.packet;
++
++import mx.kenzie.wellspring.packet.Packet;
++import mx.kenzie.wellspring.packet.PacketFactory;
++import mx.kenzie.wellspring.packet.PacketType;
++import net.minecraft.server.*;
++import org.bukkit.Location;
++import org.bukkit.NamespacedKey;
++import org.bukkit.advancement.Advancement;
++import org.bukkit.advancement.AdvancementProgress;
++import org.bukkit.block.data.BlockData;
++import org.bukkit.craftbukkit.advancement.CraftAdvancement;
++import org.bukkit.craftbukkit.advancement.CraftAdvancementProgress;
++import org.bukkit.craftbukkit.entity.CraftEntity;
++import org.bukkit.craftbukkit.entity.CraftPlayer;
++import org.bukkit.craftbukkit.util.CraftMagicNumbers;
++import org.bukkit.entity.Entity;
++import org.bukkit.entity.Player;
++
++import java.lang.reflect.Field;
++import java.lang.reflect.Modifier;
++import java.util.*;
++
++import static mx.kenzie.wellspring.packet.PacketType.Incoming;
++import static mx.kenzie.wellspring.packet.PacketType.Outgoing;
++
++public class PacketFactoryImpl extends PacketFactory {
++
++    static {
++        incoming: {
++            Incoming.LOGIN_CUSTOM_PAYLOAD = new Incoming(PacketLoginInCustomPayload.class, PacketLoginInCustomPayload::new);
++            Incoming.ABILITIES = new Incoming(PacketPlayInAbilities.class, PacketPlayInAbilities::new);
++            Incoming.ADVANCEMENTS = new Incoming(PacketPlayInAdvancements.class, PacketPlayInAdvancements::new);
++            Incoming.ARM_ANIMATION = new Incoming(PacketPlayInArmAnimation.class, PacketPlayInArmAnimation::new);
++            Incoming.AUTO_RECIPE = new Incoming(PacketPlayInAutoRecipe.class, PacketPlayInAutoRecipe::new);
++            Incoming.BEACON = new Incoming(PacketPlayInBeacon.class, PacketPlayInBeacon::new);
++            Incoming.BOOK_EDIT = new Incoming(PacketPlayInBEdit.class, PacketPlayInBEdit::new);
++            Incoming.BLOCK_DIG = new Incoming(PacketPlayInBlockDig.class, PacketPlayInBlockDig::new);
++            Incoming.BLOCK_PLACE = new Incoming(PacketPlayInBlockPlace.class, PacketPlayInBlockPlace::new);
++            Incoming.BOAT_MOVE = new Incoming(PacketPlayInBoatMove.class, PacketPlayInBoatMove::new);
++            Incoming.CHAT = new Incoming(PacketPlayInChat.class, PacketPlayInChat::new);
++            Incoming.CLIENT_COMMAND = new Incoming(PacketPlayInClientCommand.class, PacketPlayInClientCommand::new);
++            Incoming.CLOSE_WINDOW = new Incoming(PacketPlayInCloseWindow.class, PacketPlayInCloseWindow::new);
++            Incoming.CUSTOM_PAYLOAD = new Incoming(PacketPlayInCustomPayload.class, PacketPlayInCustomPayload::new);
++            Incoming.DIFFICULTY_CHANGE = new Incoming(PacketPlayInDifficultyChange.class, PacketPlayInDifficultyChange::new);
++            Incoming.DIFFICULTY_LOCK = new Incoming(PacketPlayInDifficultyLock.class, PacketPlayInDifficultyLock::new);
++            Incoming.ENCHANT_ITEM = new Incoming(PacketPlayInEnchantItem.class, PacketPlayInEnchantItem::new);
++            Incoming.ENTITY_ACTION = new Incoming(PacketPlayInEntityAction.class, PacketPlayInEntityAction::new);
++            Incoming.ENTITY_NBT_QUERY = new Incoming(PacketPlayInEntityNBTQuery.class, PacketPlayInEntityNBTQuery::new);
++            Incoming.FLYING = new Incoming(PacketPlayInFlying.class, PacketPlayInFlying::new);
++            Incoming.HELD_ITEM_SLOT = new Incoming(PacketPlayInHeldItemSlot.class, PacketPlayInHeldItemSlot::new);
++            Incoming.ITEM_NAME = new Incoming(PacketPlayInItemName.class, PacketPlayInItemName::new);
++            Incoming.JIGSAW_GENERATE = new Incoming(PacketPlayInJigsawGenerate.class, PacketPlayInJigsawGenerate::new);
++            Incoming.KEEP_ALIVE = new Incoming(PacketPlayInKeepAlive.class, PacketPlayInKeepAlive::new);
++            Incoming.PICK_ITEM = new Incoming(PacketPlayInPickItem.class, PacketPlayInPickItem::new);
++            Incoming.RECIPE_DISPLAYED = new Incoming(PacketPlayInRecipeDisplayed.class, PacketPlayInRecipeDisplayed::new);
++            Incoming.RESOURCE_PACK_STATUS = new Incoming(PacketPlayInResourcePackStatus.class, PacketPlayInResourcePackStatus::new);
++            Incoming.SET_COMMAND_BLOCK = new Incoming(PacketPlayInSetCommandBlock.class, PacketPlayInSetCommandBlock::new);
++            Incoming.SET_COMMAND_MINECART = new Incoming(PacketPlayInSetCommandMinecart.class, PacketPlayInSetCommandMinecart::new);
++            Incoming.SET_CREATIVE_SLOT = new Incoming(PacketPlayInSetCreativeSlot.class, PacketPlayInSetCreativeSlot::new);
++            Incoming.SET_JIGSAW = new Incoming(PacketPlayInSetJigsaw.class, PacketPlayInSetJigsaw::new);
++            Incoming.SETTINGS = new Incoming(PacketPlayInSettings.class, PacketPlayInSettings::new);
++            Incoming.SPECTATE = new Incoming(PacketPlayInSpectate.class, PacketPlayInSpectate::new);
++            Incoming.STEER_VEHICLE = new Incoming(PacketPlayInSteerVehicle.class, PacketPlayInSteerVehicle::new);
++            Incoming.STRUCTURE = new Incoming(PacketPlayInStruct.class, PacketPlayInStruct::new);
++            Incoming.TAB_COMPLETE = new Incoming(PacketPlayInTabComplete.class, PacketPlayInTabComplete::new);
++            Incoming.TELEPORT_ACCEPT = new Incoming(PacketPlayInTeleportAccept.class, PacketPlayInTeleportAccept::new);
++            Incoming.TILE_NBT_QUERY = new Incoming(PacketPlayInTileNBTQuery.class, PacketPlayInTileNBTQuery::new);
++            Incoming.TRANSACTION = new Incoming(PacketPlayInTransaction.class, PacketPlayInTransaction::new);
++            Incoming.TRADE_SELECT = new Incoming(PacketPlayInTrSel.class, PacketPlayInTrSel::new);
++            Incoming.UPDATE_SIGN = new Incoming(PacketPlayInUpdateSign.class, PacketPlayInUpdateSign::new);
++            Incoming.USE_ENTITY = new Incoming(PacketPlayInUseEntity.class, PacketPlayInUseEntity::new);
++            Incoming.USE_ITEM = new Incoming(PacketPlayInUseItem.class, PacketPlayInUseItem::new);
++            Incoming.VEHICLE_MOVE = new Incoming(PacketPlayInVehicleMove.class, PacketPlayInVehicleMove::new);
++            Incoming.WINDOW_CLICK = new Incoming(PacketPlayInWindowClick.class, PacketPlayInWindowClick::new);
++        }
++        outgoing: {
++            Outgoing.LOGIN_CUSTOM_PAYLOAD = new Outgoing(PacketLoginOutCustomPayload.class, PacketLoginOutCustomPayload::new);
++            Outgoing.ABILITIES = new Outgoing(PacketPlayOutAbilities.class, PacketPlayOutAbilities::new);
++            Outgoing.ADVANCEMENTS = new Outgoing(PacketPlayOutAdvancements.class, PacketPlayOutAdvancements::new);
++            Outgoing.ANIMATION = new Outgoing(PacketPlayOutAnimation.class, PacketPlayOutAnimation::new);
++            Outgoing.ATTACH_ENTITY = new Outgoing(PacketPlayOutAttachEntity.class, PacketPlayOutAttachEntity::new);
++            Outgoing.AUTO_RECIPE = new Outgoing(PacketPlayOutAutoRecipe.class, PacketPlayOutAutoRecipe::new);
++            Outgoing.BLOCK_ACTION = new Outgoing(PacketPlayOutBlockAction.class, PacketPlayOutBlockAction::new);
++            Outgoing.BLOCK_BREAK = new Outgoing(PacketPlayOutBlockBreak.class, PacketPlayOutBlockBreak::new);
++            Outgoing.BLOCK_BREAK_ANIMATION = new Outgoing(PacketPlayOutBlockBreakAnimation.class, PacketPlayOutBlockBreakAnimation::new);
++            Outgoing.BLOCK_CHANGE = new Outgoing(PacketPlayOutBlockChange.class, PacketPlayOutBlockChange::new);
++            Outgoing.BOSS = new Outgoing(PacketPlayOutBoss.class, PacketPlayOutBoss::new);
++            Outgoing.CAMERA = new Outgoing(PacketPlayOutCamera.class, PacketPlayOutCamera::new);
++            Outgoing.CHAT = new Outgoing(PacketPlayOutChat.class, PacketPlayOutChat::new);
++            Outgoing.CLOSE_WINDOW = new Outgoing(PacketPlayOutCloseWindow.class, PacketPlayOutCloseWindow::new);
++            Outgoing.COLLECT = new Outgoing(PacketPlayOutCollect.class, PacketPlayOutCollect::new);
++            Outgoing.COMBAT_EVENT = new Outgoing(PacketPlayOutCombatEvent.class, PacketPlayOutCombatEvent::new);
++            Outgoing.COMMANDS = new Outgoing(PacketPlayOutCommands.class, PacketPlayOutCommands::new);
++            Outgoing.CUSTOM_PAYLOAD = new Outgoing(PacketPlayOutCustomPayload.class, PacketPlayOutCustomPayload::new);
++            Outgoing.CUSTOM_SOUND_EFFECT = new Outgoing(PacketPlayOutCustomSoundEffect.class, PacketPlayOutCustomSoundEffect::new);
++            Outgoing.ENTITY = new Outgoing(PacketPlayOutEntity.class, PacketPlayOutEntity::new);
++            Outgoing.ENTITY_DESTROY = new Outgoing(PacketPlayOutEntityDestroy.class, PacketPlayOutEntityDestroy::new);
++            Outgoing.ENTITY_EFFECT = new Outgoing(PacketPlayOutEntityEffect.class, PacketPlayOutEntityEffect::new);
++            Outgoing.ENTITY_EQUIPMENT = new Outgoing(PacketPlayOutEntityEquipment.class, PacketPlayOutEntityEquipment::new);
++            Outgoing.ENTITY_HEAD_ROTATION = new Outgoing(PacketPlayOutEntityHeadRotation.class, PacketPlayOutEntityHeadRotation::new);
++            Outgoing.ENTITY_METADATA = new Outgoing(PacketPlayOutEntityMetadata.class, PacketPlayOutEntityMetadata::new);
++            Outgoing.ENTITY_SOUND = new Outgoing(PacketPlayOutEntitySound.class, PacketPlayOutEntitySound::new);
++            Outgoing.ENTITY_STATUS = new Outgoing(PacketPlayOutEntityStatus.class, PacketPlayOutEntityStatus::new);
++            Outgoing.ENTITY_TELEPORT = new Outgoing(PacketPlayOutEntityTeleport.class, PacketPlayOutEntityTeleport::new);
++            Outgoing.ENTITY_VELOCITY = new Outgoing(PacketPlayOutEntityVelocity.class, PacketPlayOutEntityVelocity::new);
++            Outgoing.ENTITY_LOOK = new Outgoing(PacketPlayOutEntity.PacketPlayOutEntityLook.class, PacketPlayOutEntity.PacketPlayOutEntityLook::new);
++            Outgoing.EXPERIENCE = new Outgoing(PacketPlayOutExperience.class, PacketPlayOutExperience::new);
++            Outgoing.EXPLOSION = new Outgoing(PacketPlayOutExplosion.class, PacketPlayOutExplosion::new);
++            Outgoing.GAME_STATE_CHANGE = new Outgoing(PacketPlayOutGameStateChange.class, PacketPlayOutGameStateChange::new);
++            Outgoing.HELD_ITEM_SLOT = new Outgoing(PacketPlayOutHeldItemSlot.class, PacketPlayOutHeldItemSlot::new);
++            Outgoing.KEEP_ALIVE = new Outgoing(PacketPlayOutKeepAlive.class, PacketPlayOutKeepAlive::new);
++            Outgoing.KICK_DISCONNECT = new Outgoing(PacketPlayOutKickDisconnect.class, PacketPlayOutKickDisconnect::new);
++            Outgoing.LIGHT_UPDATE = new Outgoing(PacketPlayOutLightUpdate.class, PacketPlayOutLightUpdate::new);
++            Outgoing.LOGIN = new Outgoing(PacketPlayOutLogin.class, PacketPlayOutLogin::new);
++            Outgoing.LOOK_AT = new Outgoing(PacketPlayOutLookAt.class, PacketPlayOutLookAt::new);
++            Outgoing.MAP = new Outgoing(PacketPlayOutMap.class, PacketPlayOutMap::new);
++            Outgoing.MAP_CHUNK = new Outgoing(PacketPlayOutMapChunk.class, PacketPlayOutMapChunk::new);
++            Outgoing.MOUNT = new Outgoing(PacketPlayOutMount.class, PacketPlayOutMount::new);
++            Outgoing.MULTI_BLOCK_CHANGE = new Outgoing(PacketPlayOutMultiBlockChange.class, PacketPlayOutMultiBlockChange::new);
++            Outgoing.NAMED_ENTITY_SPAWN = new Outgoing(PacketPlayOutNamedEntitySpawn.class, PacketPlayOutNamedEntitySpawn::new);
++            Outgoing.NAMED_SOUND_EFFECT = new Outgoing(PacketPlayOutNamedSoundEffect.class, PacketPlayOutNamedSoundEffect::new);
++            Outgoing.NBT_QUERY = new Outgoing(PacketPlayOutNBTQuery.class, PacketPlayOutNBTQuery::new);
++            Outgoing.OPEN_BOOK = new Outgoing(PacketPlayOutOpenBook.class, PacketPlayOutOpenBook::new);
++            Outgoing.OPEN_SIGN_EDITOR = new Outgoing(PacketPlayOutOpenSignEditor.class, PacketPlayOutOpenSignEditor::new);
++            Outgoing.OPEN_WINDOW = new Outgoing(PacketPlayOutOpenWindow.class, PacketPlayOutOpenWindow::new);
++            Outgoing.OPEN_WINDOW_HORSE = new Outgoing(PacketPlayOutOpenWindowHorse.class, PacketPlayOutOpenWindowHorse::new);
++            Outgoing.OPEN_WINDOW_MERCHANT = new Outgoing(PacketPlayOutOpenWindowMerchant.class, PacketPlayOutOpenWindowMerchant::new);
++            Outgoing.PLAYER_INFO = new Outgoing(PacketPlayOutPlayerInfo.class, PacketPlayOutPlayerInfo::new);
++            Outgoing.PLAYER_LIST_HEADER_FOOTER = new Outgoing(PacketPlayOutPlayerListHeaderFooter.class, PacketPlayOutPlayerListHeaderFooter::new);
++            Outgoing.POSITION = new Outgoing(PacketPlayOutPosition.class, PacketPlayOutPosition::new);
++            Outgoing.RECIPES = new Outgoing(PacketPlayOutRecipes.class, PacketPlayOutRecipes::new);
++            Outgoing.RECIPE_UPDATE = new Outgoing(PacketPlayOutRecipeUpdate.class, PacketPlayOutRecipeUpdate::new);
++            Outgoing.REMOVE_ENTITY_EFFECT = new Outgoing(PacketPlayOutRemoveEntityEffect.class, PacketPlayOutRemoveEntityEffect::new);
++            Outgoing.RESOURCE_PACK = new Outgoing(PacketPlayOutResourcePackSend.class, PacketPlayOutResourcePackSend::new);
++            Outgoing.RESPAWN = new Outgoing(PacketPlayOutRespawn.class, PacketPlayOutRespawn::new);
++            Outgoing.SCOREBOARD_DISPLAY_OBJECTIVE = new Outgoing(PacketPlayOutScoreboardDisplayObjective.class, PacketPlayOutScoreboardDisplayObjective::new);
++            Outgoing.SCOREBOARD_OBJECTIVE = new Outgoing(PacketPlayOutScoreboardObjective.class, PacketPlayOutScoreboardObjective::new);
++            Outgoing.SCOREBOARD_SCORE = new Outgoing(PacketPlayOutScoreboardScore.class, PacketPlayOutScoreboardScore::new);
++            Outgoing.SCOREBOARD_TEAM = new Outgoing(PacketPlayOutScoreboardTeam.class, PacketPlayOutScoreboardTeam::new);
++            Outgoing.SELECT_ADVANCEMENT_TAV = new Outgoing(PacketPlayOutSelectAdvancementTab.class, PacketPlayOutSelectAdvancementTab::new);
++            Outgoing.SERVER_DIFFICULTY = new Outgoing(PacketPlayOutServerDifficulty.class, PacketPlayOutServerDifficulty::new);
++            Outgoing.SET_COOLDOWN = new Outgoing(PacketPlayOutSetCooldown.class, PacketPlayOutSetCooldown::new);
++            Outgoing.SET_SLOT = new Outgoing(PacketPlayOutSetSlot.class, PacketPlayOutSetSlot::new);
++            Outgoing.SPAWN_ENTITY = new Outgoing(PacketPlayOutSpawnEntity.class, PacketPlayOutSpawnEntity::new);
++            Outgoing.SPAWN_EXPERIENCE = new Outgoing(PacketPlayOutSpawnEntityExperienceOrb.class, PacketPlayOutSpawnEntityExperienceOrb::new);
++            Outgoing.SPAWN_LIVING_ENTITY = new Outgoing(PacketPlayOutSpawnEntityLiving.class, PacketPlayOutSpawnEntityLiving::new);
++            Outgoing.SPAWN_PAINTING = new Outgoing(PacketPlayOutSpawnEntityPainting.class, PacketPlayOutSpawnEntityPainting::new);
++            Outgoing.SPAWN_POSITION = new Outgoing(PacketPlayOutSpawnPosition.class, PacketPlayOutSpawnPosition::new);
++            Outgoing.STATISTIC = new Outgoing(PacketPlayOutStatistic.class, PacketPlayOutStatistic::new);
++            Outgoing.STOP_SOUND = new Outgoing(PacketPlayOutStopSound.class, PacketPlayOutStopSound::new);
++            Outgoing.TAB_COMPLETE = new Outgoing(PacketPlayOutTabComplete.class, PacketPlayOutTabComplete::new);
++            Outgoing.TAGS = new Outgoing(PacketPlayOutTags.class, PacketPlayOutTags::new);
++            Outgoing.TILE_ENTITY_DATA = new Outgoing(PacketPlayOutTileEntityData.class, PacketPlayOutTileEntityData::new);
++            Outgoing.TITLE = new Outgoing(PacketPlayOutTitle.class, PacketPlayOutTitle::new);
++            Outgoing.TRANSACTION = new Outgoing(PacketPlayOutTransaction.class, PacketPlayOutTransaction::new);
++            Outgoing.UNLOAD_CHUNK = new Outgoing(PacketPlayOutUnloadChunk.class, PacketPlayOutUnloadChunk::new);
++            Outgoing.UPDATE_ATTRIBUTES = new Outgoing(PacketPlayOutUpdateAttributes.class, PacketPlayOutUpdateAttributes::new);
++            Outgoing.UPDATE_HEALTH = new Outgoing(PacketPlayOutUpdateHealth.class, PacketPlayOutUpdateHealth::new);
++            Outgoing.UPDATE_TIME = new Outgoing(PacketPlayOutUpdateTime.class, PacketPlayOutUpdateTime::new);
++            Outgoing.VEHICLE_MOVE = new Outgoing(PacketPlayOutVehicleMove.class, PacketPlayOutVehicleMove::new);
++            Outgoing.VIEW_CENTRE = new Outgoing(PacketPlayOutViewCentre.class, PacketPlayOutViewCentre::new);
++            Outgoing.VIEW_DISTANCE = new Outgoing(PacketPlayOutViewDistance.class, PacketPlayOutViewDistance::new);
++            Outgoing.WINDOW_DATA = new Outgoing(PacketPlayOutWindowData.class, PacketPlayOutWindowData::new);
++            Outgoing.WINDOW_ITEMS = new Outgoing(PacketPlayOutWindowItems.class, PacketPlayOutWindowItems::new);
++            Outgoing.WORLD_BORDER = new Outgoing(PacketPlayOutWorldBorder.class, PacketPlayOutWorldBorder::new);
++            Outgoing.WORLD_EVENT = new Outgoing(PacketPlayOutWorldEvent.class, PacketPlayOutWorldEvent::new);
++            Outgoing.WORLD_PARTICLES = new Outgoing(PacketPlayOutWorldParticles.class, PacketPlayOutWorldParticles::new);
++        }
++    }
++
++    public Packet loginOutCustomPayload() {
++        return new PacketLoginInCustomPayload();
++    }
++
++    public Packet playOutAbilities(boolean invulnerable, boolean flying, boolean canFly, boolean canInstantlyBuild, float flySpeed, float walkSpeed) {
++        PlayerAbilities abilities = new PlayerAbilities();
++        abilities.isInvulnerable = invulnerable;
++        abilities.isFlying = flying;
++        abilities.canFly = canFly;
++        abilities.canInstantlyBuild = canInstantlyBuild;
++        abilities.flySpeed = flySpeed;
++        abilities.walkSpeed = walkSpeed;
++        return new PacketPlayOutAbilities(abilities);
++    }
++
++    public Packet playOutAdvancements(boolean reset, Collection<Advancement> toAdd, Set<NamespacedKey> toRemove, Map<NamespacedKey, AdvancementProgress> progress) {
++        List<net.minecraft.server.Advancement> adding = new ArrayList<>();
++        for (Advancement advancement : toAdd) {
++            adding.add(((CraftAdvancement) advancement).getHandle());
++        }
++        Set<MinecraftKey> removing = new HashSet<>();
++        for (NamespacedKey key : toRemove) {
++            removing.add(new MinecraftKey(key.toString()));
++        }
++        Map<MinecraftKey, net.minecraft.server.AdvancementProgress> progressing = new HashMap<>();
++        for (Map.Entry<NamespacedKey, AdvancementProgress> entry : progress.entrySet()) {
++            progressing.put(new MinecraftKey(entry.getKey().toString()), ((CraftAdvancementProgress) entry.getValue()).getHandle());
++        }
++        return new PacketPlayOutAdvancements(reset, adding, removing, progressing);
++    }
++
++    public Packet playOutAnimation(Entity entity, int animationId) {
++        return new PacketPlayOutAnimation(((CraftEntity) entity).getHandle(), animationId);
++    }
++
++    public Packet playOutAttachEntity(Entity target, Entity holder) {
++        return new PacketPlayOutAttachEntity(((CraftEntity) target).getHandle(), holder != null ? ((CraftEntity) holder).getHandle() : null);
++    }
++
++    public Packet playOutAutoRecipe(int container, NamespacedKey recipe) {
++        PacketPlayOutAutoRecipe packet = new PacketPlayOutAutoRecipe();
++        try {
++            Field id = PacketPlayOutAutoRecipe.class.getDeclaredField("a");
++            Field key = PacketPlayOutAutoRecipe.class.getDeclaredField("b");
++            id.setAccessible(true);
++            key.setAccessible(true);
++            id.set(packet, container);
++            key.set(packet, new MinecraftKey(recipe.toString()));
++        } catch (Throwable e) {
++            e.printStackTrace();
++        }
++        return packet;
++    }
++
++    public Packet playOutBlockAction(Location location, BlockData data, int action, int parameter) {
++        BlockPosition position = new BlockPosition(location.getX(), location.getY(), location.getZ());
++        Block block = CraftMagicNumbers.getBlock(data.getMaterial());
++        return new PacketPlayOutBlockAction(position, block, action, parameter);
++    }
++
++    @Override
++    public Packet createFrom(PacketType type, Object... fieldInputs) {
++        try {
++            Packet packet = (Packet) type.getConstructor().create();
++            List<Field> sample = Arrays.asList(packet.getClass().getDeclaredFields());
++            sample.removeIf(field -> (Modifier.isStatic(field.getModifiers())));
++            final Field[] fields = packet.getClass().getDeclaredFields();
++            for (int i = 0; i < fieldInputs.length; i++) {
++                if ((fields.length) <= i) break;
++                if (Modifier.isStatic(fields[i].getModifiers())) {
++                    i--;
++                    continue;
++                }
++                fields[i].setAccessible(true);
++                fields[i].set(packet, fieldInputs[i]);
++            }
++            return packet;
++        } catch (IllegalAccessException e) {
++            throw new IllegalArgumentException("Unable to create packet: ", e);
++        }
++    }
++
++    @Override
++    public void send(Packet packet, Player... recipients) throws IllegalArgumentException {
++        for (Player recipient : recipients) {
++            CraftPlayer player = ((CraftPlayer) recipient);
++            player.getHandle().playerConnection.networkManager.sendPacket((net.minecraft.server.Packet<?>) packet);
++        }
++    }
++}
