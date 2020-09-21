@@ -1,0 +1,45 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Mon, 21 Sep 2020 11:05:29 +0100
+Subject: [PATCH] Visual types override
+
+
+diff --git a/src/main/java/net/minecraft/server/Entity.java b/src/main/java/net/minecraft/server/Entity.java
+index 913ff1f5eb00fe51ca438ef5cb12ad455529ab94..5f0612b90329361dbea720057e2518fd80c07c58 100644
+--- a/src/main/java/net/minecraft/server/Entity.java
++++ b/src/main/java/net/minecraft/server/Entity.java
+@@ -294,6 +294,10 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
+         return this.f;
+     }
+ 
++    public EntityTypes<?> getVisualType() { // Kenzie - allow for visual replacements.
++        return getEntityType();
++    }
++
+     public int getId() {
+         return this.id;
+     }
+diff --git a/src/main/java/net/minecraft/server/EntityItemFrame.java b/src/main/java/net/minecraft/server/EntityItemFrame.java
+index b61876affd09b4bcd2062fd725b8525edc68b054..db6e5ec8b79380b2939cc8667c31d5a620d78711 100644
+--- a/src/main/java/net/minecraft/server/EntityItemFrame.java
++++ b/src/main/java/net/minecraft/server/EntityItemFrame.java
+@@ -372,6 +372,6 @@ public class EntityItemFrame extends EntityHanging {
+ 
+     @Override
+     public Packet<?> P() {
+-        return new PacketPlayOutSpawnEntity(this, this.getEntityType(), this.direction.c(), this.getBlockPosition());
++        return new PacketPlayOutSpawnEntity(this, this.getVisualType(), this.direction.c(), this.getBlockPosition()); // Kenzie
+     }
+ }
+diff --git a/src/main/java/net/minecraft/server/EntityLeash.java b/src/main/java/net/minecraft/server/EntityLeash.java
+index 6bd25833bc3ff3ca46367a48da001ed9bda8c19d..639bd533b2dadaacc40db2851e93d4492c3d4cf7 100644
+--- a/src/main/java/net/minecraft/server/EntityLeash.java
++++ b/src/main/java/net/minecraft/server/EntityLeash.java
+@@ -157,6 +157,6 @@ public class EntityLeash extends EntityHanging {
+ 
+     @Override
+     public Packet<?> P() {
+-        return new PacketPlayOutSpawnEntity(this, this.getEntityType(), 0, this.getBlockPosition());
++        return new PacketPlayOutSpawnEntity(this, this.getVisualType(), 0, this.getBlockPosition()); // Kenzie
+     }
+ }

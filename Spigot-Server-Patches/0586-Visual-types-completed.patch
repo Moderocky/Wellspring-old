@@ -1,0 +1,41 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Mon, 21 Sep 2020 11:09:45 +0100
+Subject: [PATCH] Visual types completed.
+
+
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutSpawnEntity.java b/src/main/java/net/minecraft/server/PacketPlayOutSpawnEntity.java
+index 5172fb5ab86d0e60cca85282f321ee2892c95915..d6af9f4ca10bec207c28703d828d0c97130c7325 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutSpawnEntity.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutSpawnEntity.java
+@@ -40,7 +40,7 @@ public class PacketPlayOutSpawnEntity implements Packet<PacketListenerPlayOut> {
+     }
+ 
+     public PacketPlayOutSpawnEntity(Entity entity, int i) {
+-        this(entity.getId(), entity.getUniqueID(), entity.locX(), entity.locY(), entity.locZ(), entity.pitch, entity.yaw, entity.getEntityType(), i, entity.getMot());
++        this(entity.getId(), entity.getUniqueID(), entity.locX(), entity.locY(), entity.locZ(), entity.pitch, entity.yaw, entity.getVisualType(), i, entity.getMot()); // Kenzie
+     }
+ 
+     public PacketPlayOutSpawnEntity(Entity entity, EntityTypes<?> entitytypes, int i, BlockPosition blockposition) {
+@@ -67,7 +67,7 @@ public class PacketPlayOutSpawnEntity implements Packet<PacketListenerPlayOut> {
+     public void b(PacketDataSerializer packetdataserializer) throws IOException {
+         packetdataserializer.d(this.a);
+         packetdataserializer.a(this.b);
+-        packetdataserializer.d(IRegistry.ENTITY_TYPE.a((Object) this.k));
++        packetdataserializer.d(IRegistry.ENTITY_TYPE.a(this.k));
+         packetdataserializer.writeDouble(this.c);
+         packetdataserializer.writeDouble(this.d);
+         packetdataserializer.writeDouble(this.e);
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutSpawnEntityLiving.java b/src/main/java/net/minecraft/server/PacketPlayOutSpawnEntityLiving.java
+index 2ce69d8feae9a4f1281c9e0422459ad23c2aab5f..94162edb779af284c0205f553e1a55f0c2d8a509 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutSpawnEntityLiving.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutSpawnEntityLiving.java
+@@ -23,7 +23,7 @@ public class PacketPlayOutSpawnEntityLiving implements Packet<PacketListenerPlay
+     public PacketPlayOutSpawnEntityLiving(EntityLiving entityliving) {
+         this.a = entityliving.getId();
+         this.b = entityliving.getUniqueID();
+-        this.c = IRegistry.ENTITY_TYPE.a((Object) entityliving.getEntityType());
++        this.c = IRegistry.ENTITY_TYPE.a(entityliving.getVisualType());
+         this.d = entityliving.locX();
+         this.e = entityliving.locY();
+         this.f = entityliving.locZ();
