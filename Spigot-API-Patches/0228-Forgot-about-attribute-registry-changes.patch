@@ -1,0 +1,31 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Mon, 21 Sep 2020 10:30:17 +0100
+Subject: [PATCH] Forgot about attribute registry changes.
+
+
+diff --git a/src/main/java/org/bukkit/Registry.java b/src/main/java/org/bukkit/Registry.java
+index d3f346413ed92db46d4b5d8f3437ac0cb55adf37..7b95abeedf29cc253ab47814e01851140279396c 100644
+--- a/src/main/java/org/bukkit/Registry.java
++++ b/src/main/java/org/bukkit/Registry.java
+@@ -57,7 +57,19 @@ public interface Registry<T extends Keyed> extends Iterable<T> {
+      *
+      * @see Attribute
+      */
+-    Registry<Attribute> ATTRIBUTE = new SimpleRegistry<>(Attribute.class);
++    Registry<Attribute> ATTRIBUTE = new Registry<Attribute>() { // Kenzie - Attribute changes
++        @NotNull
++        @Override
++        public Attribute get(@NotNull NamespacedKey key) {
++            return new Attribute(key);
++        }
++
++        @NotNull
++        @Override
++        public Iterator<Attribute> iterator() {
++            return Attribute.attributeIterator();
++        }
++    };
+     /**
+      * Server biomes.
+      *
