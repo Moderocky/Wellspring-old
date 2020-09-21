@@ -1,0 +1,47 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Mon, 21 Sep 2020 10:51:02 +0100
+Subject: [PATCH] Re-add fall event.
+
+
+diff --git a/src/main/java/mx/kenzie/wellspring/event/EntityLandEvent.java b/src/main/java/mx/kenzie/wellspring/event/EntityLandEvent.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..03880445c567a8a65523e481981e20637c7286a6
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/event/EntityLandEvent.java
+@@ -0,0 +1,35 @@
++package mx.kenzie.wellspring.event;
++
++import org.bukkit.entity.Entity;
++import org.bukkit.event.Cancellable;
++import org.bukkit.event.HandlerList;
++import org.bukkit.event.entity.EntityEvent;
++import org.jetbrains.annotations.NotNull;
++
++/**
++ * Called when an entity's movement trajectory would cause them to touch the ground.
++ */
++public class EntityLandEvent extends EntityEvent {
++    private static final HandlerList handlers = new HandlerList();
++
++    public EntityLandEvent(@NotNull Entity entity) {
++        super(entity);
++    }
++
++    @NotNull
++    @Override
++    public Entity getEntity() {
++        return entity;
++    }
++
++    @NotNull
++    @Override
++    public HandlerList getHandlers() {
++        return handlers;
++    }
++
++    @NotNull
++    public static HandlerList getHandlerList() {
++        return handlers;
++    }
++}
