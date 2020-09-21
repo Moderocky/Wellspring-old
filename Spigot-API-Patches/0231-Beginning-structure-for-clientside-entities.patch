@@ -1,0 +1,643 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Mon, 21 Sep 2020 17:05:44 +0100
+Subject: [PATCH] Beginning structure for clientside entities.
+
+
+diff --git a/src/main/java/mx/kenzie/wellspring/Wellspring.java b/src/main/java/mx/kenzie/wellspring/Wellspring.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..b4d46bbd9251f94358b990ebc4ed8665d7374481
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/Wellspring.java
+@@ -0,0 +1,26 @@
++package mx.kenzie.wellspring;
++
++import org.bukkit.Server;
++import org.bukkit.entity.EntityType;
++import org.jetbrains.annotations.NotNull;
++
++public interface Wellspring extends Server {
++
++    @NotNull Bridge getBridge();
++
++    /**
++     * This provides a bridging utility for accessing the craft server.
++     * It is preferable to implementing the methods directly into {@link org.bukkit.Bukkit}
++     * since that class is cluttered and unnecessarily static.
++     *
++     * This implementation also makes changeover much easier.
++     */
++    abstract class Bridge {
++
++        public abstract float getWidth(@NotNull EntityType type);
++
++        public abstract float getHeight(@NotNull EntityType type);
++
++    }
++
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/clientside/entity/ClientsideEntity.java b/src/main/java/mx/kenzie/wellspring/clientside/entity/ClientsideEntity.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..c6f99c7688c06d0553da45d9ecb6632ffd158e0b
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/clientside/entity/ClientsideEntity.java
+@@ -0,0 +1,599 @@
++package mx.kenzie.wellspring.clientside.entity;
++
++import mx.kenzie.wellspring.Wellspring;
++import mx.kenzie.wellspring.nbt.NBTCompound;
++import mx.kenzie.wellspring.packet.Packet;
++import mx.kenzie.wellspring.packet.PacketType;
++import net.md_5.bungee.api.chat.BaseComponent;
++import net.md_5.bungee.api.chat.TextComponent;
++import org.bukkit.*;
++import org.bukkit.attachment.Attachment;
++import org.bukkit.block.BlockFace;
++import org.bukkit.block.PistonMoveReaction;
++import org.bukkit.entity.Entity;
++import org.bukkit.entity.EntityType;
++import org.bukkit.entity.Player;
++import org.bukkit.entity.Pose;
++import org.bukkit.event.entity.CreatureSpawnEvent;
++import org.bukkit.event.entity.EntityDamageEvent;
++import org.bukkit.event.player.PlayerTeleportEvent;
++import org.bukkit.metadata.MetadataValue;
++import org.bukkit.permissions.Permission;
++import org.bukkit.permissions.PermissionAttachment;
++import org.bukkit.permissions.PermissionAttachmentInfo;
++import org.bukkit.persistence.PersistentDataContainer;
++import org.bukkit.plugin.Plugin;
++import org.bukkit.util.BoundingBox;
++import org.bukkit.util.Vector;
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
++
++import java.util.*;
++
++public abstract class ClientsideEntity implements Entity {
++
++    private final int id;
++    private final UUID uuid;
++    private final EntityType type;
++    private transient Vector motion;
++    private transient Location location;
++    private transient World world;
++    private float pitch, yaw, head;
++    private boolean nameVisible, glowing, invisible, silent;
++
++    private BaseComponent[] name;
++
++    private transient Wellspring server = ((Wellspring) Bukkit.getServer());
++
++    protected ClientsideEntity(int id, @NotNull UUID uuid, @NotNull EntityType type) {
++        this.id = id;
++        this.uuid = uuid;
++        this.type = type;
++        this.world = Bukkit.getWorlds().get(0);
++    }
++
++    @NotNull
++    @Override
++    public Location getLocation() {
++        return location.clone();
++    }
++
++    @Nullable
++    @Override
++    public Location getLocation(@Nullable Location loc) {
++        if (loc == null) return null;
++        return loc.set(location.getX(), location.getY(), location.getZ());
++    }
++
++    @Override
++    public void setVelocity(@NotNull Vector velocity) {
++        motion = velocity.clone();
++    }
++
++    @NotNull
++    @Override
++    public Vector getVelocity() {
++        return motion.clone();
++    }
++
++    @Override
++    public double getHeight() {
++        return server.getBridge().getHeight(type);
++    }
++
++    @Override
++    public double getWidth() {
++        return server.getBridge().getWidth(type);
++    }
++
++    @NotNull
++    @Override
++    public BoundingBox getBoundingBox() {
++        double x = getWidth()/2, y = getHeight()/2, z = getWidth()/2;
++        return BoundingBox.of(getLocation().add(x, y, z), x, y, z);
++    }
++
++    @Override
++    public boolean isOnGround() {
++        return false;
++    }
++
++    @NotNull
++    @Override
++    public World getWorld() {
++        return world;
++    }
++
++    @Override
++    public void setRotation(float yaw, float pitch) {
++        this.pitch = pitch;
++        this.yaw = yaw;
++    }
++
++    @Override
++    public boolean teleport(@NotNull Location location) {
++        this.location = location.clone();
++        return true;
++    }
++
++    @Override
++    public boolean teleport(@NotNull Location location, @NotNull PlayerTeleportEvent.TeleportCause cause) {
++        this.location = location.clone();
++        return true;
++    }
++
++    @Override
++    public boolean teleport(@NotNull Entity destination) {
++        this.location = destination.getLocation().clone();
++        return true;
++    }
++
++    @Override
++    public boolean teleport(@NotNull Entity destination, @NotNull PlayerTeleportEvent.TeleportCause cause) {
++        this.location = destination.getLocation().clone();
++        return true;
++    }
++
++    @NotNull
++    @Override
++    public List<Entity> getNearbyEntities(double x, double y, double z) {
++        return new ArrayList<>(world.getNearbyEntities(location, x, y, z));
++    }
++
++    @Override
++    public int getEntityId() {
++        return id;
++    }
++
++    @Override
++    public int getFireTicks() {
++        return -1;
++    }
++
++    @Override
++    public int getMaxFireTicks() {
++        return -1;
++    }
++
++    @Override
++    public void setFireTicks(int ticks) {
++
++    }
++
++    @Override
++    public void remove() {
++
++    }
++
++    @Override
++    public boolean isDead() {
++        return false;
++    }
++
++    @Override
++    public boolean isValid() {
++        return false;
++    }
++
++    @Override
++    public void sendMessage(@NotNull String message) {
++
++    }
++
++    @Override
++    public void sendMessage(@NotNull String[] messages) {
++
++    }
++
++    @NotNull
++    @Override
++    public Server getServer() {
++        return server;
++    }
++
++    @NotNull
++    @Override
++    public String getName() {
++        return TextComponent.toLegacyText(name);
++    }
++
++    @Override
++    public boolean isPersistent() {
++        return false;
++    }
++
++    @Override
++    public void setPersistent(boolean persistent) {
++
++    }
++
++    @Nullable
++    @Override
++    public Entity getPassenger() {
++        return null;
++    }
++
++    @Override
++    public boolean setPassenger(@NotNull Entity passenger) {
++        return false;
++    }
++
++    @NotNull
++    @Override
++    public List<Entity> getPassengers() {
++        return new ArrayList<>();
++    }
++
++    @Override
++    public boolean addPassenger(@NotNull Entity passenger) {
++        return false;
++    }
++
++    @Override
++    public boolean removePassenger(@NotNull Entity passenger) {
++        return false;
++    }
++
++    @Override
++    public boolean isEmpty() {
++        return true;
++    }
++
++    @Override
++    public boolean eject() {
++        return false;
++    }
++
++    @Override
++    public float getFallDistance() {
++        return 0;
++    }
++
++    @Override
++    public void setFallDistance(float distance) {
++
++    }
++
++    @Override
++    public void setLastDamageCause(@Nullable EntityDamageEvent event) {
++
++    }
++
++    @Nullable
++    @Override
++    public EntityDamageEvent getLastDamageCause() {
++        return null;
++    }
++
++    @NotNull
++    @Override
++    public UUID getUniqueId() {
++        return uuid;
++    }
++
++    @Override
++    public int getTicksLived() {
++        return 0;
++    }
++
++    @Override
++    public void setTicksLived(int value) {
++
++    }
++
++    @Override
++    public void playEffect(@NotNull EntityEffect type) {
++        Packet packet = server.getPacketFactory().createFrom(PacketType.Outgoing.ANIMATION, id, type.getData());
++        packet.send(Bukkit.getOnlinePlayers().toArray(new Player[0]));
++    }
++
++    @NotNull
++    @Override
++    public EntityType getType() {
++        return type;
++    }
++
++    @Override
++    public boolean isInsideVehicle() {
++        return false;
++    }
++
++    @Override
++    public boolean leaveVehicle() {
++        return false;
++    }
++
++    @Nullable
++    @Override
++    public Entity getVehicle() {
++        return null;
++    }
++
++    @Override
++    public void setCustomNameVisible(boolean flag) {
++        nameVisible = flag;
++    }
++
++    @Override
++    public boolean isCustomNameVisible() {
++        return nameVisible;
++    }
++
++    @Override
++    public void setGlowing(boolean flag) {
++        glowing = flag;
++    }
++
++    @Override
++    public boolean isGlowing() {
++        return glowing;
++    }
++
++    @Override
++    public void setInvulnerable(boolean flag) {
++
++    }
++
++    @Override
++    public boolean isInvulnerable() {
++        return true;
++    }
++
++    @Override
++    public boolean isSilent() {
++        return silent;
++    }
++
++    @Override
++    public void setSilent(boolean flag) {
++        this.silent = flag;
++    }
++
++    @Override
++    public boolean hasGravity() {
++        return false;
++    }
++
++    @Override
++    public void setGravity(boolean gravity) {
++
++    }
++
++    @Override
++    public int getPortalCooldown() {
++        return 0;
++    }
++
++    @Override
++    public void setPortalCooldown(int cooldown) {
++
++    }
++
++    @NotNull
++    @Override
++    public Set<String> getScoreboardTags() {
++        return new HashSet<>();
++    }
++
++    @Override
++    public boolean addScoreboardTag(@NotNull String tag) {
++        return false;
++    }
++
++    @Override
++    public boolean removeScoreboardTag(@NotNull String tag) {
++        return false;
++    }
++
++    @NotNull
++    @Override
++    public PistonMoveReaction getPistonMoveReaction() {
++        return PistonMoveReaction.IGNORE;
++    }
++
++    @NotNull
++    @Override
++    public BlockFace getFacing() {
++        return BlockFace.SELF;
++    }
++
++    @NotNull
++    @Override
++    public Pose getPose() {
++        return Pose.STANDING;
++    }
++
++    @NotNull
++    @Override
++    public Spigot spigot() {
++        return new Spigot();
++    }
++
++    @Nullable
++    @Override
++    public Location getOrigin() {
++        return null;
++    }
++
++    @Override
++    public boolean fromMobSpawner() {
++        return false;
++    }
++
++    @NotNull
++    @Override
++    public Chunk getChunk() {
++        return null;
++    }
++
++    @NotNull
++    @Override
++    public CreatureSpawnEvent.SpawnReason getEntitySpawnReason() {
++        return null;
++    }
++
++    @Override
++    public boolean isInWater() {
++        return false;
++    }
++
++    @Override
++    public boolean isInRain() {
++        return false;
++    }
++
++    @Override
++    public boolean isInBubbleColumn() {
++        return false;
++    }
++
++    @Override
++    public boolean isInWaterOrRain() {
++        return false;
++    }
++
++    @Override
++    public boolean isInWaterOrBubbleColumn() {
++        return false;
++    }
++
++    @Override
++    public boolean isInWaterOrRainOrBubbleColumn() {
++        return false;
++    }
++
++    @Override
++    public boolean isInLava() {
++        return false;
++    }
++
++    @NotNull
++    @Override
++    public NBTCompound getNBT() {
++        return NBTCompound.create();
++    }
++
++    @Override
++    public void loadNBT(@NotNull NBTCompound compound) {
++
++    }
++
++    @Nullable
++    @Override
++    public String getCustomName() {
++        return TextComponent.toLegacyText(name);
++    }
++
++    @Override
++    public void setCustomName(@Nullable String name) {
++        this.name = TextComponent.fromLegacyText(name);
++    }
++
++    @NotNull
++    @Override
++    public <T extends Attachment<?>> T getAttachment(@NotNull Class<T> attachmentClass) throws RuntimeException {
++        throw new RuntimeException(new IllegalAccessException("Unable to attach anything to client-side entities."));
++    }
++
++    @Override
++    public <T extends Attachment<?>> boolean hasAttachment(@NotNull Class<T> attachmentClass) {
++        return false;
++    }
++
++    @Override
++    public void setMetadata(@NotNull String metadataKey, @NotNull MetadataValue newMetadataValue) {
++
++    }
++
++    @NotNull
++    @Override
++    public List<MetadataValue> getMetadata(@NotNull String metadataKey) {
++        return new ArrayList<>();
++    }
++
++    @Override
++    public boolean hasMetadata(@NotNull String metadataKey) {
++        return false;
++    }
++
++    @Override
++    public void removeMetadata(@NotNull String metadataKey, @NotNull Plugin owningPlugin) {
++
++    }
++
++    @Override
++    public boolean isPermissionSet(@NotNull String name) {
++        return false;
++    }
++
++    @Override
++    public boolean isPermissionSet(@NotNull Permission perm) {
++        return false;
++    }
++
++    @Override
++    public boolean hasPermission(@NotNull String name) {
++        return false;
++    }
++
++    @Override
++    public boolean hasPermission(@NotNull Permission perm) {
++        return false;
++    }
++
++    @NotNull
++    @Override
++    public PermissionAttachment addAttachment(@NotNull Plugin plugin, @NotNull String name, boolean value) throws RuntimeException {
++        throw new RuntimeException(new IllegalAccessException("Unable to attach anything to client-side entities."));
++    }
++
++    @NotNull
++    @Override
++    public PermissionAttachment addAttachment(@NotNull Plugin plugin) throws RuntimeException {
++        throw new RuntimeException(new IllegalAccessException("Unable to attach anything to client-side entities."));
++    }
++
++    @Nullable
++    @Override
++    public PermissionAttachment addAttachment(@NotNull Plugin plugin, @NotNull String name, boolean value, int ticks) throws RuntimeException {
++        throw new RuntimeException(new IllegalAccessException("Unable to attach anything to client-side entities."));
++    }
++
++    @Nullable
++    @Override
++    public PermissionAttachment addAttachment(@NotNull Plugin plugin, int ticks) throws RuntimeException {
++        throw new RuntimeException(new IllegalAccessException("Unable to attach anything to client-side entities."));
++    }
++
++    @Override
++    public void removeAttachment(@NotNull PermissionAttachment attachment) throws RuntimeException {
++        throw new RuntimeException(new IllegalAccessException("Unable to attach anything to client-side entities."));
++    }
++
++    @Override
++    public void recalculatePermissions() {
++
++    }
++
++    @NotNull
++    @Override
++    public Set<PermissionAttachmentInfo> getEffectivePermissions() {
++        return new HashSet<>();
++    }
++
++    @Override
++    public boolean isOp() {
++        return false;
++    }
++
++    @Override
++    public void setOp(boolean value) {
++
++    }
++
++    @NotNull
++    @Override
++    public PersistentDataContainer getPersistentDataContainer() throws RuntimeException {
++        throw new RuntimeException(new IllegalAccessException("Unable to attach anything to client-side entities."));
++    }
++}
