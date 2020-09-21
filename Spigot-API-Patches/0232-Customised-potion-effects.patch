@@ -1,0 +1,405 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Mon, 21 Sep 2020 18:49:07 +0100
+Subject: [PATCH] Customised potion effects.
+
+
+diff --git a/src/main/java/mx/kenzie/wellspring/event/EntityLandEvent.java b/src/main/java/mx/kenzie/wellspring/event/EntityLandEvent.java
+index 03880445c567a8a65523e481981e20637c7286a6..1a5b48067ffce75e189c0da7a1b0797e5bb0a38d 100644
+--- a/src/main/java/mx/kenzie/wellspring/event/EntityLandEvent.java
++++ b/src/main/java/mx/kenzie/wellspring/event/EntityLandEvent.java
+@@ -1,7 +1,6 @@
+ package mx.kenzie.wellspring.event;
+ 
+ import org.bukkit.entity.Entity;
+-import org.bukkit.event.Cancellable;
+ import org.bukkit.event.HandlerList;
+ import org.bukkit.event.entity.EntityEvent;
+ import org.jetbrains.annotations.NotNull;
+diff --git a/src/main/java/mx/kenzie/wellspring/potion/CustomPotionEffect.java b/src/main/java/mx/kenzie/wellspring/potion/CustomPotionEffect.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..2e5691c0b92e7ca197c72445504218662fde26f1
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/potion/CustomPotionEffect.java
+@@ -0,0 +1,5 @@
++package mx.kenzie.wellspring.potion;
++
++public interface CustomPotionEffect {
++
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/potion/PotionBuilder.java b/src/main/java/mx/kenzie/wellspring/potion/PotionBuilder.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..a6c00ffdfa8de8b6ceefef3c986701f8da88a287
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/potion/PotionBuilder.java
+@@ -0,0 +1,136 @@
++package mx.kenzie.wellspring.potion;
++
++import org.bukkit.Bukkit;
++import org.bukkit.NamespacedKey;
++import org.bukkit.attribute.Attribute;
++import org.bukkit.attribute.AttributeModifier;
++import org.bukkit.entity.LivingEntity;
++import org.bukkit.plugin.Plugin;
++import org.bukkit.potion.PotionEffectType;
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
++
++import java.awt.*;
++import java.util.HashMap;
++import java.util.Map;
++import java.util.function.BiConsumer;
++
++/**
++ * Allows for the creation of custom potion effect types.
++ * These can have their own colours, linked attributes and scheduled behaviour.
++ *
++ * They will persist over restarts and log-outs as long as the plugin registers
++ * the effect in the STARTUP phase, before the world is loaded.
++ * This also requires a consistent effect index to be used.
++ *
++ * To create a builder, use {@link Bukkit#createPotionEffect(NamespacedKey, String)}
++ */
++public abstract class PotionBuilder {
++
++    protected final @NotNull NamespacedKey key;
++    protected final @NotNull String name;
++    protected final @NotNull Map<Attribute, AttributeModifier> attributes = new HashMap<>();
++
++    protected boolean instant;
++
++    /**
++     * Creates a new builder.
++     * @param key The key of the effect (used to prevent re-registration)
++     * @param name The name of the effect
++     * @return The new builder
++     */
++    public static @NotNull PotionBuilder create(@NotNull NamespacedKey key, @NotNull String name) {
++        return Bukkit.createPotionEffect(key, name);
++    }
++
++    protected PotionBuilder(@NotNull NamespacedKey key, @NotNull String name) {
++        this.key = key;
++        this.name = name;
++    }
++
++    /**
++     * Marks the potion as "instant" (e.g. healing, harming)
++     * @param instant Instant
++     * @return Chain
++     */
++    public @NotNull PotionBuilder setInstant(boolean instant) {
++        this.instant = instant;
++        return this;
++    }
++
++    /**
++     * Sets the colour of the potion bubble particles
++     * @param color The colour of the particles
++     * @return Chain
++     */
++    public abstract @NotNull PotionBuilder setColor(@NotNull Color color);
++
++    /**
++     * Sets the type of the potion, for filtering
++     * @param type The type
++     * @return Chain
++     */
++    public abstract @NotNull PotionBuilder setType(@NotNull PotionType type);
++
++    /**
++     * Sets an action to be run when the potion ticks.
++     * Note - this will be run VERY frequently, so can cause lag.
++     * @param consumer The action to run
++     * @return Chain
++     */
++    public abstract @NotNull PotionBuilder setTickConsumer(@Nullable BiConsumer<LivingEntity, Integer> consumer);
++
++    /**
++     * Adds an attribute to the potion. The attribute will be applied to the target so long
++     * as they have the effect.
++     * The attribute modifier's value will be affected by the potion level.
++     * @param attribute The attribute
++     * @param modifier The modifier
++     * @return Chain
++     */
++    public @NotNull PotionBuilder addAttribute(@NotNull Attribute attribute, @NotNull AttributeModifier modifier) {
++        attributes.put(attribute, modifier);
++        return this;
++    }
++
++    public @NotNull PotionBuilder removeAttribute(@NotNull Attribute attribute) {
++        attributes.remove(attribute);
++        return this;
++    }
++
++    /**
++     * Registers the potion and attaches it to this plugin.
++     *
++     * NOTE - the hashed namespaced key will be used as the index.
++     *
++     * @param plugin The plugin to register it with.
++     */
++    public abstract void register(@NotNull Plugin plugin);
++
++    /**
++     * Registers the potion and attaches it to this plugin.
++     *
++     * NOTE - indices are used to store the potion effect.
++     * Duplicates will override, please be careful.
++     *
++     * Numerical storage blocks are generated using the hashed
++     * plugin name. This means that changing your plugin's name
++     * will cause existing effects not to load.
++     *
++     * @param plugin The plugin to register it with.
++     * @param index The index (used for saving/loading) - this should be from 1 to N
++     *              and is based on the plugin's name to avoid conflicts.
++     *              Large numbers are not advised.
++     */
++    public abstract void register(@NotNull Plugin plugin, int index);
++
++    @NotNull
++    public String getName() {
++        return name;
++    }
++
++    @NotNull
++    public NamespacedKey getKey() {
++        return key;
++    }
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/potion/PotionType.java b/src/main/java/mx/kenzie/wellspring/potion/PotionType.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..93ced1a8427028773b21a3faf5da590bf3fb6a65
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/potion/PotionType.java
+@@ -0,0 +1,7 @@
++package mx.kenzie.wellspring.potion;
++
++public enum PotionType {
++        HARMFUL,
++        NEUTRAL,
++        BENEFICIAL
++    }
+diff --git a/src/main/java/org/bukkit/Bukkit.java b/src/main/java/org/bukkit/Bukkit.java
+index 533f24fdf57d7eea0142988f6576be1746ee1228..8c337989d0aae05143ea7a9ff3ae9bac22e4f27c 100644
+--- a/src/main/java/org/bukkit/Bukkit.java
++++ b/src/main/java/org/bukkit/Bukkit.java
+@@ -17,6 +17,7 @@ import java.util.logging.Logger;
+ 
+ import mx.kenzie.wellspring.nbt.NBTFactory;
+ import mx.kenzie.wellspring.packet.PacketFactory;
++import mx.kenzie.wellspring.potion.PotionBuilder;
+ import org.bukkit.Warning.WarningState;
+ import org.bukkit.advancement.Advancement;
+ import org.bukkit.attachment.Attachable;
+@@ -1792,6 +1793,19 @@ public final class Bukkit {
+     }
+     // Kenzie end
+ 
++    // Kenzie start - Potions
++    /**
++     * Creates a new potion builder.
++     * @param key The namespaced key of the potion.
++     * @param name The name of the potion effect.
++     * @return The builder, to further customise it.
++     */
++    public static @NotNull
++    PotionBuilder createPotionEffect(@NotNull NamespacedKey key, @NotNull String name) {
++        return server.createPotionEffect(key, name);
++    }
++    // Kenzie end
++
+     /**
+      * Creates a PlayerProfile for the specified uuid, with name as null
+      * @param uuid UUID to create profile for
+diff --git a/src/main/java/org/bukkit/Server.java b/src/main/java/org/bukkit/Server.java
+index 0ccb35fe4e6e9050768ce5a27d63653b20621772..68063393666751604663e7cd46c26a4bd2acd953 100644
+--- a/src/main/java/org/bukkit/Server.java
++++ b/src/main/java/org/bukkit/Server.java
+@@ -17,6 +17,7 @@ import java.util.logging.Logger;
+ 
+ import mx.kenzie.wellspring.nbt.NBTFactory;
+ import mx.kenzie.wellspring.packet.PacketFactory;
++import mx.kenzie.wellspring.potion.PotionBuilder;
+ import org.bukkit.Warning.WarningState;
+ import org.bukkit.advancement.Advancement;
+ import org.bukkit.attachment.Attachable;
+@@ -1476,6 +1477,17 @@ public interface Server extends PluginMessageRecipient {
+     PacketFactory getPacketFactory();
+     // Kenzie end
+ 
++    // Kenzie start - Potions
++    /**
++     * Creates a new potion builder.
++     * @param key The namespaced key of the potion.
++     * @param name The name of the potion effect.
++     * @return The builder, to further customise it.
++     */
++    @NotNull
++    PotionBuilder createPotionEffect(@NotNull NamespacedKey key, @NotNull String name);
++    // Kenzie end
++
+     /**
+      * @see UnsafeValues
+      * @return the unsafe values instance
+diff --git a/src/main/java/org/bukkit/potion/PotionEffectType.java b/src/main/java/org/bukkit/potion/PotionEffectType.java
+index b5790aaac67f5b73f941147008d21a92d716b254..d7592d86bad2bf176ec45778ecc5f30af709c0b6 100644
+--- a/src/main/java/org/bukkit/potion/PotionEffectType.java
++++ b/src/main/java/org/bukkit/potion/PotionEffectType.java
+@@ -1,10 +1,11 @@
+ package org.bukkit.potion;
+ 
+-import java.util.Arrays;
+-import java.util.HashMap;
+-import java.util.Map;
++import java.util.*;
++
+ import org.apache.commons.lang.Validate;
+ import org.bukkit.Color;
++import org.bukkit.NamespacedKey;
++import org.bukkit.plugin.Plugin;
+ import org.jetbrains.annotations.NotNull;
+ import org.jetbrains.annotations.Nullable;
+ 
+@@ -262,10 +263,14 @@ public abstract class PotionEffectType {
+         return "PotionEffectType[" + id + ", " + getName() + "]";
+     }
+ 
+-    private static final PotionEffectType[] byId = new PotionEffectType[33];
+-    private static final Map<String, PotionEffectType> byName = new HashMap<String, PotionEffectType>();
++    public static final int MINECRAFT_SIZE = 33;
++    private static final Map<Integer, PotionEffectType> byId = new HashMap<>(); // Kenzie - expand registry size
++    // The cap is arbitrary.
++    private static final Map<String, PotionEffectType> byName = new HashMap<>();
+     // will break on updates.
+-    private static boolean acceptingNew = true;
++    private static boolean acceptingNew = true; // Kenzie - we actually ignore this
++    private static final Map<PotionEffectType, Plugin> byPlugin = new WeakHashMap<>(); // Kenzie - tracking
++    private static final Map<NamespacedKey, PotionEffectType> byKey = new HashMap<>(); // Kenzie - key tracking
+ 
+     /**
+      * Gets the effect type specified by the unique id.
+@@ -277,9 +282,9 @@ public abstract class PotionEffectType {
+     @Deprecated
+     @Nullable
+     public static PotionEffectType getById(int id) {
+-        if (id >= byId.length || id < 0)
++        if (id < 0)
+             return null;
+-        return byId[id];
++        return byId.get(id);
+     }
+ 
+     /**
+@@ -295,23 +300,99 @@ public abstract class PotionEffectType {
+     }
+ 
+     /**
++     * INTERNAL USE ONLY!
++     * Plugins should see {@link mx.kenzie.wellspring.potion.PotionBuilder}
++     *
+      * Registers an effect type with the given object.
+      * <p>
+      * Generally not to be used from within a plugin.
+      *
+      * @param type PotionType to register
+      */
++    @Deprecated
+     public static void registerPotionEffectType(@NotNull PotionEffectType type) {
+-        if (byId[type.id] != null || byName.containsKey(type.getName().toLowerCase(java.util.Locale.ENGLISH))) {
++        if (byId.get(type.id) != null || byName.containsKey(type.getName().toLowerCase(java.util.Locale.ENGLISH))) {
+             throw new IllegalArgumentException("Cannot set already-set type");
+         } else if (!acceptingNew) {
+             throw new IllegalStateException(
+                     "No longer accepting new potion effect types (can only be done by the server implementation)");
+         }
++        byId.put(type.id, type);
++        byName.put(type.getName().toLowerCase(java.util.Locale.ENGLISH), type);
++        byKey.put(NamespacedKey.minecraft(type.getName()), type); // Kenzie - tracking
++    }
+ 
+-        byId[type.id] = type;
++    // Kenzie start
++    public static void registerPotion(@NotNull NamespacedKey key, @NotNull PotionEffectType type, @NotNull Plugin plugin) {
++        Validate.notNull(type);
++        if (type.id <= MINECRAFT_SIZE) throw new IllegalArgumentException("Cannot override vanilla potion types!");
++        if (byKey.containsKey(key)) { // Deals with re-registering, because we shouldn't remove them on plugin disable
++            PotionEffectType original = byKey.get(key);
++            unregisterPotion(original);
++        }
++        byId.put(type.id, type);
+         byName.put(type.getName().toLowerCase(java.util.Locale.ENGLISH), type);
++        byPlugin.put(type, plugin);
++        byKey.put(key, type);
++    }
++
++    public static void unregisterPotion(@NotNull PotionEffectType type) {
++        if (type.id <= MINECRAFT_SIZE) throw new IllegalArgumentException("Cannot unregister vanilla potion types!");
++        Validate.notNull(type);
++        byId.remove(type.id);
++        byName.remove(type.getName().toLowerCase(java.util.Locale.ENGLISH));
++        byPlugin.remove(type);
++        byKey.entrySet().removeIf(entry -> entry.getValue().equals(type));
++    }
++
++    public static void unregister(@NotNull Plugin plugin) {
++        Validate.notNull(plugin);
++        byPlugin.entrySet().removeIf(entry -> {
++            if (entry.getValue().equals(plugin)) {
++                PotionEffectType type = entry.getKey();
++                byId.remove(type.id);
++                byName.remove(type.getName());
++                byKey.entrySet().removeIf(e -> e.getValue().equals(type));
++                return true;
++            }
++            return false;
++        });
++    }
++
++    public static void unregister(@NotNull NamespacedKey key) {
++        Validate.notNull(key);
++        byKey.entrySet().removeIf(entry -> {
++            if (entry.getKey().equals(key)) {
++                PotionEffectType type = entry.getValue();
++                byId.remove(type.id);
++                byName.remove(type.getName());
++                byPlugin.remove(type);
++                return true;
++            }
++            return false;
++        });
++    }
++
++    /**
++     * Internal use only!
++     * Improper usage of this can desync it from the NMS potion registry which would cause
++     * mismatched types and a whole host of errors.
++     *
++     * @return the next available potion index
++     */
++    @Deprecated
++    public static int nextAvailableIndex() {
++        int i = MINECRAFT_SIZE + 1;
++        while (byId.containsKey(i)) i++;
++        return i;
++    }
++
++    public static int nextAvailableIndex(@NotNull Plugin plugin) {
++        int i = plugin.getName().hashCode();
++        while (byId.containsKey(i)) i++;
++        return i;
+     }
++    // Kenzie end
+ 
+     /**
+      * Stops accepting any effect type registrations.
+@@ -328,6 +409,6 @@ public abstract class PotionEffectType {
+      */
+     @NotNull
+     public static PotionEffectType[] values() {
+-        return Arrays.copyOfRange(byId, 1, byId.length);
++        return byId.values().toArray(new PotionEffectType[0]);
+     }
+ }
