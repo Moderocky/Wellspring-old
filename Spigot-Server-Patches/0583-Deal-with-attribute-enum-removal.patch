@@ -1,0 +1,33 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Mon, 21 Sep 2020 10:34:17 +0100
+Subject: [PATCH] Deal with attribute enum removal.
+
+
+diff --git a/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaItem.java b/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaItem.java
+index 4616b3e99b511a83b349d607c7d9faac79baf8df..2e589274b0160bb592209f5aab78b22f155c5bb4 100644
+--- a/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaItem.java
++++ b/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaItem.java
+@@ -52,6 +52,7 @@ import org.apache.commons.codec.binary.Base64;
+ import org.apache.commons.lang.Validate;
+ import org.apache.commons.lang3.EnumUtils;
+ import org.bukkit.Material;
++import org.bukkit.NamespacedKey;
+ import org.bukkit.attribute.Attribute;
+ import org.bukkit.attribute.AttributeModifier;
+ import org.bukkit.block.data.BlockData;
+@@ -684,10 +685,10 @@ class CraftMetaItem implements ItemMeta, Damageable, Repairable, BlockDataMeta {
+                     continue;
+                 }
+                 AttributeModifier modifier = (AttributeModifier) o;
+-                Attribute attribute = EnumUtils.getEnum(Attribute.class, attributeName.toUpperCase(Locale.ROOT));
+-                if (attribute == null) {
+-                    continue;
+-                }
++                // Kenzie start - custom attributes
++                String[] parts = attributeName.split(":");
++                Attribute attribute = new Attribute(new NamespacedKey(parts[0], parts[1]));
++                // Kenzie end
+ 
+                 result.put(attribute, modifier);
+             }
