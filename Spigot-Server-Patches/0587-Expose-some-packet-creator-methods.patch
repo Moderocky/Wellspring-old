@@ -1,0 +1,144 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Mon, 21 Sep 2020 12:05:41 +0100
+Subject: [PATCH] Expose some packet creator methods.
+
+
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutSpawnEntityLiving.java b/src/main/java/net/minecraft/server/PacketPlayOutSpawnEntityLiving.java
+index 94162edb779af284c0205f553e1a55f0c2d8a509..058be773161b4f0b4d3d852656a24633e364bd9a 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutSpawnEntityLiving.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutSpawnEntityLiving.java
+@@ -20,6 +20,30 @@ public class PacketPlayOutSpawnEntityLiving implements Packet<PacketListenerPlay
+ 
+     public PacketPlayOutSpawnEntityLiving() {}
+ 
++    // Kenzie start - for packets
++    public PacketPlayOutSpawnEntityLiving(int id, UUID uuid, int type, double x, double y, double z, Vec3D vec3d, float yaw, float pitch, float headRot) {
++        a = id;
++        b = uuid;
++        c = type;
++        d = x;
++        e = y;
++        f = z;
++
++        this.j = (byte) ((int) (yaw * 256.0F / 360.0F));
++        this.k = (byte) ((int) (pitch * 256.0F / 360.0F));
++        this.l = (byte) ((int) (headRot * 256.0F / 360.0F));
++
++        double d1 = MathHelper.a(vec3d.x, -3.9D, 3.9D);
++        double d2 = MathHelper.a(vec3d.y, -3.9D, 3.9D);
++        double d3 = MathHelper.a(vec3d.z, -3.9D, 3.9D);
++
++        this.g = (int) (d1 * 8000.0D);
++        this.h = (int) (d2 * 8000.0D);
++        this.i = (int) (d3 * 8000.0D);
++    }
++
++    // Kenzie end
++
+     public PacketPlayOutSpawnEntityLiving(EntityLiving entityliving) {
+         this.a = entityliving.getId();
+         this.b = entityliving.getUniqueID();
+diff --git a/src/main/java/org/bukkit/craftbukkit/packet/PacketFactoryImpl.java b/src/main/java/org/bukkit/craftbukkit/packet/PacketFactoryImpl.java
+index b7b684a30e5369e90f8cc8b90cb28f0bab999ba8..0fb7ebc68176f73c8a2ce34ff4b08f804f5e6e8b 100644
+--- a/src/main/java/org/bukkit/craftbukkit/packet/PacketFactoryImpl.java
++++ b/src/main/java/org/bukkit/craftbukkit/packet/PacketFactoryImpl.java
+@@ -15,11 +15,13 @@ import org.bukkit.craftbukkit.entity.CraftEntity;
+ import org.bukkit.craftbukkit.entity.CraftPlayer;
+ import org.bukkit.craftbukkit.util.CraftMagicNumbers;
+ import org.bukkit.entity.Entity;
++import org.bukkit.entity.EntityType;
+ import org.bukkit.entity.Player;
+ 
+ import java.lang.reflect.Field;
+ import java.lang.reflect.Modifier;
+ import java.util.*;
++import java.util.concurrent.ThreadLocalRandom;
+ 
+ import static mx.kenzie.wellspring.packet.PacketType.Incoming;
+ import static mx.kenzie.wellspring.packet.PacketType.Outgoing;
+@@ -169,10 +171,12 @@ public class PacketFactoryImpl extends PacketFactory {
+         }
+     }
+ 
++    @Override
+     public Packet loginOutCustomPayload() {
+         return new PacketLoginInCustomPayload();
+     }
+ 
++    @Override
+     public Packet playOutAbilities(boolean invulnerable, boolean flying, boolean canFly, boolean canInstantlyBuild, float flySpeed, float walkSpeed) {
+         PlayerAbilities abilities = new PlayerAbilities();
+         abilities.isInvulnerable = invulnerable;
+@@ -184,6 +188,7 @@ public class PacketFactoryImpl extends PacketFactory {
+         return new PacketPlayOutAbilities(abilities);
+     }
+ 
++    @Override
+     public Packet playOutAdvancements(boolean reset, Collection<Advancement> toAdd, Set<NamespacedKey> toRemove, Map<NamespacedKey, AdvancementProgress> progress) {
+         List<net.minecraft.server.Advancement> adding = new ArrayList<>();
+         for (Advancement advancement : toAdd) {
+@@ -200,14 +205,17 @@ public class PacketFactoryImpl extends PacketFactory {
+         return new PacketPlayOutAdvancements(reset, adding, removing, progressing);
+     }
+ 
++    @Override
+     public Packet playOutAnimation(Entity entity, int animationId) {
+         return new PacketPlayOutAnimation(((CraftEntity) entity).getHandle(), animationId);
+     }
+ 
++    @Override
+     public Packet playOutAttachEntity(Entity target, Entity holder) {
+         return new PacketPlayOutAttachEntity(((CraftEntity) target).getHandle(), holder != null ? ((CraftEntity) holder).getHandle() : null);
+     }
+ 
++    @Override
+     public Packet playOutAutoRecipe(int container, NamespacedKey recipe) {
+         PacketPlayOutAutoRecipe packet = new PacketPlayOutAutoRecipe();
+         try {
+@@ -223,12 +231,45 @@ public class PacketFactoryImpl extends PacketFactory {
+         return packet;
+     }
+ 
++    @Override
+     public Packet playOutBlockAction(Location location, BlockData data, int action, int parameter) {
+         BlockPosition position = new BlockPosition(location.getX(), location.getY(), location.getZ());
+         Block block = CraftMagicNumbers.getBlock(data.getMaterial());
+         return new PacketPlayOutBlockAction(position, block, action, parameter);
+     }
+ 
++    @Override
++    public Packet playOutSpawnEntity(EntityType type, Location location) {
++        int id = 10000 + ThreadLocalRandom.current().nextInt(1000000);
++        UUID uuid = UUID.randomUUID();
++        return playOutSpawnEntity(type, location, id, uuid);
++    }
++
++    @Override
++    public Packet playOutSpawnEntity(EntityType type, Location location, int id, UUID uuid) {
++        EntityTypes<?> types = IRegistry.ENTITY_TYPE.get(new MinecraftKey(type.getKey().toString()));
++        return new PacketPlayOutSpawnEntity(id, uuid, location.getX(), location.getY(), location.getZ(), location.getPitch(), location.getYaw(), types, 0, new Vec3D(0, 0, 0));
++    }
++
++    @Override
++    public Packet playOutSpawnLivingEntity(EntityType type, Location location) {
++        int id = 10000 + ThreadLocalRandom.current().nextInt(1000000);
++        UUID uuid = UUID.randomUUID();
++        return playOutSpawnLivingEntity(type, location, id, uuid, 0, 0, 0);
++    }
++
++    @Override
++    public Packet playOutSpawnLivingEntity(EntityType type, Location location, int id, UUID uuid) {
++        return playOutSpawnLivingEntity(type, location, id, uuid, 0, 0, 0);
++    }
++
++    @Override
++    public Packet playOutSpawnLivingEntity(EntityType type, Location location, int id, UUID uuid, float yaw, float pitch, float headRotation) {
++        EntityTypes<?> types = IRegistry.ENTITY_TYPE.get(new MinecraftKey(type.getKey().toString()));
++        int typeId = IRegistry.ENTITY_TYPE.a(types);
++        return new PacketPlayOutSpawnEntityLiving(id, uuid, typeId, location.getX(), location.getY(), location.getZ(), new Vec3D(0, 0, 0), yaw, pitch, headRotation);
++    }
++
+     @Override
+     public Packet createFrom(PacketType type, Object... fieldInputs) {
+         try {

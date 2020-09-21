@@ -1,0 +1,70 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Mon, 21 Sep 2020 12:05:32 +0100
+Subject: [PATCH] Expose some packet creator methods.
+
+
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java b/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java
+index 375d82b6c73905c73aa88ea349ed8262b5895f4a..9ae4901c755a0b29a68f466fc4f2304d88d9fa89 100644
+--- a/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java
++++ b/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java
+@@ -1,11 +1,58 @@
+ package mx.kenzie.wellspring.packet;
+ 
++import org.bukkit.Location;
++import org.bukkit.NamespacedKey;
++import org.bukkit.advancement.Advancement;
++import org.bukkit.advancement.AdvancementProgress;
++import org.bukkit.block.data.BlockData;
++import org.bukkit.entity.Entity;
++import org.bukkit.entity.EntityType;
+ import org.bukkit.entity.Player;
+ import org.jetbrains.annotations.NotNull;
+ 
++import java.util.Collection;
++import java.util.Map;
++import java.util.Set;
++import java.util.UUID;
++
+ public abstract class PacketFactory {
+ 
+-    public abstract @NotNull Packet createFrom(@NotNull PacketType type, @NotNull Object... fieldInputs);
++    /**
++     * Creates a packet from the given type using a builder system.
++     * This allows you to input the field values of the packet directly.
++     *
++     * WARNING - this is potentially unsafe and requires knowledge of the NMS packet code.
++     * If possible, please use the exposed builder methods instead.
++     *
++     * @param type The packet type - this should almost always be {@link mx.kenzie.wellspring.packet.PacketType.Outgoing}
++     * @param fieldInputs The field values, in order. These will be set via reflection
++     * @return The complete packet, if possible
++     */
++    public abstract @NotNull Packet createFrom(@NotNull PacketType type, @NotNull Object... fieldInputs) throws IllegalArgumentException;
++
++    public abstract @NotNull Packet loginOutCustomPayload();
++
++    public abstract @NotNull Packet playOutAbilities(boolean invulnerable, boolean flying, boolean canFly, boolean canInstantlyBuild, float flySpeed, float walkSpeed);
++
++    public abstract @NotNull Packet playOutAdvancements(boolean reset, @NotNull Collection<Advancement> toAdd, @NotNull Set<NamespacedKey> toRemove, @NotNull Map<NamespacedKey, AdvancementProgress> progress);
++
++    public abstract @NotNull Packet playOutAnimation(@NotNull Entity entity, int animationId);
++
++    public abstract @NotNull Packet playOutAttachEntity(@NotNull Entity target, @NotNull Entity holder);
++
++    public abstract @NotNull Packet playOutAutoRecipe(int container, @NotNull NamespacedKey recipe);
++
++    public abstract @NotNull Packet playOutBlockAction(@NotNull Location location, @NotNull BlockData data, int action, int parameter);
++
++    public abstract @NotNull Packet playOutSpawnEntity(@NotNull EntityType type, @NotNull Location location);
++
++    public abstract @NotNull Packet playOutSpawnEntity(@NotNull EntityType type, @NotNull Location location, int id, @NotNull UUID uuid);
++
++    public abstract @NotNull Packet playOutSpawnLivingEntity(@NotNull EntityType type, @NotNull Location location);
++
++    public abstract @NotNull Packet playOutSpawnLivingEntity(@NotNull EntityType type, @NotNull Location location, int id, @NotNull UUID uuid);
++
++    public abstract @NotNull Packet playOutSpawnLivingEntity(@NotNull EntityType type, @NotNull Location location, int id, @NotNull UUID uuid, float yaw, float pitch, float headRotation);
+ 
+     public abstract void send(@NotNull Packet packet, @NotNull Player... recipients) throws IllegalArgumentException;
+ 
