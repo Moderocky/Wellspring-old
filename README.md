@@ -17,25 +17,48 @@ Current additional features:
 Current testing/in-progress features:
 -----
  * Packet factory and outgoing packet builders. (Testing)
+ * Interface layer with Bukkit for a simple packet-sending system.
 
 Planned future features:
 -----
  * Interface layer with Bukkit for creating attributes, goals, custom entities, potions and enchantments.
- * Interface layer with Bukkit for creating worlds, biomes and structure types.
- * Replacement of all of the idiotic Bukkit enums - allowing for mod content, materials, blocks, APIs, etc. to be added easily.
- * Interface layer with Bukkit for a simple packet-sending system.
+ * Interface layer with Bukkit for creating customised worlds, biomes and structure types.
+ * Replacement of all of the idiotic Bukkit enums - allowing for modded content, materials, blocks, items, APIs, etc. to be added easily.
+   * This will (eventually) include materials, though that will take a long time to complete.
+   * With any hope, this will allow for the reintroduction of projects like "forgebukkit" and similar.
  * Interface layer with Bukkit for managing basic client-side entities.
  * A proper way to create custom NBT-tag implementations, such as to allow for better storage or to store new types.
  * Packet listening/events system.
 
-##### Will this be maintained?
+#### How does the version cycle work?
+Wellspring has a very simple versioning system.
+It takes into account the Minecraft version, the testing scope, and the build number.
+
+For example: `1.16.3-alpha-3`
+`1.16.3` -> Minecraft version
+`alpha` -> release channel
+`3` -> the build number for this Minecraft version
+
+Build numbers increment with every release, no matter the release channel. This means that `alpha-5` is newer than `beta-4`, for example.
+
+The release channels reference how extensively the release has been tested.
+`alpha` -> means it has built successfully, starts and functions successfully, and has compiled into KenzieServer properly. This means it is being used by at least one server with no known issues, however it has not been extensively tested.
+`beta` -> it has been tested on multiple servers and environments, with no issues found.
+`stable` -> it has been widely used with no known problems, and has been available for long enough that any major issues should have been discovered.
+`perfect` -> the final release for this Minecraft version cycle, with no new features planned, no bugs found, and no changes anticipated.
+
+Alpha versions will rarely have proper documentation as they are made available for the purposes of testing/reviewing and can undergo major revisions. This is a good time to recommend changes, debate the implementation of a feature or suggest a better way of doing something.
+
+Beta releases should have extensive documentation, and are generally the "dress rehearsal" for the stable release. Method erasure should remain the same.
+
+#### Will this be maintained?
 Fairly. It ought to be kept up-to-date with Paper upstream. New major Minecraft versions require me to rewrite a large chunk manually, so those updates might take a little longer.
 
-##### Is it safe to use in production?
+#### Is it safe to use in production?
 I believe so. Wellspring forms a part of KenzieServer (the platform used by my servers) so it is very likely that any bugs will be found by me.
 That said-- I cannot possibly check every potential use case by myself, so I would definitely advise caution and prior testing before using the more advanced features.
 
-##### Is there a Maven repository?
+#### Is there a Maven repository?
 Not currently. As a lot of Wellspring's additions are in the `Server` layer (which cannot be distributed) you ought to build from source yourself. Instructions for this are available on Paper's repository.
 
 
