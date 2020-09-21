@@ -1,0 +1,19 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Mon, 21 Sep 2020 18:55:15 +0100
+Subject: [PATCH] Key lowercase fixed.
+
+
+diff --git a/src/main/java/org/bukkit/potion/PotionEffectType.java b/src/main/java/org/bukkit/potion/PotionEffectType.java
+index d7592d86bad2bf176ec45778ecc5f30af709c0b6..9613e3df8cf1d0b3cf088102418e451b82b2a66f 100644
+--- a/src/main/java/org/bukkit/potion/PotionEffectType.java
++++ b/src/main/java/org/bukkit/potion/PotionEffectType.java
+@@ -319,7 +319,7 @@ public abstract class PotionEffectType {
+         }
+         byId.put(type.id, type);
+         byName.put(type.getName().toLowerCase(java.util.Locale.ENGLISH), type);
+-        byKey.put(NamespacedKey.minecraft(type.getName()), type); // Kenzie - tracking
++        byKey.put(NamespacedKey.minecraft(type.getName().toLowerCase(java.util.Locale.ENGLISH)), type); // Kenzie - tracking
+     }
+ 
+     // Kenzie start
