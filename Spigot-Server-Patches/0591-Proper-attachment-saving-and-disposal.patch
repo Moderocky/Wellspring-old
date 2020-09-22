@@ -1,0 +1,39 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Tue, 22 Sep 2020 12:07:26 +0100
+Subject: [PATCH] Proper attachment saving and disposal.
+
+
+diff --git a/src/main/java/net/minecraft/server/Entity.java b/src/main/java/net/minecraft/server/Entity.java
+index 5f0612b90329361dbea720057e2518fd80c07c58..238783a95e845f1e054cf89812ab027319e97328 100644
+--- a/src/main/java/net/minecraft/server/Entity.java
++++ b/src/main/java/net/minecraft/server/Entity.java
+@@ -337,6 +337,8 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
+     }
+ 
+     public void die() {
++        if (!(this instanceof EntityPlayer))
++            getBukkitEntity().attachments.dispose(); // Kenzie - attachment disposal
+         this.dead = true;
+     }
+ 
+@@ -1628,6 +1630,8 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
+ 
+             // CraftBukkit start - stores eventually existing bukkit values
+             if (this.bukkitEntity != null) {
++                this.bukkitEntity.attachments.request(nbttagcompound); // Kenzie - mark as data requested in case of changes
++                // Done before bukkit values to prevent any illegal editing.
+                 this.bukkitEntity.storeBukkitValues(nbttagcompound);
+             }
+             // CraftBukkit end
+@@ -1799,6 +1803,10 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
+                 spawnReason = org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason.DEFAULT;
+             }
+             // Paper end
++            // Kenzie start - attachments
++
++            this.bukkitEntity.attachments.load(nbttagcompound); // Kenzie - mark as data loaded in case of changes
++            // Done after bukkit values to prevent any illegal editing.
+ 
+         } catch (Throwable throwable) {
+             CrashReport crashreport = CrashReport.a(throwable, "Loading entity NBT");
