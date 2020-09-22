@@ -3,13 +3,13 @@ Attachments
 
 Wellspring's attachment system is designed to provide plugin creators with a fast and simple method of linking plugin-provided data to entities.
 
-### Goals of Attachments
+#### Goals of Attachments
  * To provide a simpler and faster system than Spigot's metadata and persistent data containers
  * To follow OOP principles and not force users to rely on singleton maps and manager classes
  * To give developers more freedom about what data to store and how to store it
  * To avoid superfluous null-checks at every access
 
-### Non-goals of Attachments
+#### Non-goals of Attachments
  * This is not a place to add custom behaviour and tick-actions to entities - please use pathfinder goals instead
  * This is not a place to try and perform illegal NBT edits during entity saving/loading
  * This is not a place to store static code and global utility functions
@@ -115,10 +115,14 @@ This requires:
 
 Referring to the examples seen above, one would register the example attachments using the following methods:
 ```java
-@Override
-public void onEnable() {
-    Bukkit.registerAttachment(this, PlayerData::new, Player.class);
-    Bukkit.registerAttachment(this, PlayerTag::new, Player.class);
+public class MyPlugin implements JavaPlugin {
+
+    @Override
+    public void onEnable() {
+        Bukkit.registerAttachment(this, PlayerData::new, Player.class);
+        Bukkit.registerAttachment(this, PlayerTag::new, Player.class);
+    }
+
 }
 ```
 
