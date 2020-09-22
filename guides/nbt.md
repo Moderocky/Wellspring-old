@@ -185,3 +185,56 @@ The resulting NBT:
 `{Boolean:1b,MySecondList:["hello","there"],Spooky:"hello",Manual:{Blob:10.0d,Foo:"Bar"},AnotherList:["hi"],MyList:[1,2,3],Number:10,MyThirdList:["general","kenobi"],Automatic:{Blob:10.0d,Foo:"Bar"},Nested:{}}`
 
 Note: serialised values are not in any particular order.
+
+
+##### Example 2.
+
+```java
+class Example {
+    void test() {
+        Player player = Bukkit.getOnlinePlayers().iterator().next(); // Any player
+
+        NBTCompound compound = player.getNBT();
+        
+        boolean invulnerable = compound.getBoolean("Invulnerable");
+        compound.set("Glowing", true);
+        compound.setDouble("Health", 20.0);
+        
+        player.mergeNBT(compound); // Really bad idea - don't mess with player NBT
+        
+        Map<String, Object> map = compound.unwrap();
+        // Recursively converts the object into Java types
+
+        NBTCompound remade = NBTCompound.create(map);
+        // Wraps and converts the map back into an NBT compound
+        // different from the original but the values are equal
+    }
+}
+```
+
+##### Example 3.
+
+```java
+class Example {
+    void test() {
+        Map<String, Object> map = new HashMap<>();
+        map.put("Name", "Terrence");
+        map.put("Surname", "Blob");
+        map.put("Age", 25);
+        map.put("BirthDate", "03/02/01");
+        map.put("LuckyNumbers", new int[] {10, 5, 7, 23, 14});
+        map.put("StarSign", "Leo");
+        map.put("Strength", 20.5D);
+        map.put("Words", Arrays.asList("car", "park", "box", "pasta"));
+
+        NBTCompound compound = NBTCompound.create(map);
+
+        String serialised = compound.toString();
+        NBTCompound parsed = NBTCompound.create(serialised);
+
+        Map<String, Object> recreation = parsed.unwrap();
+        // This will contain the same values as the first
+        // The order may have changed
+    }
+}
+```
