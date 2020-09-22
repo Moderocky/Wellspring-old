@@ -1,0 +1,26 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Tue, 22 Sep 2020 12:44:32 +0100
+Subject: [PATCH] Automatic conversion of NBT bases to Java types.
+
+
+diff --git a/src/main/java/mx/kenzie/wellspring/nbt/NBT.java b/src/main/java/mx/kenzie/wellspring/nbt/NBT.java
+index 7d90134bade5e5734f62311afcefbf4fddbf35c1..468efdf8145a63d976e27a481950fca14a15d421 100644
+--- a/src/main/java/mx/kenzie/wellspring/nbt/NBT.java
++++ b/src/main/java/mx/kenzie/wellspring/nbt/NBT.java
+@@ -53,6 +53,15 @@ public interface NBT {
+         throw new IllegalArgumentException("Unsupported type for conversion: " + object.getClass());
+     }
+ 
++    /**
++     * Returns the true Java object value of this NBT base.
++     *
++     * @param <T> Will attempt to auto-cast to this generic type.
++     * @return The true value. This will be of the type specified in {@link Type#cls}
++     * @throws RuntimeException If the value cannot be obtained or the base is abnormal.
++     */
++    @NotNull <T> T getAsObject() throws RuntimeException;
++
+     /**
+      * Magic value.
+      * @return The raw numerical type.
