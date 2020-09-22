@@ -140,3 +140,48 @@ As with setting the value, Wellspring provides a utility for automatic conversio
 
 Below are some more examples of manipulating NBT maps. 
 Please note that these are not actual implementations, but simply examples of what can be done.
+
+
+##### Example 1.
+
+```java
+class Example {
+    void test() {
+        NBTCompound compound = NBTCompound.create();
+        compound.setInt("Number", 10);
+        compound.setList("MyList", NBTList.create(1, 2, 3));
+        compound.setList("MySecondList", NBTList.create("hello", "there"));
+        compound.set("MyThirdList", Arrays.asList("general", "kenobi"));
+        // Automatically converts the list to an NBT list, recursively!
+        compound.set("AnotherList", new String[] {"hi"});
+        // Automatically converts the array to an NBT list, recursively!
+
+        compound.setBoolean("Boolean", true);
+        compound.set("Nested", NBTCompound.create());
+
+        compound.set("Spooky", (Object) "hello"); // Unknown types are fine!
+
+        Map<String, Object> map = new HashMap<>();
+        map.put("Blob", 10.0D);
+        map.put("Foo", "Bar");
+
+        compound.set("Manual", NBTCompound.create(map));
+        compound.set("Automatic", map); // Internally converted via NBTCompound#create(Map)
+
+        int ten = compound.getInt("Number"); // 10
+        List<Integer> list1 = compound.getList("MyList").unwrap(); // Automatic unwrapping
+        NBTList list2 = compound.getList("MySecondList"); // Automatic unwrapping
+        if (compound.containsKey("Boolean", NBT.Type.BOOLEAN))
+            // Do something?
+            ;
+
+        Map<String, Object> unwrapped = compound.unwrap();
+        // Returns the compound's contents to a map of Java types
+    }
+}
+```
+
+The resulting NBT:
+`{Boolean:1b,MySecondList:["hello","there"],Spooky:"hello",Manual:{Blob:10.0d,Foo:"Bar"},AnotherList:["hi"],MyList:[1,2,3],Number:10,MyThirdList:["general","kenobi"],Automatic:{Blob:10.0d,Foo:"Bar"},Nested:{}}`
+
+Note: serialised values are not in any particular order.
