@@ -1,0 +1,154 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Tue, 22 Sep 2020 12:44:39 +0100
+Subject: [PATCH] Automatic conversion of NBT bases to Java types.
+
+
+diff --git a/src/main/java/net/minecraft/server/NBTBase.java b/src/main/java/net/minecraft/server/NBTBase.java
+index 4c06b83cd713bb7f0f20cd64b6be9315e12459df..7e443fdabd7884065b2b9dff8032d86c188af010 100644
+--- a/src/main/java/net/minecraft/server/NBTBase.java
++++ b/src/main/java/net/minecraft/server/NBTBase.java
+@@ -1,11 +1,14 @@
+ package net.minecraft.server;
+ 
+ import mx.kenzie.wellspring.nbt.NBT;
++import mx.kenzie.wellspring.nbt.NBTCompound;
++import mx.kenzie.wellspring.nbt.NBTList;
+ import net.md_5.bungee.api.chat.BaseComponent;
+ import net.md_5.bungee.chat.ComponentSerializer;
+ 
+ import java.io.DataOutput;
+ import java.io.IOException;
++import java.lang.reflect.Field;
+ 
+ public interface NBTBase extends NBT {
+ 
+@@ -34,6 +37,8 @@ public interface NBTBase extends NBT {
+ 
+     IChatBaseComponent a(String s, int i);
+ 
++    // Kenzie start
++
+     @Override
+     default BaseComponent[] display() { // Kenzie - NBT interface
+         return ComponentSerializer.parse(IChatBaseComponent.ChatSerializer.componentToJson(l()));
+@@ -43,4 +48,44 @@ public interface NBTBase extends NBT {
+     default BaseComponent[] display(int indentation, String unit) { // Kenzie - NBT interface
+         return ComponentSerializer.parse(IChatBaseComponent.ChatSerializer.componentToJson(a(unit, indentation)));
+     }
++
++    @Override
++    @SuppressWarnings("unchecked")
++    default <T> T getAsObject() {
++        try {
++            switch (getType()) {
++                case BOOLEAN:
++                    return (T) (Object) (((NBTTagByte) this).asByte() != (byte) 0);
++                case BYTE:
++                    return (T) (Object) ((NBTTagByte) this).asByte();
++                case INT:
++                    return (T) (Object) ((NBTTagInt) this).asInt();
++                case SHORT:
++                    return (T) (Object) ((NBTTagShort) this).asShort();
++                case LONG:
++                    return (T) (Object) ((NBTTagLong) this).asLong();
++                case FLOAT:
++                    return (T) (Object) ((NBTTagFloat) this).asFloat();
++                case DOUBLE:
++                    return (T) (Object) ((NBTTagDouble) this).asDouble();
++                case STRING:
++                    return (T) this.asString();
++                case INT_ARRAY:
++                    return (T) ((NBTTagIntArray) this).getInts();
++                case BYTE_ARRAY:
++                    return (T) ((NBTTagByteArray) this).getBytes();
++                case LONG_ARRAY:
++                    return (T) ((NBTTagLongArray) this).getLongs();
++                case LIST:
++                case COMPOUND:
++                    return (T) this;
++            }
++            Field field = this.getClass().getDeclaredField("data");
++            return (T) field.get(this);
++        } catch (Throwable ex) {
++            throw new RuntimeException("Unknown error encountered when accessing NBT object.", ex);
++        }
++    }
++
++    // Kenzie end
+ }
+diff --git a/src/main/java/net/minecraft/server/NBTTagCompound.java b/src/main/java/net/minecraft/server/NBTTagCompound.java
+index 3e8d53de4a24d35b26ffb54d58a3c9f08f393a29..0facf56662e2c7e6acff3b1c7021e6741489c45e 100644
+--- a/src/main/java/net/minecraft/server/NBTTagCompound.java
++++ b/src/main/java/net/minecraft/server/NBTTagCompound.java
+@@ -25,15 +25,13 @@ import mx.kenzie.wellspring.nbt.NBTCompound;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+ 
+-public class NBTTagCompound implements NBTBase, NBTCompound {
++public class NBTTagCompound implements NBTBase, NBTCompound { // Kenzie - whole class edited
+ 
+     public static final Codec<NBTTagCompound> a = Codec.PASSTHROUGH.comapFlatMap((dynamic) -> {
+-        NBTBase nbtbase = (NBTBase) dynamic.convert(DynamicOpsNBT.a).getValue();
++        NBTBase nbtbase = dynamic.convert(DynamicOpsNBT.a).getValue();
+ 
+         return nbtbase instanceof NBTTagCompound ? DataResult.success((NBTTagCompound) nbtbase) : DataResult.error("Not a compound tag: " + nbtbase);
+-    }, (nbttagcompound) -> {
+-        return new Dynamic(DynamicOpsNBT.a, nbttagcompound);
+-    });
++    }, (nbttagcompound) -> new Dynamic(DynamicOpsNBT.a, nbttagcompound));
+     private static final Logger LOGGER = LogManager.getLogger();
+     private static final Pattern h = Pattern.compile("[A-Za-z0-9._+-]+");
+     public static final NBTTagType<NBTTagCompound> b = new NBTTagType<NBTTagCompound>() {
+@@ -50,7 +48,7 @@ public class NBTTagCompound implements NBTBase, NBTCompound {
+                 while ((b0 = NBTTagCompound.c(datainput, nbtreadlimiter)) != 0) {
+                     String s = NBTTagCompound.d(datainput, nbtreadlimiter);
+ 
+-                    nbtreadlimiter.a((long) (224 + 16 * s.length()));
++                    nbtreadlimiter.a(224 + 16 * s.length());
+                     NBTBase nbtbase = NBTTagCompound.b(NBTTagTypes.a(b0), s, datainput, i + 1, nbtreadlimiter);
+ 
+                     if (hashmap.put(s, nbtbase) != null) {
+@@ -527,11 +525,9 @@ public class NBTTagCompound implements NBTBase, NBTCompound {
+     }
+ 
+     public NBTTagCompound a(NBTTagCompound nbttagcompound) {
+-        Iterator iterator = nbttagcompound.map.keySet().iterator();
+ 
+-        while (iterator.hasNext()) {
+-            String s = (String) iterator.next();
+-            NBTBase nbtbase = (NBTBase) nbttagcompound.map.get(s);
++        for (String s : nbttagcompound.map.keySet()) {
++            NBTBase nbtbase = nbttagcompound.map.get(s);
+ 
+             if (nbtbase.getTypeId() == 10) {
+                 if (this.hasKeyOfType(s, 10)) {
+@@ -589,7 +585,7 @@ public class NBTTagCompound implements NBTBase, NBTCompound {
+             for (Iterator iterator = ((Collection) collection).iterator(); iterator.hasNext(); chatcomponenttext.addSibling(ichatmutablecomponent)) {
+                 String s1 = (String) iterator.next();
+ 
+-                ichatmutablecomponent = (new ChatComponentText(Strings.repeat(s, i + 1))).addSibling(t(s1)).c(String.valueOf(':')).c(" ").addSibling(((NBTBase) this.map.get(s1)).a(s, i + 1));
++                ichatmutablecomponent = (new ChatComponentText(Strings.repeat(s, i + 1))).addSibling(t(s1)).c(String.valueOf(':')).c(" ").addSibling(this.map.get(s1).a(s, i + 1));
+                 if (iterator.hasNext()) {
+                     ichatmutablecomponent.c(String.valueOf(',')).c(s.isEmpty() ? " " : "\n");
+                 }
+diff --git a/src/main/java/net/minecraft/server/NBTTagList.java b/src/main/java/net/minecraft/server/NBTTagList.java
+index 4e902a8c6340d51c015aa6f00f13997a0710210e..c4c592d4871c83d61f6b5e62bd846b55e084cc9c 100644
+--- a/src/main/java/net/minecraft/server/NBTTagList.java
++++ b/src/main/java/net/minecraft/server/NBTTagList.java
+@@ -356,6 +356,8 @@ public class NBTTagList extends NBTList<NBTBase> implements mx.kenzie.wellspring
+         this.type = 0;
+     }
+ 
++    // Kenzie start
++
+     @Override
+     public void add(NBT base) {
+         super.add((NBTBase) base);
+@@ -381,4 +383,6 @@ public class NBTTagList extends NBTList<NBTBase> implements mx.kenzie.wellspring
+     public Iterator<NBT> getIterator() {
+         return (Iterator<NBT>) (Iterator<?>) iterator();
+     }
++
++    // Kenzie end
+ }
