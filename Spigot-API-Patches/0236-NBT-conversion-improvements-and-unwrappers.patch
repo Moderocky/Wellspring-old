@@ -1,0 +1,237 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Tue, 22 Sep 2020 16:45:22 +0100
+Subject: [PATCH] NBT conversion improvements and unwrappers.
+
+
+diff --git a/src/main/java/mx/kenzie/wellspring/nbt/NBT.java b/src/main/java/mx/kenzie/wellspring/nbt/NBT.java
+index 468efdf8145a63d976e27a481950fca14a15d421..d126eb815c0c13d7d1de1d31806812ea7a5ea8a7 100644
+--- a/src/main/java/mx/kenzie/wellspring/nbt/NBT.java
++++ b/src/main/java/mx/kenzie/wellspring/nbt/NBT.java
+@@ -4,6 +4,9 @@ import net.md_5.bungee.api.chat.BaseComponent;
+ import org.bukkit.Bukkit;
+ import org.jetbrains.annotations.NotNull;
+ 
++import java.util.Collection;
++import java.util.Map;
++
+ /**
+  * This represents an NBT 'base' object, which could be either a map-compound,
+  * a list of bases, or a simple wrapped value.
+@@ -32,6 +35,8 @@ public interface NBT {
+      * This works with primitives, strings, some numerical arrays and objects that
+      * are already NBT types.
+      *
++     * It can also recursively convert lists, arrays and maps.
++     *
+      * It will not convert objects of invalid types!
+      * @param object An object of a valid type.
+      * @return The converted NBT base.
+@@ -50,6 +55,10 @@ public interface NBT {
+         if (object instanceof int[]) return convert(object, Type.INT_ARRAY);
+         if (object instanceof long[]) return convert(object, Type.LONG_ARRAY);
+         if (object instanceof String) return convert(object, Type.STRING);
++        if (object instanceof NBT[]) return NBTList.create((NBT[]) object);
++        if (object instanceof Object[]) return NBTList.create(((Object[]) object));
++        if (object instanceof Iterable) return NBTList.create(((Iterable<?>) object));
++        if (object instanceof Map) return NBTCompound.create(((Map<?, ?>) object));
+         throw new IllegalArgumentException("Unsupported type for conversion: " + object.getClass());
+     }
+ 
+@@ -62,6 +71,19 @@ public interface NBT {
+      */
+     @NotNull <T> T getAsObject() throws RuntimeException;
+ 
++    /**
++     * This will attempt to unwrap the entire NBT structure to Java objects.
++     * This includes recursively unwrapping lists, compounds, arrays and
++     * all contained bases.
++     *
++     * @param <T> Will attempt to auto-cast to this generic type.
++     * @return The unwrapped object.
++     * @throws RuntimeException If anything inside the structure cannot be unwrapped.
++     */
++    default @NotNull <T> Object unwrap() throws RuntimeException {
++        return getAsObject(); // Overridden by other types.
++    }
++
+     /**
+      * Magic value.
+      * @return The raw numerical type.
+diff --git a/src/main/java/mx/kenzie/wellspring/nbt/NBTCompound.java b/src/main/java/mx/kenzie/wellspring/nbt/NBTCompound.java
+index 13faf438022281c8bbdce08234afba79fe4a629e..f64cdcd698418e84eb02108c844b5db806ec992a 100644
+--- a/src/main/java/mx/kenzie/wellspring/nbt/NBTCompound.java
++++ b/src/main/java/mx/kenzie/wellspring/nbt/NBTCompound.java
+@@ -4,19 +4,35 @@ import org.bukkit.Bukkit;
+ import org.jetbrains.annotations.NotNull;
+ import org.jetbrains.annotations.Nullable;
+ 
+-import java.util.Map;
+-import java.util.Set;
+-import java.util.UUID;
++import java.util.*;
+ 
+ /**
+  * This represents an NBT 'compound,' which is a (String) key -> (NBT base) value map.
+  */
+ public interface NBTCompound extends NBT {
+ 
++    /**
++     * Creates a new NBT Compound, similar to a Map.
++     * @return a new NBT compound.
++     */
+     static @NotNull NBTCompound create() {
+         return Bukkit.getNBTFactory().newCompound();
+     }
+ 
++    /**
++     * Creates a new NBT Compound by wrapping the map and its values.
++     * @param map The provided map to wrap.
++     * @return the new compound with values.
++     * @throws RuntimeException if the map's contents cannot be converted.
++     */
++    static @NotNull NBTCompound create(@NotNull Map<?, ?> map) throws RuntimeException {
++        final NBTCompound compound = NBTCompound.create();
++        for (Map.Entry<?, ?> entry : map.entrySet()) {
++            compound.set(entry.getKey().toString(), NBT.convert(entry.getValue()));
++        }
++        return compound;
++    }
++
+     int size();
+ 
+     boolean isEmpty();
+@@ -42,6 +58,10 @@ public interface NBTCompound extends NBT {
+     @Deprecated
+     boolean containsKey(@NotNull String key, int rawType);
+ 
++    default void set(@NotNull String key, @NotNull Object value) {
++        set(key, NBT.convert(value));
++    }
++
+     void set(@NotNull String key, @NotNull NBT value);
+ 
+     void setBoolean(@NotNull String key, boolean value);
+@@ -156,4 +176,25 @@ public interface NBTCompound extends NBT {
+ 
+     boolean hasUUID(@NotNull String keyPrefix);
+ 
++    /**
++     * This will attempt to unwrap the entire NBT structure to Java objects.
++     * This includes recursively unwrapping lists, compounds, arrays and
++     * all contained bases.
++     *
++     * @param <T> Will attempt to auto-cast to this generic type.
++     * @return The unwrapped object.
++     * @throws RuntimeException If anything inside the structure cannot be unwrapped.
++     */
++    @Override
++    @SuppressWarnings("unchecked")
++    default @NotNull <T> Map<String, Object> unwrap() throws RuntimeException {
++        final Map<String, Object> map = new HashMap<>();
++        for (String key : this.getKeys()) {
++            NBT nbt = this.get(key);
++            assert nbt != null;
++            map.put(key, nbt.unwrap());
++        }
++        return map;
++    }
++
+ }
+diff --git a/src/main/java/mx/kenzie/wellspring/nbt/NBTList.java b/src/main/java/mx/kenzie/wellspring/nbt/NBTList.java
+index cf0ff09019c802a36b67fc83827d6f52a5ce2127..4c45e76adcd160bd1136f10b464acb839f87e48c 100644
+--- a/src/main/java/mx/kenzie/wellspring/nbt/NBTList.java
++++ b/src/main/java/mx/kenzie/wellspring/nbt/NBTList.java
+@@ -20,6 +20,55 @@ public interface NBTList extends NBT {
+         return Bukkit.getNBTFactory().newList();
+     }
+ 
++    /**
++     * This is purely a utility method for faster list creation.
++     * Similar to {@link Arrays#asList(Object[])} but for NBT.
++     * @param bases An array of NBT bases
++     * @return The list with the bases added.
++     */
++    static @NotNull NBTList create(@NotNull NBT... bases) {
++        final NBTList list = NBTList.create();
++        for (NBT nbt : bases) {
++            list.add(nbt);
++        }
++        return list;
++    }
++
++    /**
++     * This is purely a utility method for faster list creation.
++     * Similar to {@link Arrays#asList(Object[])} but for NBT.
++     *
++     * The objects will be converted to NBT bases.
++     *
++     * @param objects An array of objects
++     * @return The list with the objects converted and added.
++     */
++    static @NotNull NBTList create(@NotNull Object... objects) {
++        final NBTList list = NBTList.create();
++        for (Object object : objects) {
++            list.add(NBT.convert(object));
++        }
++        return list;
++    }
++
++    /**
++     * This is purely a utility method for faster list creation.
++     * Similar to {@link ArrayList}'s clone constructor, but for NBT.
++     *
++     * The objects will be converted to NBT bases.
++     * If they are already NBT bases, they will be added.
++     *
++     * @param objects A collection of objects
++     * @return The list with the objects converted and added.
++     */
++    static @NotNull NBTList create(@NotNull Iterable<?>... objects) {
++        final NBTList list = NBTList.create();
++        for (Object object : objects) {
++            list.add(NBT.convert(object));
++        }
++        return list;
++    }
++
+     int size();
+ 
+     boolean isEmpty();
+@@ -61,6 +110,36 @@ public interface NBTList extends NBT {
+      */
+     @NotNull NBT[] getAsArray();
+ 
++    /**
++     * @return This list unwrapped to Java objects.
++     */
++    default @NotNull List<Object> getAsObjects() {
++        final List<Object> list = new ArrayList<>();
++        for (NBT nbt : this.getAsArray()) {
++            list.add(nbt.getAsObject());
++        }
++        return list;
++    }
++
++    /**
++     * This will attempt to unwrap the entire NBT structure to Java objects.
++     * This includes recursively unwrapping lists, compounds, arrays and
++     * all contained bases.
++     *
++     * @param <T> Will attempt to auto-cast to this generic type.
++     * @return The unwrapped object.
++     * @throws RuntimeException If anything inside the structure cannot be unwrapped.
++     */
++    @Override
++    @SuppressWarnings("unchecked")
++    default @NotNull <T> List<T> unwrap() throws RuntimeException {
++        final List<Object> list = new ArrayList<>();
++        for (NBT nbt : this.getAsArray()) {
++            list.add(nbt.unwrap());
++        }
++        return (List<T>) list;
++    }
++
+     @NotNull Iterator<NBT> getIterator();
+ 
+     @NotNull NBT remove(int index) throws IndexOutOfBoundsException;

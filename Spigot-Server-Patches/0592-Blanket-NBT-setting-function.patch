@@ -1,0 +1,22 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Tue, 22 Sep 2020 15:14:30 +0100
+Subject: [PATCH] Blanket NBT setting function.
+
+
+diff --git a/src/main/java/net/minecraft/server/NBTTagCompound.java b/src/main/java/net/minecraft/server/NBTTagCompound.java
+index 0facf56662e2c7e6acff3b1c7021e6741489c45e..f6fce87bb5c9d0654b6d27034391711b094716bf 100644
+--- a/src/main/java/net/minecraft/server/NBTTagCompound.java
++++ b/src/main/java/net/minecraft/server/NBTTagCompound.java
+@@ -117,6 +117,11 @@ public class NBTTagCompound implements NBTBase, NBTCompound { // Kenzie - whole
+         return e();
+     }
+ 
++    @Override
++    public void set(String key, NBT value) {
++        set(key, (NBTBase) value);
++    }
++
+     @Nullable
+     public NBTBase set(String s, NBTBase nbtbase) {
+         return (NBTBase) this.map.put(s, nbtbase);

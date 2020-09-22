@@ -1,0 +1,37 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Tue, 22 Sep 2020 15:14:40 +0100
+Subject: [PATCH] Blanket NBT setting function.
+
+
+diff --git a/src/main/java/mx/kenzie/wellspring/nbt/NBTCompound.java b/src/main/java/mx/kenzie/wellspring/nbt/NBTCompound.java
+index 4c127e2332afdd01d6b56113246e0ad04227cb30..13faf438022281c8bbdce08234afba79fe4a629e 100644
+--- a/src/main/java/mx/kenzie/wellspring/nbt/NBTCompound.java
++++ b/src/main/java/mx/kenzie/wellspring/nbt/NBTCompound.java
+@@ -5,6 +5,7 @@ import org.jetbrains.annotations.NotNull;
+ import org.jetbrains.annotations.Nullable;
+ 
+ import java.util.Map;
++import java.util.Set;
+ import java.util.UUID;
+ 
+ /**
+@@ -41,6 +42,8 @@ public interface NBTCompound extends NBT {
+     @Deprecated
+     boolean containsKey(@NotNull String key, int rawType);
+ 
++    void set(@NotNull String key, @NotNull NBT value);
++
+     void setBoolean(@NotNull String key, boolean value);
+ 
+     void setByte(@NotNull String key, byte value);
+@@ -111,6 +114,9 @@ public interface NBTCompound extends NBT {
+      */
+     @NotNull Map<String, NBT> getAsMap();
+ 
++    @NotNull
++    Set<String> getKeys();
++
+     @SuppressWarnings({"unchecked", "deprecation"})
+     default @Nullable <T> T get(@NotNull String key, @NotNull Type type) {
+         switch (type) {

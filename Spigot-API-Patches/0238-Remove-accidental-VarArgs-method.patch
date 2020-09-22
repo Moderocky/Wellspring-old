@@ -1,0 +1,39 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Tue, 22 Sep 2020 17:35:11 +0100
+Subject: [PATCH] Remove accidental VarArgs method.
+
+
+diff --git a/src/main/java/mx/kenzie/wellspring/nbt/NBT.java b/src/main/java/mx/kenzie/wellspring/nbt/NBT.java
+index d126eb815c0c13d7d1de1d31806812ea7a5ea8a7..7c4a01ba5672c281401412f0ae558e8600743b53 100644
+--- a/src/main/java/mx/kenzie/wellspring/nbt/NBT.java
++++ b/src/main/java/mx/kenzie/wellspring/nbt/NBT.java
+@@ -44,6 +44,7 @@ public interface NBT {
+      */
+     static @NotNull NBT convert(@NotNull Object object) throws IllegalArgumentException {
+         if (object instanceof NBT) return (NBT) object;
++        if (object instanceof NBT[]) return NBTList.create((NBT[]) object);
+         if (object instanceof Boolean) return convert(object, Type.BOOLEAN);
+         if (object instanceof Byte) return convert(object, Type.BYTE);
+         if (object instanceof Short) return convert(object, Type.SHORT);
+@@ -55,7 +56,6 @@ public interface NBT {
+         if (object instanceof int[]) return convert(object, Type.INT_ARRAY);
+         if (object instanceof long[]) return convert(object, Type.LONG_ARRAY);
+         if (object instanceof String) return convert(object, Type.STRING);
+-        if (object instanceof NBT[]) return NBTList.create((NBT[]) object);
+         if (object instanceof Object[]) return NBTList.create(((Object[]) object));
+         if (object instanceof Iterable) return NBTList.create(((Iterable<?>) object));
+         if (object instanceof Map) return NBTCompound.create(((Map<?, ?>) object));
+diff --git a/src/main/java/mx/kenzie/wellspring/nbt/NBTList.java b/src/main/java/mx/kenzie/wellspring/nbt/NBTList.java
+index 373249f7355f50c232cf229f14fd13bc16815b75..af13f3f384aa860e80e0e4482f960d2b6a8b5bd3 100644
+--- a/src/main/java/mx/kenzie/wellspring/nbt/NBTList.java
++++ b/src/main/java/mx/kenzie/wellspring/nbt/NBTList.java
+@@ -61,7 +61,7 @@ public interface NBTList extends NBT {
+      * @param objects A collection of objects
+      * @return The list with the objects converted and added.
+      */
+-    static @NotNull NBTList create(@NotNull Iterable<?>... objects) {
++    static @NotNull NBTList create(@NotNull Iterable<?> objects) {
+         final NBTList list = NBTList.create();
+         for (Object object : objects) {
+             if (object instanceof NBT) list.add(((NBT) object));
