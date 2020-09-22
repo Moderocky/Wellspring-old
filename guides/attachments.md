@@ -115,10 +115,14 @@ This requires:
 
 Referring to the examples seen above, one would register the example attachments using the following methods:
 ```java
-@Override
-public void onEnable() {
-    Bukkit.registerAttachment(this, PlayerData::new, Player.class);
-    Bukkit.registerAttachment(this, PlayerTag::new, Player.class);
+public class MyPlugin implements JavaPlugin {
+
+    @Override
+    public void onEnable() {
+        Bukkit.registerAttachment(this, PlayerData::new, Player.class);
+        Bukkit.registerAttachment(this, PlayerTag::new, Player.class);
+    }
+
 }
 ```
 
