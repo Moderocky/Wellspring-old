@@ -1,0 +1,98 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Mon, 21 Sep 2020 17:05:54 +0100
+Subject: [PATCH] Beginning structure for clientside entities.
+
+
+diff --git a/src/main/java/mx/kenzie/wellspring/CraftBridge.java b/src/main/java/mx/kenzie/wellspring/CraftBridge.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..7f647b2bf2c4908bb8890b8fe35e33f4d046cf17
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/CraftBridge.java
+@@ -0,0 +1,18 @@
++package mx.kenzie.wellspring;
++
++import net.minecraft.server.EntityTypes;
++import net.minecraft.server.IRegistry;
++import net.minecraft.server.MinecraftKey;
++import org.bukkit.entity.EntityType;
++
++public class CraftBridge extends Wellspring.Bridge {
++    @Override
++    public float getWidth(EntityType type) {
++        return IRegistry.ENTITY_TYPE.get(new MinecraftKey(type.getKey().toString())).j();
++    }
++
++    @Override
++    public float getHeight(EntityType type) {
++        return IRegistry.ENTITY_TYPE.get(new MinecraftKey(type.getKey().toString())).k();
++    }
++}
+diff --git a/src/main/java/org/bukkit/craftbukkit/packet/PacketFactoryImpl.java b/src/main/java/mx/kenzie/wellspring/packet/PacketFactoryImpl.java
+similarity index 99%
+rename from src/main/java/org/bukkit/craftbukkit/packet/PacketFactoryImpl.java
+rename to src/main/java/mx/kenzie/wellspring/packet/PacketFactoryImpl.java
+index 0fb7ebc68176f73c8a2ce34ff4b08f804f5e6e8b..09e1a392cf368c1f2872f718d9d04de9ad84dff0 100644
+--- a/src/main/java/org/bukkit/craftbukkit/packet/PacketFactoryImpl.java
++++ b/src/main/java/mx/kenzie/wellspring/packet/PacketFactoryImpl.java
+@@ -1,8 +1,5 @@
+-package org.bukkit.craftbukkit.packet;
++package mx.kenzie.wellspring.packet;
+ 
+-import mx.kenzie.wellspring.packet.Packet;
+-import mx.kenzie.wellspring.packet.PacketFactory;
+-import mx.kenzie.wellspring.packet.PacketType;
+ import net.minecraft.server.*;
+ import org.bukkit.Location;
+ import org.bukkit.NamespacedKey;
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+index 06c30197f5aa22d82300cb23c60eccd1e636089b..d8abc15b0b43dd385d6a2bf6d3f34532e50c749b 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+@@ -47,6 +47,8 @@ import java.util.logging.Level;
+ import java.util.logging.Logger;
+ import javax.imageio.ImageIO;
+ //import jline.console.ConsoleReader; // Paper
++import mx.kenzie.wellspring.CraftBridge;
++import mx.kenzie.wellspring.Wellspring;
+ import mx.kenzie.wellspring.nbt.NBT;
+ import mx.kenzie.wellspring.nbt.NBTCompound;
+ import mx.kenzie.wellspring.nbt.NBTFactory;
+@@ -117,7 +119,7 @@ import org.bukkit.craftbukkit.map.CraftMapView;
+ import org.bukkit.craftbukkit.metadata.EntityMetadataStore;
+ import org.bukkit.craftbukkit.metadata.PlayerMetadataStore;
+ import org.bukkit.craftbukkit.metadata.WorldMetadataStore;
+-import org.bukkit.craftbukkit.packet.PacketFactoryImpl;
++import mx.kenzie.wellspring.packet.PacketFactoryImpl;
+ import org.bukkit.craftbukkit.potion.CraftPotionBrewer;
+ import org.bukkit.craftbukkit.scheduler.CraftScheduler;
+ import org.bukkit.craftbukkit.scoreboard.CraftScoreboardManager;
+@@ -186,7 +188,7 @@ import net.md_5.bungee.api.chat.BaseComponent; // Spigot
+ import javax.annotation.Nullable; // Paper
+ import javax.annotation.Nonnull; // Paper
+ 
+-public final class CraftServer implements Server {
++public final class CraftServer implements Server, Wellspring { // Kenzie - Secondary abstract layer
+     private final String serverName = "Wellspring"; // Kenzie - give us a version! :)
+     private final String serverVersion;
+     private final String bukkitVersion = Versioning.getBukkitVersion();
+@@ -227,6 +229,7 @@ public final class CraftServer implements Server {
+     public final AttachmentFactory attachmentFactory = new AttachmentFactory(this); // Kenzie
+     public final NBTFactory nbtFactory; // Kenzie
+     public final PacketFactoryImpl packetFactory = new PacketFactoryImpl(); // Kenzie
++    public final CraftBridge bridge = new CraftBridge(); // Kenzie
+ 
+     static {
+         ConfigurationSerialization.registerClass(CraftOfflinePlayer.class);
+@@ -2469,6 +2472,11 @@ public final class CraftServer implements Server {
+         }
+     }
+ 
++    @Override
++    public Bridge getBridge() {
++        return bridge;
++    }
++
+     // Kenzie end
+ 
+     // Paper end

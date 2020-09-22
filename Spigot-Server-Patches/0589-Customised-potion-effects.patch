@@ -1,0 +1,442 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Mon, 21 Sep 2020 18:49:16 +0100
+Subject: [PATCH] Customised potion effects.
+
+
+diff --git a/src/main/java/mx/kenzie/wellspring/CraftBridge.java b/src/main/java/mx/kenzie/server/CraftBridge.java
+similarity index 87%
+rename from src/main/java/mx/kenzie/wellspring/CraftBridge.java
+rename to src/main/java/mx/kenzie/server/CraftBridge.java
+index 7f647b2bf2c4908bb8890b8fe35e33f4d046cf17..ba2d7366acb93dc378437e910894bb00b28b54ca 100644
+--- a/src/main/java/mx/kenzie/wellspring/CraftBridge.java
++++ b/src/main/java/mx/kenzie/server/CraftBridge.java
+@@ -1,6 +1,6 @@
+-package mx.kenzie.wellspring;
++package mx.kenzie.server;
+ 
+-import net.minecraft.server.EntityTypes;
++import mx.kenzie.wellspring.Wellspring;
+ import net.minecraft.server.IRegistry;
+ import net.minecraft.server.MinecraftKey;
+ import org.bukkit.entity.EntityType;
+diff --git a/src/main/java/org/bukkit/craftbukkit/attachment/AttachmentFactory.java b/src/main/java/mx/kenzie/server/attachment/AttachmentFactory.java
+similarity index 99%
+rename from src/main/java/org/bukkit/craftbukkit/attachment/AttachmentFactory.java
+rename to src/main/java/mx/kenzie/server/attachment/AttachmentFactory.java
+index 7b6371ddd900234671a8aaf807aadc84dd1580ce..5f8ca289e060bddde07894d4e240552d284940f9 100644
+--- a/src/main/java/org/bukkit/craftbukkit/attachment/AttachmentFactory.java
++++ b/src/main/java/mx/kenzie/server/attachment/AttachmentFactory.java
+@@ -1,4 +1,4 @@
+-package org.bukkit.craftbukkit.attachment;
++package mx.kenzie.server.attachment;
+ 
+ import org.apache.commons.lang3.Validate;
+ import org.bukkit.attachment.Attachable;
+diff --git a/src/main/java/org/bukkit/craftbukkit/attachment/AttachmentHolder.java b/src/main/java/mx/kenzie/server/attachment/AttachmentHolder.java
+similarity index 98%
+rename from src/main/java/org/bukkit/craftbukkit/attachment/AttachmentHolder.java
+rename to src/main/java/mx/kenzie/server/attachment/AttachmentHolder.java
+index 09b8c03a9e8f658bf08e7ded10c291e70b85bd02..8dd2ff66ff0731d24622a079429632e3d766e278 100644
+--- a/src/main/java/org/bukkit/craftbukkit/attachment/AttachmentHolder.java
++++ b/src/main/java/mx/kenzie/server/attachment/AttachmentHolder.java
+@@ -1,4 +1,4 @@
+-package org.bukkit.craftbukkit.attachment;
++package mx.kenzie.server.attachment;
+ 
+ import mx.kenzie.wellspring.nbt.NBTCompound;
+ import org.bukkit.attachment.Attachable;
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/PacketFactoryImpl.java b/src/main/java/mx/kenzie/server/packet/PacketFactoryImpl.java
+similarity index 91%
+rename from src/main/java/mx/kenzie/wellspring/packet/PacketFactoryImpl.java
+rename to src/main/java/mx/kenzie/server/packet/PacketFactoryImpl.java
+index 09e1a392cf368c1f2872f718d9d04de9ad84dff0..733497f862971c563ef64483ef4e3a258cc97f2f 100644
+--- a/src/main/java/mx/kenzie/wellspring/packet/PacketFactoryImpl.java
++++ b/src/main/java/mx/kenzie/server/packet/PacketFactoryImpl.java
+@@ -1,5 +1,7 @@
+-package mx.kenzie.wellspring.packet;
++package mx.kenzie.server.packet;
+ 
++import mx.kenzie.wellspring.packet.PacketFactory;
++import mx.kenzie.wellspring.packet.PacketType;
+ import net.minecraft.server.*;
+ import org.bukkit.Location;
+ import org.bukkit.NamespacedKey;
+@@ -169,12 +171,12 @@ public class PacketFactoryImpl extends PacketFactory {
+     }
+ 
+     @Override
+-    public Packet loginOutCustomPayload() {
++    public mx.kenzie.wellspring.packet.Packet loginOutCustomPayload() {
+         return new PacketLoginInCustomPayload();
+     }
+ 
+     @Override
+-    public Packet playOutAbilities(boolean invulnerable, boolean flying, boolean canFly, boolean canInstantlyBuild, float flySpeed, float walkSpeed) {
++    public mx.kenzie.wellspring.packet.Packet playOutAbilities(boolean invulnerable, boolean flying, boolean canFly, boolean canInstantlyBuild, float flySpeed, float walkSpeed) {
+         PlayerAbilities abilities = new PlayerAbilities();
+         abilities.isInvulnerable = invulnerable;
+         abilities.isFlying = flying;
+@@ -186,7 +188,7 @@ public class PacketFactoryImpl extends PacketFactory {
+     }
+ 
+     @Override
+-    public Packet playOutAdvancements(boolean reset, Collection<Advancement> toAdd, Set<NamespacedKey> toRemove, Map<NamespacedKey, AdvancementProgress> progress) {
++    public mx.kenzie.wellspring.packet.Packet playOutAdvancements(boolean reset, Collection<Advancement> toAdd, Set<NamespacedKey> toRemove, Map<NamespacedKey, AdvancementProgress> progress) {
+         List<net.minecraft.server.Advancement> adding = new ArrayList<>();
+         for (Advancement advancement : toAdd) {
+             adding.add(((CraftAdvancement) advancement).getHandle());
+@@ -203,17 +205,17 @@ public class PacketFactoryImpl extends PacketFactory {
+     }
+ 
+     @Override
+-    public Packet playOutAnimation(Entity entity, int animationId) {
++    public mx.kenzie.wellspring.packet.Packet playOutAnimation(Entity entity, int animationId) {
+         return new PacketPlayOutAnimation(((CraftEntity) entity).getHandle(), animationId);
+     }
+ 
+     @Override
+-    public Packet playOutAttachEntity(Entity target, Entity holder) {
++    public mx.kenzie.wellspring.packet.Packet playOutAttachEntity(Entity target, Entity holder) {
+         return new PacketPlayOutAttachEntity(((CraftEntity) target).getHandle(), holder != null ? ((CraftEntity) holder).getHandle() : null);
+     }
+ 
+     @Override
+-    public Packet playOutAutoRecipe(int container, NamespacedKey recipe) {
++    public mx.kenzie.wellspring.packet.Packet playOutAutoRecipe(int container, NamespacedKey recipe) {
+         PacketPlayOutAutoRecipe packet = new PacketPlayOutAutoRecipe();
+         try {
+             Field id = PacketPlayOutAutoRecipe.class.getDeclaredField("a");
+@@ -229,48 +231,48 @@ public class PacketFactoryImpl extends PacketFactory {
+     }
+ 
+     @Override
+-    public Packet playOutBlockAction(Location location, BlockData data, int action, int parameter) {
++    public mx.kenzie.wellspring.packet.Packet playOutBlockAction(Location location, BlockData data, int action, int parameter) {
+         BlockPosition position = new BlockPosition(location.getX(), location.getY(), location.getZ());
+         Block block = CraftMagicNumbers.getBlock(data.getMaterial());
+         return new PacketPlayOutBlockAction(position, block, action, parameter);
+     }
+ 
+     @Override
+-    public Packet playOutSpawnEntity(EntityType type, Location location) {
++    public mx.kenzie.wellspring.packet.Packet playOutSpawnEntity(EntityType type, Location location) {
+         int id = 10000 + ThreadLocalRandom.current().nextInt(1000000);
+         UUID uuid = UUID.randomUUID();
+         return playOutSpawnEntity(type, location, id, uuid);
+     }
+ 
+     @Override
+-    public Packet playOutSpawnEntity(EntityType type, Location location, int id, UUID uuid) {
++    public mx.kenzie.wellspring.packet.Packet playOutSpawnEntity(EntityType type, Location location, int id, UUID uuid) {
+         EntityTypes<?> types = IRegistry.ENTITY_TYPE.get(new MinecraftKey(type.getKey().toString()));
+         return new PacketPlayOutSpawnEntity(id, uuid, location.getX(), location.getY(), location.getZ(), location.getPitch(), location.getYaw(), types, 0, new Vec3D(0, 0, 0));
+     }
+ 
+     @Override
+-    public Packet playOutSpawnLivingEntity(EntityType type, Location location) {
++    public mx.kenzie.wellspring.packet.Packet playOutSpawnLivingEntity(EntityType type, Location location) {
+         int id = 10000 + ThreadLocalRandom.current().nextInt(1000000);
+         UUID uuid = UUID.randomUUID();
+         return playOutSpawnLivingEntity(type, location, id, uuid, 0, 0, 0);
+     }
+ 
+     @Override
+-    public Packet playOutSpawnLivingEntity(EntityType type, Location location, int id, UUID uuid) {
++    public mx.kenzie.wellspring.packet.Packet playOutSpawnLivingEntity(EntityType type, Location location, int id, UUID uuid) {
+         return playOutSpawnLivingEntity(type, location, id, uuid, 0, 0, 0);
+     }
+ 
+     @Override
+-    public Packet playOutSpawnLivingEntity(EntityType type, Location location, int id, UUID uuid, float yaw, float pitch, float headRotation) {
++    public mx.kenzie.wellspring.packet.Packet playOutSpawnLivingEntity(EntityType type, Location location, int id, UUID uuid, float yaw, float pitch, float headRotation) {
+         EntityTypes<?> types = IRegistry.ENTITY_TYPE.get(new MinecraftKey(type.getKey().toString()));
+         int typeId = IRegistry.ENTITY_TYPE.a(types);
+         return new PacketPlayOutSpawnEntityLiving(id, uuid, typeId, location.getX(), location.getY(), location.getZ(), new Vec3D(0, 0, 0), yaw, pitch, headRotation);
+     }
+ 
+     @Override
+-    public Packet createFrom(PacketType type, Object... fieldInputs) {
++    public mx.kenzie.wellspring.packet.Packet createFrom(PacketType type, Object... fieldInputs) {
+         try {
+-            Packet packet = (Packet) type.getConstructor().create();
++            mx.kenzie.wellspring.packet.Packet packet = (mx.kenzie.wellspring.packet.Packet) type.getConstructor().create();
+             List<Field> sample = Arrays.asList(packet.getClass().getDeclaredFields());
+             sample.removeIf(field -> (Modifier.isStatic(field.getModifiers())));
+             final Field[] fields = packet.getClass().getDeclaredFields();
+@@ -290,7 +292,7 @@ public class PacketFactoryImpl extends PacketFactory {
+     }
+ 
+     @Override
+-    public void send(Packet packet, Player... recipients) throws IllegalArgumentException {
++    public void send(mx.kenzie.wellspring.packet.Packet packet, Player... recipients) throws IllegalArgumentException {
+         for (Player recipient : recipients) {
+             CraftPlayer player = ((CraftPlayer) recipient);
+             player.getHandle().playerConnection.networkManager.sendPacket((net.minecraft.server.Packet<?>) packet);
+diff --git a/src/main/java/mx/kenzie/server/potion/PotionBuilderImpl.java b/src/main/java/mx/kenzie/server/potion/PotionBuilderImpl.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..bda540bb765a0e25893fe01d27933eaf19296d11
+--- /dev/null
++++ b/src/main/java/mx/kenzie/server/potion/PotionBuilderImpl.java
+@@ -0,0 +1,108 @@
++package mx.kenzie.server.potion;
++
++import mx.kenzie.wellspring.potion.PotionBuilder;
++import mx.kenzie.wellspring.potion.PotionType;
++import net.minecraft.server.AttributeBase;
++import net.minecraft.server.IRegistry;
++import net.minecraft.server.MinecraftKey;
++import net.minecraft.server.PotionRegistry;
++import org.bukkit.NamespacedKey;
++import org.bukkit.attribute.Attribute;
++import org.bukkit.attribute.AttributeModifier;
++import org.bukkit.entity.LivingEntity;
++import org.bukkit.plugin.Plugin;
++import org.bukkit.potion.PotionEffect;
++import org.bukkit.potion.PotionEffectType;
++
++import java.awt.*;
++import java.util.Map;
++import java.util.function.BiConsumer;
++
++public class PotionBuilderImpl extends PotionBuilder {
++    
++    protected int color = 0;
++    protected PotionType type = PotionType.NEUTRAL;
++    protected BiConsumer<LivingEntity, Integer> consumer;
++    
++    public PotionBuilderImpl(NamespacedKey key, String name) {
++        super(key, name);
++    }
++
++    @Override
++    public PotionBuilder setColor(Color color) {
++        this.color = color.getRGB();
++        return this;
++    }
++
++    @Override
++    public PotionBuilder setType(PotionType type) {
++        this.type = type;
++        return this;
++    }
++
++    @Override
++    public PotionBuilder setTickConsumer(BiConsumer<LivingEntity, Integer> consumer) {
++        this.consumer = consumer;
++        return this;
++    }
++
++    @Override
++    public void register(Plugin plugin) {
++        final int index = key.toString().hashCode();
++        register(plugin, index);
++    }
++
++    @Override
++    public void register(Plugin plugin, int id) {
++        final TickingMobEffect effect = new TickingMobEffect(type, color, consumer);
++        if (attributes.size() > 0) {
++            for (Map.Entry<Attribute, AttributeModifier> entry : attributes.entrySet()) {
++                effect.a(convert(entry.getKey()), entry.getValue().getUniqueId().toString(), entry.getValue().getAmount(), convertOperation(entry.getValue()));
++            }
++        }
++        final int index = plugin.getName().hashCode() + id;
++        final PotionEffectType type;
++        final Color col = new Color(color);
++        final org.bukkit.Color color = org.bukkit.Color.fromRGB(col.getRed(), col.getGreen(), col.getBlue());
++        type = new PotionEffectType(index) {
++            @Override
++            public double getDurationModifier() {
++                return 1.0D;
++            }
++
++            @Override
++            public String getName() {
++                return name;
++            }
++
++            @Override
++            public boolean isInstant() {
++                return instant;
++            }
++
++            @Override
++            public int getId() {
++                return index;
++            }
++
++            @Override
++            public org.bukkit.Color getColor() {
++                return color;
++            }
++        };
++        PotionEffectType.registerPotion(key, type, plugin);
++    }
++
++    private static AttributeBase convert(Attribute attribute) {
++        return IRegistry.ATTRIBUTE.get(new MinecraftKey(attribute.getKey().toString()));
++    }
++
++    private net.minecraft.server.AttributeModifier.Operation convertOperation(AttributeModifier modifier) {
++        if (modifier.getOperation() == org.bukkit.attribute.AttributeModifier.Operation.ADD_SCALAR)
++            return net.minecraft.server.AttributeModifier.Operation.MULTIPLY_BASE;
++        if (modifier.getOperation() == org.bukkit.attribute.AttributeModifier.Operation.MULTIPLY_SCALAR_1)
++            return net.minecraft.server.AttributeModifier.Operation.MULTIPLY_TOTAL;
++        return net.minecraft.server.AttributeModifier.Operation.ADDITION;
++    }
++    
++}
+diff --git a/src/main/java/mx/kenzie/server/potion/TickingMobEffect.java b/src/main/java/mx/kenzie/server/potion/TickingMobEffect.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..b9e67198fa4e58f1ef31d1a9a238aa3e2dc062f0
+--- /dev/null
++++ b/src/main/java/mx/kenzie/server/potion/TickingMobEffect.java
+@@ -0,0 +1,55 @@
++package mx.kenzie.server.potion;
++
++import mx.kenzie.wellspring.potion.CustomPotionEffect;
++import mx.kenzie.wellspring.potion.PotionType;
++import net.minecraft.server.EntityLiving;
++import net.minecraft.server.MobEffectInfo;
++import net.minecraft.server.MobEffectList;
++import org.bukkit.entity.LivingEntity;
++import org.bukkit.potion.PotionEffectType;
++
++import java.awt.*;
++import java.util.function.BiConsumer;
++
++public class TickingMobEffect extends MobEffectList implements CustomPotionEffect {
++
++    public BiConsumer<LivingEntity, Integer> consumer;
++
++    public TickingMobEffect(MobEffectInfo info, Color color) {
++        this(info, color.getRGB());
++    }
++
++    public TickingMobEffect(PotionType type, int color, BiConsumer<LivingEntity, Integer> consumer) {
++        this(convert(type), color);
++        this.consumer = consumer;
++    }
++
++    public TickingMobEffect(PotionType type, int color) {
++        this(convert(type), color);
++    }
++
++    protected TickingMobEffect(MobEffectInfo mobeffectinfo, int i) {
++        super(mobeffectinfo, i);
++        consumer = null;
++    }
++
++    @Override
++    public boolean a(int i, int j) {
++        return true;
++    }
++
++    @Override
++    public void tick(EntityLiving entityliving, int i) {
++        super.tick(entityliving, i);
++        if (consumer != null) {
++            consumer.accept(entityliving.getBukkitLivingEntity(), i);
++        }
++    }
++
++    private static MobEffectInfo convert(PotionType type) {
++        if (type == PotionType.BENEFICIAL) return MobEffectInfo.BENEFICIAL;
++        if (type == PotionType.HARMFUL) return MobEffectInfo.HARMFUL;
++        return MobEffectInfo.NEUTRAL;
++    }
++
++}
+diff --git a/src/main/java/net/minecraft/server/NBTTagCompound.java b/src/main/java/net/minecraft/server/NBTTagCompound.java
+index 942af419f606b3ab22e5022812dd501a2f017240..3e8d53de4a24d35b26ffb54d58a3c9f08f393a29 100644
+--- a/src/main/java/net/minecraft/server/NBTTagCompound.java
++++ b/src/main/java/net/minecraft/server/NBTTagCompound.java
+@@ -2,7 +2,6 @@ package net.minecraft.server;
+ 
+ import com.google.common.base.Strings;
+ import com.google.common.collect.Lists;
+-import com.google.common.collect.Maps;
+ import com.mojang.serialization.Codec;
+ import com.mojang.serialization.DataResult;
+ import com.mojang.serialization.Dynamic;
+@@ -23,7 +22,6 @@ import javax.annotation.Nullable;
+ import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap; // Paper
+ import mx.kenzie.wellspring.nbt.NBT;
+ import mx.kenzie.wellspring.nbt.NBTCompound;
+-import mx.kenzie.wellspring.nbt.NBTList;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+ 
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+index d8abc15b0b43dd385d6a2bf6d3f34532e50c749b..d6c605d5c324c790d63b400ef1015599ff5de174 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+@@ -47,13 +47,15 @@ import java.util.logging.Level;
+ import java.util.logging.Logger;
+ import javax.imageio.ImageIO;
+ //import jline.console.ConsoleReader; // Paper
+-import mx.kenzie.wellspring.CraftBridge;
++import mx.kenzie.server.CraftBridge;
++import mx.kenzie.server.potion.PotionBuilderImpl;
+ import mx.kenzie.wellspring.Wellspring;
+ import mx.kenzie.wellspring.nbt.NBT;
+ import mx.kenzie.wellspring.nbt.NBTCompound;
+ import mx.kenzie.wellspring.nbt.NBTFactory;
+ import mx.kenzie.wellspring.nbt.NBTList;
+ import mx.kenzie.wellspring.packet.PacketFactory;
++import mx.kenzie.wellspring.potion.PotionBuilder;
+ import net.minecraft.server.*;
+ import org.apache.commons.lang.Validate;
+ import org.apache.commons.lang3.StringUtils;
+@@ -90,7 +92,7 @@ import org.bukkit.configuration.ConfigurationSection;
+ import org.bukkit.configuration.file.YamlConfiguration;
+ import org.bukkit.configuration.serialization.ConfigurationSerialization;
+ import org.bukkit.conversations.Conversable;
+-import org.bukkit.craftbukkit.attachment.AttachmentFactory;
++import mx.kenzie.server.attachment.AttachmentFactory;
+ import org.bukkit.craftbukkit.block.data.CraftBlockData;
+ import org.bukkit.craftbukkit.boss.CraftBossBar;
+ import org.bukkit.craftbukkit.boss.CraftKeyedBossbar;
+@@ -119,7 +121,7 @@ import org.bukkit.craftbukkit.map.CraftMapView;
+ import org.bukkit.craftbukkit.metadata.EntityMetadataStore;
+ import org.bukkit.craftbukkit.metadata.PlayerMetadataStore;
+ import org.bukkit.craftbukkit.metadata.WorldMetadataStore;
+-import mx.kenzie.wellspring.packet.PacketFactoryImpl;
++import mx.kenzie.server.packet.PacketFactoryImpl;
+ import org.bukkit.craftbukkit.potion.CraftPotionBrewer;
+ import org.bukkit.craftbukkit.scheduler.CraftScheduler;
+ import org.bukkit.craftbukkit.scoreboard.CraftScoreboardManager;
+@@ -257,7 +259,6 @@ public final class CraftServer implements Server, Wellspring { // Kenzie - Secon
+ 
+         Potion.setPotionBrewer(new CraftPotionBrewer());
+         MobEffects.BLINDNESS.getClass();
+-        PotionEffectType.stopAcceptingRegistrations();
+         // Ugly hack :(
+ 
+         if (!Main.useConsole) {
+@@ -2472,6 +2473,11 @@ public final class CraftServer implements Server, Wellspring { // Kenzie - Secon
+         }
+     }
+ 
++    @Override
++    public PotionBuilder createPotionEffect(NamespacedKey key, String name) {
++        return new PotionBuilderImpl(key, name);
++    }
++
+     @Override
+     public Bridge getBridge() {
+         return bridge;
+diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
+index 62bafe99f25412caa4df86acd1a0bb4f7172b2b5..d9319f59555cd78471fe22059ddddc922c54f7fd 100644
+--- a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
++++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
+@@ -155,7 +155,7 @@ import org.bukkit.block.BlockFace;
+ import org.bukkit.block.PistonMoveReaction;
+ import org.bukkit.craftbukkit.CraftServer;
+ import org.bukkit.craftbukkit.CraftWorld;
+-import org.bukkit.craftbukkit.attachment.AttachmentHolder;
++import mx.kenzie.server.attachment.AttachmentHolder;
+ import org.bukkit.craftbukkit.block.CraftBlock;
+ import org.bukkit.craftbukkit.persistence.CraftPersistentDataContainer;
+ import org.bukkit.craftbukkit.persistence.CraftPersistentDataTypeRegistry;
