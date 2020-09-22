@@ -39,13 +39,9 @@ Instead, you can use the NBT Factory (which provides creation and conversion uti
 This can be obtained using: `Bukkit.getNBTFactory()`
 
 To create an NBT Compound (map) use either:
-```java
-Bukkit.getNBTFactory().newCompound();
-```
+`Bukkit.getNBTFactory().newCompound()`
 or:
-```java
-NBTCompound.create();
-```
+`NBTCompound.create()`
 
 Either of these will create a new `NBTTagCompound` (the internal Minecraft type) and return it to you as a NBT Compound.
 
@@ -71,7 +67,7 @@ To start our example, we can create a new NBT compound. This will be effectively
 This is effectively a map. It can store data, and can be cloned and merged into other compounds.
 ```java
 class Example {
-    public void test() {
+    void test() {
         NBTCompound compound = NBTCompound.create();
     }
 }
@@ -81,11 +77,66 @@ There are two ways to add values to our compound. Either we can add the primitiv
 
 ```java
 class Example {
-    public void test() {
+    void test() {
         NBTCompound compound = NBTCompound.create();
-        
-        
-
+        simple: { // This wraps the int internally
+            compound.setInt("Number", 10); // This is the best method to use
+        }
+        simple: { // This wraps the int internally
+            compound.set("Number", 10);
+            // Slightly slower than the first method
+            // always better to use an explicit type
+        }
+        complex: {
+            NBT value = NBT.convert(10, NBT.Type.INT);
+            compound.set("Number", value);
+        }
+        complex: { 
+            NBT value = NBT.convert(10);
+            compound.set("Number", value); 
+        }
     }
 }
 ```
+The outcome of all methods will produce the compound `{Number:10}`.
+As you can see, Wellspring provides multiple ways of converting raw primitive types to NBT bases to be used.
+
+It is almost always best to explicitly provide the type where possible. For un-typed conversions, Wellspring will simply try to find a matching type for it.
+
+If you pass something such as a List, Map or array to the converter it will break it down into the individual types and construct a new NBT List, attempting to recursively convert the contents.
+
+When it comes to retrieving a value from an NBT compound, there are three possible approaches.
+
+```java
+class Example {
+    void test() {
+        NBTCompound compound = NBTCompound.create();
+        compound.setInt("Number", 10);
+        simple: {
+            int i = compound.getInt("Number");
+            // The best option, returns an explicit type.
+        }
+        complex: {
+            int i = compound.get("Number", NBT.Type.INT);
+            // The second best option.
+            // Java will attempt to automatically cast to your variable type.
+            // If you need the value explicitly, you can use the following:
+            compound.<Integer>get("Number", NBT.Type.INT);
+        }
+        complex: {
+            int i = compound.get("Number").getAsObject();
+            // Wellspring will attempt to automatically convert the NBT base to an object.
+            // Java will attempt to automatically cast to your variable type.
+            // If you need the value explicitly, you can use the following:
+            compound.get("Number").<Integer>getAsObject();
+        }
+    }
+}
+```
+
+As with setting the value, Wellspring provides a utility for automatic conversion of unknown types. This is not foolproof, however, and can cause unexpected behaviour. It is always better to use an explicit type.
+
+#### Further Examples
+
+Below are some more examples of manipulating NBT maps. 
+Please note that these are not actual implementations, but simply examples of what can be done.
