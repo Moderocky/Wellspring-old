@@ -1,0 +1,18 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Wed, 23 Sep 2020 13:12:04 +0100
+Subject: [PATCH] Missed registration of potion keys.
+
+
+diff --git a/src/main/java/mx/kenzie/server/potion/PotionBuilderImpl.java b/src/main/java/mx/kenzie/server/potion/PotionBuilderImpl.java
+index bda540bb765a0e25893fe01d27933eaf19296d11..b21fd9917a68ba0769f3d22c87cf8ebf6f460ee1 100644
+--- a/src/main/java/mx/kenzie/server/potion/PotionBuilderImpl.java
++++ b/src/main/java/mx/kenzie/server/potion/PotionBuilderImpl.java
+@@ -64,6 +64,7 @@ public class PotionBuilderImpl extends PotionBuilder {
+         final PotionEffectType type;
+         final Color col = new Color(color);
+         final org.bukkit.Color color = org.bukkit.Color.fromRGB(col.getRed(), col.getGreen(), col.getBlue());
++        IRegistry.a(IRegistry.MOB_EFFECT, index, key.toString(), effect);
+         type = new PotionEffectType(index) {
+             @Override
+             public double getDurationModifier() {
