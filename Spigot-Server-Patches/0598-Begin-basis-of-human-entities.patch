@@ -1,0 +1,152 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Wed, 23 Sep 2020 18:37:58 +0100
+Subject: [PATCH] Begin basis of human entities.
+
+
+diff --git a/src/main/java/mx/kenzie/server/CraftBridge.java b/src/main/java/mx/kenzie/server/CraftBridge.java
+index ba2d7366acb93dc378437e910894bb00b28b54ca..8fc641d500b95e04d8a30f26d828b263bc4fad3d 100644
+--- a/src/main/java/mx/kenzie/server/CraftBridge.java
++++ b/src/main/java/mx/kenzie/server/CraftBridge.java
+@@ -15,4 +15,9 @@ public class CraftBridge extends Wellspring.Bridge {
+     public float getHeight(EntityType type) {
+         return IRegistry.ENTITY_TYPE.get(new MinecraftKey(type.getKey().toString())).k();
+     }
++
++    @Override
++    public int getEntityIndex(String entityKey) {
++        return IRegistry.ENTITY_TYPE.a(IRegistry.ENTITY_TYPE.get(new MinecraftKey(entityKey)));
++    }
+ }
+diff --git a/src/main/java/mx/kenzie/server/entity/Human.java b/src/main/java/mx/kenzie/server/entity/Human.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..7077c9ac665d3190ac42c53fe71890becc02b997
+--- /dev/null
++++ b/src/main/java/mx/kenzie/server/entity/Human.java
+@@ -0,0 +1,70 @@
++package mx.kenzie.server.entity;
++
++import com.mojang.authlib.GameProfile;
++import net.minecraft.server.*;
++
++import java.util.Map;
++
++@SuppressWarnings("unchecked")
++public class Human extends EntityPlayer {
++
++    public static final String KEY = "human";
++    public static final EntityTypes<EntityHuman> TYPE;
++    public static final Map<EntityTypes<? extends EntityLiving>, AttributeProvider> PROVIDER_MAP = AttributeDefaults.getAttributeDefaults();
++    public static final int INDEX;
++
++    static {
++        EntityTypes.Builder<Entity> builder = EntityTypes.Builder.a(EnumCreatureType.MISC).b().a().a(0.6F, 1.8F).trackingRange(32).updateInterval(2);
++        TYPE = (EntityTypes<EntityHuman>) (EntityTypes<?>) IRegistry.a(IRegistry.ENTITY_TYPE, KEY, builder.a(KEY));
++        PROVIDER_MAP.put(TYPE, EntityHuman.eo().a());
++        INDEX = IRegistry.ENTITY_TYPE.a(TYPE);
++    }
++
++    public Human(WorldServer world, GameProfile profile) {
++        this(world.getMinecraftServer(), world, profile, null);
++    }
++
++    public Human(MinecraftServer minecraftserver, WorldServer worldserver, GameProfile gameprofile, PlayerInteractManager playerinteractmanager) {
++        super(minecraftserver, worldserver, gameprofile, playerinteractmanager);
++        display();
++    }
++
++    public void display() {
++        Packet<?> a = new PacketPlayOutPlayerInfo(PacketPlayOutPlayerInfo.EnumPlayerInfoAction.ADD_PLAYER, this);
++        Packet<?> b = new PacketPlayOutNamedEntitySpawn(this);
++        Packet<?> c = new PacketPlayOutPlayerInfo(PacketPlayOutPlayerInfo.EnumPlayerInfoAction.REMOVE_PLAYER, this);
++        for (EntityHuman player : world.getPlayers()) {
++            if (player instanceof EntityPlayer) {
++                NetworkManager manager = ((EntityPlayer) player).playerConnection.networkManager;
++                manager.sendPacket(a);
++                manager.sendPacket(b);
++                manager.sendPacket(c);
++            }
++        }
++    }
++
++    @Override
++    public void die() {
++        super.die();
++        Packet<?> packet = new PacketPlayOutEntityDestroy(this.getId());
++        Packet<?> tab = new PacketPlayOutPlayerInfo(PacketPlayOutPlayerInfo.EnumPlayerInfoAction.REMOVE_PLAYER, this);
++        for (EntityHuman player : world.getPlayers()) {
++            if (player instanceof EntityPlayer) {
++                NetworkManager manager = ((EntityPlayer) player).playerConnection.networkManager;
++                manager.sendPacket(packet);
++                manager.sendPacket(tab);
++            }
++        }
++    }
++
++    @Override
++    public EntityTypes<?> getEntityType() {
++        return TYPE;
++    }
++
++    @Override
++    public EntityTypes<?> getVisualType() {
++        return super.getVisualType();
++    }
++
++}
+diff --git a/src/main/java/mx/kenzie/server/entity/craft/CraftHuman.java b/src/main/java/mx/kenzie/server/entity/craft/CraftHuman.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..0903da3d77c2ca384147dcceeaf1b0ec0741cdb4
+--- /dev/null
++++ b/src/main/java/mx/kenzie/server/entity/craft/CraftHuman.java
+@@ -0,0 +1,18 @@
++package mx.kenzie.server.entity.craft;
++
++import mx.kenzie.server.entity.Human;
++import org.bukkit.craftbukkit.CraftServer;
++import org.bukkit.craftbukkit.entity.CraftPlayer;
++import org.bukkit.entity.EntityType;
++
++public class CraftHuman extends CraftPlayer {
++
++    public CraftHuman(CraftServer server, Human entity) {
++        super(server, entity);
++    }
++
++    @Override
++    public EntityType getType() {
++        return super.getType();
++    }
++}
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
+index 12307497b988f72597cdf53645f794d6d32d5aaf..8d2c8b02bc6738496ee08a9f3f7f9ec31760a45c 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
+@@ -3,6 +3,7 @@ package org.bukkit.craftbukkit;
+ import com.google.common.base.Preconditions;
+ import com.google.common.collect.ImmutableList;
+ import com.google.common.collect.ImmutableMap;
++import com.mojang.authlib.GameProfile;
+ import io.papermc.paper.world.MoonPhase;
+ import it.unimi.dsi.fastutil.longs.Long2ObjectLinkedOpenHashMap;
+ import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+@@ -25,6 +26,7 @@ import java.util.function.Predicate;
+ import java.util.stream.Collectors;
+ 
+ import mx.kenzie.server.attachment.AttachmentHolder;
++import mx.kenzie.wellspring.entity.Human;
+ import mx.kenzie.wellspring.nbt.NBTCompound;
+ import net.minecraft.server.*;
+ import org.apache.commons.lang.Validate;
+@@ -1657,6 +1659,11 @@ public class CraftWorld implements World {
+                 entity = EntityTypes.GHAST.a(world);
+             } else if (Pig.class.isAssignableFrom(clazz)) {
+                 entity = EntityTypes.PIG.a(world);
++            } else if (Human.class.isAssignableFrom(clazz)) { // Kenzie start - humans
++                entity = new mx.kenzie.server.entity.Human(
++                    world,
++                    new GameProfile(UUID.randomUUID(), "Human"));
++                    // Kenzie end
+             } else if (Player.class.isAssignableFrom(clazz)) {
+                 // need a net server handler for this one
+             } else if (Sheep.class.isAssignableFrom(clazz)) {
