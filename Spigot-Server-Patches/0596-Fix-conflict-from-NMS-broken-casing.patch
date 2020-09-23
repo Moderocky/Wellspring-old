@@ -1,0 +1,37 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Wed, 23 Sep 2020 10:52:07 +0100
+Subject: [PATCH] Fix conflict from NMS broken casing.
+
+
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
+index 6ad8abb7f88f8135ea28c3c5da1f2ebe62d9ee13..12307497b988f72597cdf53645f794d6d32d5aaf 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
+@@ -3,6 +3,7 @@ package org.bukkit.craftbukkit;
+ import com.google.common.base.Preconditions;
+ import com.google.common.collect.ImmutableList;
+ import com.google.common.collect.ImmutableMap;
++import io.papermc.paper.world.MoonPhase;
+ import it.unimi.dsi.fastutil.longs.Long2ObjectLinkedOpenHashMap;
+ import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+ import java.io.File;
+@@ -186,7 +187,6 @@ import org.bukkit.entity.minecart.PoweredMinecart;
+ import org.bukkit.entity.minecart.SpawnerMinecart;
+ import org.bukkit.entity.minecart.StorageMinecart;
+ import org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason;
+-import org.bukkit.event.world.SpawnChangeEvent;
+ import org.bukkit.event.world.TimeSkipEvent;
+ import org.bukkit.generator.BlockPopulator;
+ import org.bukkit.generator.ChunkGenerator;
+@@ -265,8 +265,8 @@ public class CraftWorld implements World {
+     }
+ 
+     @Override
+-    public io.papermc.paper.world.MoonPhase getMoonPhase() {
+-        return io.papermc.paper.world.MoonPhase.getPhase(getFullTime() / 24000L);
++    public MoonPhase getMoonPhase() {
++        return MoonPhase.getPhase(getFullTime() / 24000L);
+     }
+     // Paper end
+ 
