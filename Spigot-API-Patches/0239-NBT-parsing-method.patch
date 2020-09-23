@@ -1,0 +1,27 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Tue, 22 Sep 2020 17:38:06 +0100
+Subject: [PATCH] NBT parsing method.
+
+
+diff --git a/src/main/java/mx/kenzie/wellspring/nbt/NBTCompound.java b/src/main/java/mx/kenzie/wellspring/nbt/NBTCompound.java
+index 91ce4260f57c98cd504c74bf26ab1756f7608cf0..cc0091410d0be572a20982d4e670f9f0bfa7fea7 100644
+--- a/src/main/java/mx/kenzie/wellspring/nbt/NBTCompound.java
++++ b/src/main/java/mx/kenzie/wellspring/nbt/NBTCompound.java
+@@ -19,6 +19,16 @@ public interface NBTCompound extends NBT {
+         return Bukkit.getNBTFactory().newCompound();
+     }
+ 
++    /**
++     * Attempts to parse a stringified NBT compound and deserialises it.
++     * @param stringifiedNBT the string compound.
++     * @return the deserialised compound.
++     * @throws IllegalArgumentException if the string cannot be parsed.
++     */
++    static @NotNull NBTCompound create(@NotNull String stringifiedNBT) throws IllegalArgumentException {
++        return Bukkit.getNBTFactory().parse(stringifiedNBT);
++    }
++
+     /**
+      * Creates a new NBT Compound by wrapping the map and its values.
+      * @param map The provided map to wrap.

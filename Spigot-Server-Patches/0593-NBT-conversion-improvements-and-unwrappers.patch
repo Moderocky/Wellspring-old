@@ -1,0 +1,19 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Tue, 22 Sep 2020 16:45:30 +0100
+Subject: [PATCH] NBT conversion improvements and unwrappers.
+
+
+diff --git a/src/main/java/net/minecraft/server/NBTTagCompound.java b/src/main/java/net/minecraft/server/NBTTagCompound.java
+index f6fce87bb5c9d0654b6d27034391711b094716bf..ab0ad23edc5bc2847ba19cd4f3aae2b58933a86d 100644
+--- a/src/main/java/net/minecraft/server/NBTTagCompound.java
++++ b/src/main/java/net/minecraft/server/NBTTagCompound.java
+@@ -124,7 +124,7 @@ public class NBTTagCompound implements NBTBase, NBTCompound { // Kenzie - whole
+ 
+     @Nullable
+     public NBTBase set(String s, NBTBase nbtbase) {
+-        return (NBTBase) this.map.put(s, nbtbase);
++        return this.map.put(s, nbtbase);
+     }
+ 
+     @Override

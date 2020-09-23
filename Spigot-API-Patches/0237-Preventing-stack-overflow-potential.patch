@@ -1,0 +1,35 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Tue, 22 Sep 2020 17:10:57 +0100
+Subject: [PATCH] Preventing stack-overflow potential.
+
+
+diff --git a/src/main/java/mx/kenzie/wellspring/nbt/NBTCompound.java b/src/main/java/mx/kenzie/wellspring/nbt/NBTCompound.java
+index f64cdcd698418e84eb02108c844b5db806ec992a..91ce4260f57c98cd504c74bf26ab1756f7608cf0 100644
+--- a/src/main/java/mx/kenzie/wellspring/nbt/NBTCompound.java
++++ b/src/main/java/mx/kenzie/wellspring/nbt/NBTCompound.java
+@@ -28,7 +28,9 @@ public interface NBTCompound extends NBT {
+     static @NotNull NBTCompound create(@NotNull Map<?, ?> map) throws RuntimeException {
+         final NBTCompound compound = NBTCompound.create();
+         for (Map.Entry<?, ?> entry : map.entrySet()) {
+-            compound.set(entry.getKey().toString(), NBT.convert(entry.getValue()));
++            Object object = entry.getValue();
++            if (object instanceof NBT) compound.set(entry.getKey().toString(), ((NBT) object));
++            else compound.set(entry.getKey().toString(), NBT.convert(object));
+         }
+         return compound;
+     }
+diff --git a/src/main/java/mx/kenzie/wellspring/nbt/NBTList.java b/src/main/java/mx/kenzie/wellspring/nbt/NBTList.java
+index 4c45e76adcd160bd1136f10b464acb839f87e48c..373249f7355f50c232cf229f14fd13bc16815b75 100644
+--- a/src/main/java/mx/kenzie/wellspring/nbt/NBTList.java
++++ b/src/main/java/mx/kenzie/wellspring/nbt/NBTList.java
+@@ -64,7 +64,8 @@ public interface NBTList extends NBT {
+     static @NotNull NBTList create(@NotNull Iterable<?>... objects) {
+         final NBTList list = NBTList.create();
+         for (Object object : objects) {
+-            list.add(NBT.convert(object));
++            if (object instanceof NBT) list.add(((NBT) object));
++            else list.add(NBT.convert(object));
+         }
+         return list;
+     }

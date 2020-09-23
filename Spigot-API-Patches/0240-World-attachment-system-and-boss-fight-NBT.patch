@@ -1,0 +1,249 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Wed, 23 Sep 2020 10:43:51 +0100
+Subject: [PATCH] World attachment system and boss fight NBT.
+
+
+diff --git a/src/main/java/mx/kenzie/wellspring/entity/CustomEntity.java b/src/main/java/mx/kenzie/wellspring/entity/CustomEntity.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..ccda18d4eb0878736a8b72facf8120d20c34329e
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/entity/CustomEntity.java
+@@ -0,0 +1,22 @@
++package mx.kenzie.wellspring.entity;
++
++import org.bukkit.entity.Entity;
++import org.bukkit.entity.EntityType;
++import org.bukkit.plugin.Plugin;
++import org.jetbrains.annotations.NotNull;
++
++public interface CustomEntity extends Entity {
++
++    @NotNull
++    @Override
++    default EntityType getType() {
++        return EntityType.UNKNOWN;
++    }
++
++    @NotNull
++    CustomEntityType getCustomType();
++
++    @NotNull
++    Plugin getProvidingPlugin();
++
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/entity/CustomEntityRegistry.java b/src/main/java/mx/kenzie/wellspring/entity/CustomEntityRegistry.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..d34f221fb3e3d75f643dda9d84710287a18422dd
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/entity/CustomEntityRegistry.java
+@@ -0,0 +1,22 @@
++package mx.kenzie.wellspring.entity;
++
++import mx.kenzie.wellspring.Wellspring;
++import org.bukkit.NamespacedKey;
++import org.jetbrains.annotations.NotNull;
++
++public abstract class CustomEntityRegistry {
++
++    protected final Wellspring server;
++
++    protected CustomEntityRegistry(@NotNull Wellspring wellspring) {
++        this.server = wellspring;
++    }
++
++    /**
++     * Internal route.
++     */
++    protected @NotNull CustomEntityType createType(@NotNull String name, @NotNull NamespacedKey key, @NotNull Class<? extends CustomEntity> cls, short id, boolean spawnable, boolean alive) {
++        return new CustomEntityType(name, key, cls, id, spawnable, alive);
++    }
++
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/entity/CustomEntityType.java b/src/main/java/mx/kenzie/wellspring/entity/CustomEntityType.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..4faedaa1958a349ed4253f82e151a8c4e96e5a66
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/entity/CustomEntityType.java
+@@ -0,0 +1,57 @@
++package mx.kenzie.wellspring.entity;
++
++import org.bukkit.NamespacedKey;
++import org.bukkit.entity.Entity;
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
++
++public class CustomEntityType implements IEntityType {
++
++    private final String name;
++    private final NamespacedKey key;
++    private final Class<? extends CustomEntity> cls;
++    private final short id;
++    private final boolean spawnable, alive;
++
++    CustomEntityType(@NotNull String name, @NotNull NamespacedKey key, @NotNull Class<? extends CustomEntity> cls, short id, boolean spawnable, boolean alive) {
++        this.name = name;
++        this.key = key;
++        this.cls = cls;
++        this.id = id;
++        this.spawnable = spawnable;
++        this.alive = alive;
++    }
++
++    @Nullable
++    @Override
++    public String getName() {
++        return name;
++    }
++
++    @NotNull
++    @Override
++    public NamespacedKey getKey() {
++        return key;
++    }
++
++    @Nullable
++    @Override
++    public Class<? extends Entity> getEntityClass() {
++        return cls;
++    }
++
++    @Override
++    public short getTypeId() {
++        return id;
++    }
++
++    @Override
++    public boolean isSpawnable() {
++        return spawnable;
++    }
++
++    @Override
++    public boolean isAlive() {
++        return alive;
++    }
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/entity/CustomLivingEntity.java b/src/main/java/mx/kenzie/wellspring/entity/CustomLivingEntity.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..c66031d29ad0007ee025f634b0111722fada873f
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/entity/CustomLivingEntity.java
+@@ -0,0 +1,36 @@
++package mx.kenzie.wellspring.entity;
++
++import org.bukkit.entity.EntityType;
++import org.bukkit.inventory.EquipmentSlot;
++import org.bukkit.inventory.ItemStack;
++import org.bukkit.plugin.Plugin;
++import org.jetbrains.annotations.NotNull;
++
++import java.util.List;
++
++public interface CustomLivingEntity {
++
++    @NotNull
++    EntityType getVisualType();
++
++    @NotNull
++    List<ItemStack> getArmorItems();
++
++    @NotNull
++    ItemStack getEquipment(@NotNull EquipmentSlot slot);
++
++    void setEquipment(@NotNull EquipmentSlot slot, @NotNull ItemStack item);
++
++    @NotNull
++    Hand getMainHand();
++
++    @NotNull
++    CustomEntityType getCustomType();
++
++    @NotNull
++    Plugin getProvidingPlugin();
++
++    enum Hand {
++        RIGHT, LEFT
++    }
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/entity/IEntityType.java b/src/main/java/mx/kenzie/wellspring/entity/IEntityType.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..2f5d7eff76be38cc483a97e3c78213b1fa67baaa
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/entity/IEntityType.java
+@@ -0,0 +1,25 @@
++package mx.kenzie.wellspring.entity;
++
++import org.bukkit.NamespacedKey;
++import org.bukkit.entity.Entity;
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
++
++public interface IEntityType {
++    @Deprecated
++    @Nullable
++    String getName();
++
++    @NotNull
++    NamespacedKey getKey();
++
++    @Nullable
++    Class<? extends Entity> getEntityClass();
++
++    @Deprecated
++    short getTypeId();
++
++    boolean isSpawnable();
++
++    boolean isAlive();
++}
+diff --git a/src/main/java/org/bukkit/World.java b/src/main/java/org/bukkit/World.java
+index e827e1a6f5c0f8410ed32dda8f17aa769b469999..5c3e19d018fdf57fa1d43d8f044ea84e937a8bb8 100644
+--- a/src/main/java/org/bukkit/World.java
++++ b/src/main/java/org/bukkit/World.java
+@@ -2,6 +2,9 @@ package org.bukkit;
+ 
+ import java.io.File;
+ 
++import mx.kenzie.wellspring.nbt.NBTCompound;
++import mx.kenzie.wellspring.nbt.NBTHolder;
++import org.bukkit.attachment.Attachable;
+ import org.bukkit.event.entity.CreatureSpawnEvent;
+ import org.bukkit.generator.ChunkGenerator;
+ 
+@@ -43,7 +46,7 @@ import org.jetbrains.annotations.Nullable;
+ /**
+  * Represents a world, which may contain entities, chunks and blocks
+  */
+-public interface World extends PluginMessageRecipient, Metadatable {
++public interface World extends PluginMessageRecipient, Metadatable, Attachable { // Kenzie
+ 
+     // Paper start
+     /**
+@@ -3536,4 +3539,27 @@ public interface World extends PluginMessageRecipient, Metadatable {
+             }
+         }
+     }
++
++    // Kenzie start - dragon fight and boss NBT
++    @NotNull NBTCompound getDragonFightNBT();
++
++    default void mergeDragonFightNBT(@NotNull NBTCompound compound) {
++        NBTCompound nbt = getDragonFightNBT();
++        nbt.merge(compound);
++        setDragonFightNBT(nbt);
++    }
++
++    void setDragonFightNBT(@NotNull NBTCompound compound);
++
++    @NotNull NBTCompound getCustomBossNBT();
++
++    default void mergeCustomBossNBT(@NotNull NBTCompound compound) {
++        NBTCompound nbt = getCustomBossNBT();
++        nbt.merge(compound);
++        setCustomBossNBT(nbt);
++    }
++
++    void setCustomBossNBT(@NotNull NBTCompound compound);
++    // Kenzie end
++
+ }
