@@ -7,12 +7,13 @@ No breaking changes should be made to existing features. Wellspring's sole aim i
 Current additional features:
 -----
  * NBT is now accessible without requiring version-specific methods, unsafe utilities or reflection.
+   * See [here](https://github.com/Moderocky/Wellspring/blob/master/guides/nbt.md) for a proper guide to NBT.
  * [Attachment](https://github.com/Moderocky/Wellspring/blob/master/guides/attachments.md) system to allow for custom fields, methods and utilities to be added to entities and other 'Attachable' objects.
    * Attachments allow data and code to be attached to entities (and certain other things.)
    * They function as an actually-useful replacement for both entity metadata and persistent data containers.
    * Attachments have a normal class structure, but have a hook to allow data to be saved within NBT.
    * See [here](https://github.com/Moderocky/Wellspring/blob/master/guides/attachments.md) for more information.
- * Custom potion effect type builder.
+ * Custom potion effect type [builder](https://github.com/Moderocky/Wellspring/blob/master/guides/potions.md).
    * Persist over restarts.
    * Work with existing bukkit effects.
    * Allow for custom attribute attachments and on-tick behaviour.
