@@ -1,0 +1,741 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Wed, 23 Sep 2020 18:37:51 +0100
+Subject: [PATCH] Begin basis of human entities.
+
+
+diff --git a/javadoc-style.css b/javadoc-style.css
+new file mode 100644
+index 0000000000000000000000000000000000000000..98055b22d6d5bed7792d6857aa760cf914c62653
+--- /dev/null
++++ b/javadoc-style.css
+@@ -0,0 +1,574 @@
++/* Javadoc style sheet */
++/*
++Overall document style
++*/
++
++@import url('resources/fonts/dejavu.css');
++
++body {
++    background-color:#ffffff;
++    color:#353833;
++    font-family:'DejaVu Sans', Arial, Helvetica, sans-serif;
++    font-size:14px;
++    margin:0;
++}
++a:link, a:visited {
++    text-decoration:none;
++    color:#4A6782;
++}
++a:hover, a:focus {
++    text-decoration:none;
++    color:#bb7a2a;
++}
++a:active {
++    text-decoration:none;
++    color:#4A6782;
++}
++a[name] {
++    color:#353833;
++}
++a[name]:hover {
++    text-decoration:none;
++    color:#353833;
++}
++pre {
++    font-family:'DejaVu Sans Mono', monospace;
++    font-size:14px;
++}
++h1 {
++    font-size:20px;
++}
++h2 {
++    font-size:18px;
++}
++h3 {
++    font-size:16px;
++    font-style:italic;
++}
++h4 {
++    font-size:13px;
++}
++h5 {
++    font-size:12px;
++}
++h6 {
++    font-size:11px;
++}
++ul {
++    list-style-type:disc;
++}
++code, tt {
++    font-family:'DejaVu Sans Mono', monospace;
++    font-size:14px;
++    padding-top:4px;
++    margin-top:8px;
++    line-height:1.4em;
++}
++dt code {
++    font-family:'DejaVu Sans Mono', monospace;
++    font-size:14px;
++    padding-top:4px;
++}
++table tr td dt code {
++    font-family:'DejaVu Sans Mono', monospace;
++    font-size:14px;
++    vertical-align:top;
++    padding-top:4px;
++}
++sup {
++    font-size:8px;
++}
++/*
++Document title and Copyright styles
++*/
++.clear {
++    clear:both;
++    height:0px;
++    overflow:hidden;
++}
++.aboutLanguage {
++    float:right;
++    padding:0px 21px;
++    font-size:11px;
++    z-index:200;
++    margin-top:-9px;
++}
++.legalCopy {
++    margin-left:.5em;
++}
++.bar a, .bar a:link, .bar a:visited, .bar a:active {
++    color:#FFFFFF;
++    text-decoration:none;
++}
++.bar a:hover, .bar a:focus {
++    color:#bb7a2a;
++}
++.tab {
++    background-color:#0066FF;
++    color:#ffffff;
++    padding:8px;
++    width:5em;
++    font-weight:bold;
++}
++/*
++Navigation bar styles
++*/
++.bar {
++    background-color:#4D7A97;
++    color:#FFFFFF;
++    padding:.8em .5em .4em .8em;
++    height:auto;/*height:1.8em;*/
++    font-size:11px;
++    margin:0;
++}
++.topNav {
++    background-color:#4D7A97;
++    color:#FFFFFF;
++    float:left;
++    padding:0;
++    width:100%;
++    clear:right;
++    height:2.8em;
++    padding-top:10px;
++    overflow:hidden;
++    font-size:12px; 
++}
++.bottomNav {
++    margin-top:10px;
++    background-color:#4D7A97;
++    color:#FFFFFF;
++    float:left;
++    padding:0;
++    width:100%;
++    clear:right;
++    height:2.8em;
++    padding-top:10px;
++    overflow:hidden;
++    font-size:12px;
++}
++.subNav {
++    background-color:#dee3e9;
++    float:left;
++    width:100%;
++    overflow:hidden;
++    font-size:12px;
++}
++.subNav div {
++    clear:left;
++    float:left;
++    padding:0 0 5px 6px;
++    text-transform:uppercase;
++}
++ul.navList, ul.subNavList {
++    float:left;
++    margin:0 25px 0 0;
++    padding:0;
++}
++ul.navList li{
++    list-style:none;
++    float:left;
++    padding: 5px 6px;
++    text-transform:uppercase;
++}
++ul.subNavList li{
++    list-style:none;
++    float:left;
++}
++.topNav a:link, .topNav a:active, .topNav a:visited, .bottomNav a:link, .bottomNav a:active, .bottomNav a:visited {
++    color:#FFFFFF;
++    text-decoration:none;
++    text-transform:uppercase;
++}
++.topNav a:hover, .bottomNav a:hover {
++    text-decoration:none;
++    color:#bb7a2a;
++    text-transform:uppercase;
++}
++.navBarCell1Rev {
++    background-color:#F8981D;
++    color:#253441;
++    margin: auto 5px;
++}
++.skipNav {
++    position:absolute;
++    top:auto;
++    left:-9999px;
++    overflow:hidden;
++}
++/*
++Page header and footer styles
++*/
++.header, .footer {
++    clear:both;
++    margin:0 20px;
++    padding:5px 0 0 0;
++}
++.indexHeader {
++    margin:10px;
++    position:relative;
++}
++.indexHeader span{
++    margin-right:15px;
++}
++.indexHeader h1 {
++    font-size:13px;
++}
++.title {
++    color:#2c4557;
++    margin:10px 0;
++}
++.subTitle {
++    margin:5px 0 0 0;
++}
++.header ul {
++    margin:0 0 15px 0;
++    padding:0;
++}
++.footer ul {
++    margin:20px 0 5px 0;
++}
++.header ul li, .footer ul li {
++    list-style:none;
++    font-size:13px;
++}
++/*
++Heading styles
++*/
++div.details ul.blockList ul.blockList ul.blockList li.blockList h4, div.details ul.blockList ul.blockList ul.blockListLast li.blockList h4 {
++    background-color:#dee3e9;
++    border:1px solid #d0d9e0;
++    margin:0 0 6px -8px;
++    padding:7px 5px;
++}
++ul.blockList ul.blockList ul.blockList li.blockList h3 {
++    background-color:#dee3e9;
++    border:1px solid #d0d9e0;
++    margin:0 0 6px -8px;
++    padding:7px 5px;
++}
++ul.blockList ul.blockList li.blockList h3 {
++    padding:0;
++    margin:15px 0;
++}
++ul.blockList li.blockList h2 {
++    padding:0px 0 20px 0;
++}
++/*
++Page layout container styles
++*/
++.contentContainer, .sourceContainer, .classUseContainer, .serializedFormContainer, .constantValuesContainer {
++    clear:both;
++    padding:10px 20px;
++    position:relative;
++}
++.indexContainer {
++    margin:10px;
++    position:relative;
++    font-size:12px;
++}
++.indexContainer h2 {
++    font-size:13px;
++    padding:0 0 3px 0;
++}
++.indexContainer ul {
++    margin:0;
++    padding:0;
++}
++.indexContainer ul li {
++    list-style:none;
++    padding-top:2px;
++}
++.contentContainer .description dl dt, .contentContainer .details dl dt, .serializedFormContainer dl dt {
++    font-size:12px;
++    font-weight:bold;
++    margin:10px 0 0 0;
++    color:#4E4E4E;
++}
++.contentContainer .description dl dd, .contentContainer .details dl dd, .serializedFormContainer dl dd {
++    margin:5px 0 10px 0px;
++    font-size:14px;
++    font-family:'DejaVu Sans Mono',monospace;
++}
++.serializedFormContainer dl.nameValue dt {
++    margin-left:1px;
++    font-size:1.1em;
++    display:inline;
++    font-weight:bold;
++}
++.serializedFormContainer dl.nameValue dd {
++    margin:0 0 0 1px;
++    font-size:1.1em;
++    display:inline;
++}
++/*
++List styles
++*/
++ul.horizontal li {
++    display:inline;
++    font-size:0.9em;
++}
++ul.inheritance {
++    margin:0;
++    padding:0;
++}
++ul.inheritance li {
++    display:inline;
++    list-style:none;
++}
++ul.inheritance li ul.inheritance {
++    margin-left:15px;
++    padding-left:15px;
++    padding-top:1px;
++}
++ul.blockList, ul.blockListLast {
++    margin:10px 0 10px 0;
++    padding:0;
++}
++ul.blockList li.blockList, ul.blockListLast li.blockList {
++    list-style:none;
++    margin-bottom:15px;
++    line-height:1.4;
++}
++ul.blockList ul.blockList li.blockList, ul.blockList ul.blockListLast li.blockList {
++    padding:0px 20px 5px 10px;
++    border:1px solid #ededed; 
++    background-color:#f8f8f8;
++}
++ul.blockList ul.blockList ul.blockList li.blockList, ul.blockList ul.blockList ul.blockListLast li.blockList {
++    padding:0 0 5px 8px;
++    background-color:#ffffff;
++    border:none;
++}
++ul.blockList ul.blockList ul.blockList ul.blockList li.blockList {
++    margin-left:0;
++    padding-left:0;
++    padding-bottom:15px;
++    border:none;
++}
++ul.blockList ul.blockList ul.blockList ul.blockList li.blockListLast {
++    list-style:none;
++    border-bottom:none;
++    padding-bottom:0;
++}
++table tr td dl, table tr td dl dt, table tr td dl dd {
++    margin-top:0;
++    margin-bottom:1px;
++}
++/*
++Table styles
++*/
++.overviewSummary, .memberSummary, .typeSummary, .useSummary, .constantsSummary, .deprecatedSummary {
++    width:100%;
++    border-left:1px solid #EEE; 
++    border-right:1px solid #EEE; 
++    border-bottom:1px solid #EEE; 
++}
++.overviewSummary, .memberSummary  {
++    padding:0px;
++}
++.overviewSummary caption, .memberSummary caption, .typeSummary caption,
++.useSummary caption, .constantsSummary caption, .deprecatedSummary caption {
++    position:relative;
++    text-align:left;
++    background-repeat:no-repeat;
++    color:#253441;
++    font-weight:bold;
++    clear:none;
++    overflow:hidden;
++    padding:0px;
++    padding-top:10px;
++    padding-left:1px;
++    margin:0px;
++    white-space:pre;
++}
++.overviewSummary caption a:link, .memberSummary caption a:link, .typeSummary caption a:link,
++.useSummary caption a:link, .constantsSummary caption a:link, .deprecatedSummary caption a:link,
++.overviewSummary caption a:hover, .memberSummary caption a:hover, .typeSummary caption a:hover,
++.useSummary caption a:hover, .constantsSummary caption a:hover, .deprecatedSummary caption a:hover,
++.overviewSummary caption a:active, .memberSummary caption a:active, .typeSummary caption a:active,
++.useSummary caption a:active, .constantsSummary caption a:active, .deprecatedSummary caption a:active,
++.overviewSummary caption a:visited, .memberSummary caption a:visited, .typeSummary caption a:visited,
++.useSummary caption a:visited, .constantsSummary caption a:visited, .deprecatedSummary caption a:visited {
++    color:#FFFFFF;
++}
++.overviewSummary caption span, .memberSummary caption span, .typeSummary caption span,
++.useSummary caption span, .constantsSummary caption span, .deprecatedSummary caption span {
++    white-space:nowrap;
++    padding-top:5px;
++    padding-left:12px;
++    padding-right:12px;
++    padding-bottom:7px;
++    display:inline-block;
++    float:left;
++    background-color:#F8981D;
++    border: none;
++    height:16px;
++}
++.memberSummary caption span.activeTableTab span {
++    white-space:nowrap;
++    padding-top:5px;
++    padding-left:12px;
++    padding-right:12px;
++    margin-right:3px;
++    display:inline-block;
++    float:left;
++    background-color:#F8981D;
++    height:16px;
++}
++.memberSummary caption span.tableTab span {
++    white-space:nowrap;
++    padding-top:5px;
++    padding-left:12px;
++    padding-right:12px;
++    margin-right:3px;
++    display:inline-block;
++    float:left;
++    background-color:#4D7A97;
++    height:16px;
++}
++.memberSummary caption span.tableTab, .memberSummary caption span.activeTableTab {
++    padding-top:0px;
++    padding-left:0px;
++    padding-right:0px;
++    background-image:none;
++    float:none;
++    display:inline;
++}
++.overviewSummary .tabEnd, .memberSummary .tabEnd, .typeSummary .tabEnd,
++.useSummary .tabEnd, .constantsSummary .tabEnd, .deprecatedSummary .tabEnd {
++    display:none;
++    width:5px;
++    position:relative;
++    float:left;
++    background-color:#F8981D;
++}
++.memberSummary .activeTableTab .tabEnd {
++    display:none;
++    width:5px;
++    margin-right:3px;
++    position:relative; 
++    float:left;
++    background-color:#F8981D;
++}
++.memberSummary .tableTab .tabEnd {
++    display:none;
++    width:5px;
++    margin-right:3px;
++    position:relative;
++    background-color:#4D7A97;
++    float:left;
++
++}
++.overviewSummary td, .memberSummary td, .typeSummary td,
++.useSummary td, .constantsSummary td, .deprecatedSummary td {
++    text-align:left;
++    padding:0px 0px 12px 10px;
++}
++th.colOne, th.colFirst, th.colLast, .useSummary th, .constantsSummary th,
++td.colOne, td.colFirst, td.colLast, .useSummary td, .constantsSummary td{
++    vertical-align:top;
++    padding-right:0px;
++    padding-top:8px;
++    padding-bottom:3px;
++}
++th.colFirst, th.colLast, th.colOne, .constantsSummary th {
++    background:#dee3e9;
++    text-align:left;
++    padding:8px 3px 3px 7px;
++}
++td.colFirst, th.colFirst {
++    white-space:nowrap;
++    font-size:13px;
++}
++td.colLast, th.colLast {
++    font-size:13px;
++}
++td.colOne, th.colOne {
++    font-size:13px;
++}
++.overviewSummary td.colFirst, .overviewSummary th.colFirst,
++.useSummary td.colFirst, .useSummary th.colFirst,
++.overviewSummary td.colOne, .overviewSummary th.colOne,
++.memberSummary td.colFirst, .memberSummary th.colFirst,
++.memberSummary td.colOne, .memberSummary th.colOne,
++.typeSummary td.colFirst{
++    width:25%;
++    vertical-align:top;
++}
++td.colOne a:link, td.colOne a:active, td.colOne a:visited, td.colOne a:hover, td.colFirst a:link, td.colFirst a:active, td.colFirst a:visited, td.colFirst a:hover, td.colLast a:link, td.colLast a:active, td.colLast a:visited, td.colLast a:hover, .constantValuesContainer td a:link, .constantValuesContainer td a:active, .constantValuesContainer td a:visited, .constantValuesContainer td a:hover {
++    font-weight:bold;
++}
++.tableSubHeadingColor {
++    background-color:#EEEEFF;
++}
++.altColor {
++    background-color:#FFFFFF;
++}
++.rowColor {
++    background-color:#EEEEEF;
++}
++/*
++Content styles
++*/
++.description pre {
++    margin-top:0;
++}
++.deprecatedContent {
++    margin:0;
++    padding:10px 0;
++}
++.docSummary {
++    padding:0;
++}
++
++ul.blockList ul.blockList ul.blockList li.blockList h3 {
++    font-style:normal;
++}
++
++div.block {
++    font-size:14px;
++    font-family:'DejaVu Serif', Georgia, "Times New Roman", Times, serif;
++}
++
++td.colLast div {
++    padding-top:0px;
++}
++
++
++td.colLast a {
++    padding-bottom:3px;
++}
++/*
++Formatting effect styles
++*/
++.sourceLineNo {
++    color:green;
++    padding:0 30px 0 0;
++}
++h1.hidden {
++    visibility:hidden;
++    overflow:hidden;
++    font-size:10px;
++}
++.block {
++    display:block;
++    margin:3px 10px 2px 0px;
++    color:#474747;
++}
++.deprecatedLabel, .descfrmTypeLabel, .memberNameLabel, .memberNameLink,
++.overrideSpecifyLabel, .packageHierarchyLabel, .paramLabel, .returnLabel,
++.seeLabel, .simpleTagLabel, .throwsLabel, .typeNameLabel, .typeNameLink {
++    font-weight:bold;
++}
++.deprecationComment, .emphasizedPhrase, .interfaceName {
++    font-style:italic;
++}
++
++div.block div.block span.deprecationComment, div.block div.block span.emphasizedPhrase,
++div.block div.block span.interfaceName {
++    font-style:normal;
++}
++
++div.contentContainer ul.blockList li.blockList h2{
++    padding-bottom:0px;
++}
+diff --git a/pom.xml b/pom.xml
+index 29dafd4b937e635bcce7b3712122ad3452fedfc2..f305f3b4817b4a930619335157d8522d4172dae6 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -228,6 +228,8 @@
+                 <artifactId>maven-javadoc-plugin</artifactId>
+                 <version>3.2.0</version>
+                 <configuration>
++                    <stylesheetfile>javadoc-style.css</stylesheetfile>
++                    <failOnError>false</failOnError>
+                     <links>
+                         <link>https://guava.dev/releases/21.0/api/docs/</link>
+                         <link>https://javadoc.io/doc/org.yaml/snakeyaml/1.26/</link>
+diff --git a/src/main/java/mx/kenzie/wellspring/Wellspring.java b/src/main/java/mx/kenzie/wellspring/Wellspring.java
+index b4d46bbd9251f94358b990ebc4ed8665d7374481..d5e8e4d81bc0849600f23f48b614a0598ecf8f5b 100644
+--- a/src/main/java/mx/kenzie/wellspring/Wellspring.java
++++ b/src/main/java/mx/kenzie/wellspring/Wellspring.java
+@@ -1,11 +1,16 @@
+ package mx.kenzie.wellspring;
+ 
++import org.bukkit.Bukkit;
+ import org.bukkit.Server;
+ import org.bukkit.entity.EntityType;
+ import org.jetbrains.annotations.NotNull;
+ 
+ public interface Wellspring extends Server {
+ 
++    static  @NotNull Wellspring getInstance() {
++        return (Wellspring) Bukkit.getServer();
++    }
++
+     @NotNull Bridge getBridge();
+ 
+     /**
+@@ -21,6 +26,7 @@ public interface Wellspring extends Server {
+ 
+         public abstract float getHeight(@NotNull EntityType type);
+ 
++        public abstract int getEntityIndex(@NotNull String entityKey);
+     }
+ 
+ }
+diff --git a/src/main/java/mx/kenzie/wellspring/entity/Human.java b/src/main/java/mx/kenzie/wellspring/entity/Human.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..e829e6ef3c83f43402abb9b9e0cdacb75597708d
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/entity/Human.java
+@@ -0,0 +1,7 @@
++package mx.kenzie.wellspring.entity;
++
++import org.bukkit.entity.LivingEntity;
++import org.bukkit.entity.Player;
++
++public interface Human extends Player {
++}
+diff --git a/src/main/java/org/bukkit/Bukkit.java b/src/main/java/org/bukkit/Bukkit.java
+index 8c337989d0aae05143ea7a9ff3ae9bac22e4f27c..25ddfd88cfc6ac80d1e45e0aa3b34ab7f609618e 100644
+--- a/src/main/java/org/bukkit/Bukkit.java
++++ b/src/main/java/org/bukkit/Bukkit.java
+@@ -1761,6 +1761,7 @@ public final class Bukkit {
+      * @param plugin The providing plugin.
+      * @param creatorFunction A function to create a new attachment instance.
+      * @param target The target class.
++     * @param <T> The attachment class.
+      */
+     public static <T extends Attachable> void registerAttachment(@NotNull Plugin plugin, @NotNull Function<? extends T, Attachment<?>> creatorFunction, @NotNull Class<T> target) {
+         server.registerAttachment(plugin, creatorFunction, target);
+diff --git a/src/main/java/org/bukkit/UnsafeValues.java b/src/main/java/org/bukkit/UnsafeValues.java
+index ac43afbf6230a481ab8cffbb3bc91b716316c00d..879686334c9eda12034d0f1f20e566da4cf385bb 100644
+--- a/src/main/java/org/bukkit/UnsafeValues.java
++++ b/src/main/java/org/bukkit/UnsafeValues.java
+@@ -80,6 +80,7 @@ public interface UnsafeValues {
+ 
+     /**
+      * Called once by the version command on first use, then cached.
++     * @return Version Fetcher
+      */
+     default com.destroystokyo.paper.util.VersionFetcher getVersionFetcher() {
+         return new com.destroystokyo.paper.util.VersionFetcher.DummyVersionFetcher();
+@@ -98,6 +99,7 @@ public interface UnsafeValues {
+     /**
+      * Return the translation key for the Material, so the client can translate it into the active
+      * locale when using a TranslatableComponent.
++     * @param mat The material
+      * @return the translation key
+      */
+     String getTranslationKey(Material mat);
+@@ -105,6 +107,7 @@ public interface UnsafeValues {
+     /**
+      * Return the translation key for the Block, so the client can translate it into the active
+      * locale when using a TranslatableComponent.
++     * @param block block
+      * @return the translation key
+      */
+     String getTranslationKey(org.bukkit.block.Block block);
+@@ -113,6 +116,7 @@ public interface UnsafeValues {
+      * Return the translation key for the EntityType, so the client can translate it into the active
+      * locale when using a TranslatableComponent.<br>
+      * This is <code>null</code>, when the EntityType isn't known to NMS (custom entities)
++     * @param type type
+      * @return the translation key
+      */
+     String getTranslationKey(org.bukkit.entity.EntityType type);
+diff --git a/src/main/java/org/bukkit/WorldCreator.java b/src/main/java/org/bukkit/WorldCreator.java
+index 6e6945dd4c770be04ec09da3958fae751717527a..7793752fe764b14df0d476cf7fe7e5749a17f628 100644
+--- a/src/main/java/org/bukkit/WorldCreator.java
++++ b/src/main/java/org/bukkit/WorldCreator.java
+@@ -238,8 +238,7 @@ public class WorldCreator {
+      * is as follows:
+      * <code>{"structures": {"structures": {"village": {"salt": 8015723, "spacing": 32, "separation": 8}}}, "layers": [{"block": "stone", "height": 1}, {"block": "grass", "height": 1}], "biome":"plains"}</code>
+      *
+-     * @see <a href="https://minecraft.gamepedia.com/Custom_dimension">Custom
+-     * dimension</a> (scroll to "When the generator ID type is
++     * @see <a href="https://minecraft.gamepedia.com/Custom_dimension">Custom dimension</a> (scroll to "When the generator ID type is
+      * <code>minecraft:flat</code>)"
+      * @param generatorSettings The settings that should be used by the
+      * generator
+diff --git a/src/main/java/org/bukkit/attachment/Attachable.java b/src/main/java/org/bukkit/attachment/Attachable.java
+index 7c43789552792db96fbaaea148e042ccf696cfaa..672b53ec9c803d702f257df28faa6308900a0abe 100644
+--- a/src/main/java/org/bukkit/attachment/Attachable.java
++++ b/src/main/java/org/bukkit/attachment/Attachable.java
+@@ -11,10 +11,10 @@ public interface Attachable {
+ 
+     /**
+      * Retrieve an attachment instance.
++     * throws NullPointerException - if the attachment is not present. Use {@link this#hasAttachment(Class)} first.
+      * @param attachmentClass The class that the attachment belongs to.
+      * @param <T> The specific attachment type.
+      * @return The attachment instance unique to this object.
+-     * @throws NullPointerException - if the attachment is not present. Use {@link this#hasAttachment(Class)} first.
+      */
+     @NotNull
+     <T extends Attachment<?>> T getAttachment(@NotNull Class<T> attachmentClass) throws NullPointerException;
+diff --git a/src/main/java/org/bukkit/entity/EntityType.java b/src/main/java/org/bukkit/entity/EntityType.java
+index 692b75eb78405874077c850bfc72e247ccc80860..25e9d01194f687c40b89ee8c47acf0ac6d7bcd57 100644
+--- a/src/main/java/org/bukkit/entity/EntityType.java
++++ b/src/main/java/org/bukkit/entity/EntityType.java
+@@ -3,6 +3,9 @@ package org.bukkit.entity;
+ import com.google.common.base.Preconditions;
+ import java.util.HashMap;
+ import java.util.Map;
++
++import mx.kenzie.wellspring.Wellspring;
++import mx.kenzie.wellspring.entity.Human;
+ import org.bukkit.Keyed;
+ import org.bukkit.Location;
+ import org.bukkit.NamespacedKey;
+@@ -277,6 +280,7 @@ public enum EntityType implements Keyed {
+      */
+     LIGHTNING("lightning_bolt", LightningStrike.class, -1, false),
+     PLAYER("player", Player.class, -1, false),
++    HUMAN("human", Human.class, Wellspring.getInstance().getBridge().getEntityIndex("human"), false), // Kenzie - humans
+     /**
+      * An unknown entity without an Entity Class
+      */

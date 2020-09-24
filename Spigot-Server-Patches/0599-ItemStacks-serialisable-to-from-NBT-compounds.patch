@@ -1,0 +1,93 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Thu, 24 Sep 2020 09:22:36 +0100
+Subject: [PATCH] ItemStacks serialisable to/from NBT compounds.
+
+
+diff --git a/pom.xml b/pom.xml
+index add3a9c1a9ea823a62783351cfb4cf4269752c26..662f32fce568ac1ed9f95d6c2f485a813ec004cf 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -1,10 +1,10 @@
+ <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+     <modelVersion>4.0.0</modelVersion>
+-    <artifactId>paper</artifactId>
++    <artifactId>wellspring</artifactId>
+     <packaging>jar</packaging>
+     <version>1.16.3-R0.1-SNAPSHOT</version>
+-    <name>Paper</name>
++    <name>Wellspring</name>
+     <url>https://papermc.io</url>
+ 
+     <properties>
+diff --git a/src/main/java/mx/kenzie/server/nbt/NBTFactoryImplementation.java b/src/main/java/mx/kenzie/server/nbt/NBTFactoryImplementation.java
+index 1bc043b090a045eeb63bdb7a0e97b629c714903a..8ae8b3c8665b51d577c31100312d8ea365f11b9a 100644
+--- a/src/main/java/mx/kenzie/server/nbt/NBTFactoryImplementation.java
++++ b/src/main/java/mx/kenzie/server/nbt/NBTFactoryImplementation.java
+@@ -94,14 +94,50 @@ public class NBTFactoryImplementation extends NBTFactory {
+         return ((CraftEntity) entity).getHandle().save(compound);
+     }
+ 
++    @Override
++    public void mergeNBT(ItemStack itemStack, NBTCompound compound) {
++        NBTTagCompound original;
++        net.minecraft.server.ItemStack stack;
++        stack = CraftItemStack.asNMSCopy(itemStack);
++        if (compound.containsKey("id", NBT.Type.STRING) && compound.containsKey("Count", NBT.Type.BYTE)) {
++            original = stack.save(new NBTTagCompound());
++            original.merge(compound);
++            stack.load(original);
++        } else {
++            original = stack.getOrCreateTag();
++            original.merge(compound);
++            stack.setTag(original);
++        }
++        itemStack.setItemMeta(CraftItemStack.asBukkitCopy(stack).getItemMeta());
++    }
++
++    @Override
++    public void setNBT(ItemStack itemStack, NBTCompound compound) {
++        net.minecraft.server.ItemStack stack =
++            CraftItemStack.asNMSCopy(itemStack);
++        if (compound.containsKey("id", NBT.Type.STRING) && compound.containsKey("Count", NBT.Type.BYTE)) {
++            stack.load(((NBTTagCompound) compound));
++        } else {
++            stack.setTag(((NBTTagCompound) compound));
++        }
++        itemStack.setItemMeta(CraftItemStack.asBukkitCopy(stack).getItemMeta());
++    }
++
+     @Override
+     public NBTCompound getNBT(org.bukkit.inventory.ItemStack itemStack) {
++        return CraftItemStack.asNMSCopy(itemStack).getOrCreateTag();
++    }
++
++    @Override
++    public NBTCompound getAsCompound(ItemStack itemStack) {
+         NBTTagCompound compound = new NBTTagCompound();
+         return CraftItemStack.asNMSCopy(itemStack).save(compound);
+     }
+ 
+     @Override
+-    public NBTCompound getTagCompound(ItemStack itemStack) {
+-        return CraftItemStack.asNMSCopy(itemStack).getOrCreateTag();
++    public ItemStack createItem(NBTCompound compound) {
++        return CraftItemStack.asBukkitCopy(net.minecraft.server.ItemStack
++            .a(((NBTTagCompound) compound))
++        );
+     }
+ }
+diff --git a/src/main/java/net/minecraft/server/ItemStack.java b/src/main/java/net/minecraft/server/ItemStack.java
+index 3adb29f004d2fee36f3ee9b21ee5417e84b64837..c519e8520c0de6aff766441d4088b76548791508 100644
+--- a/src/main/java/net/minecraft/server/ItemStack.java
++++ b/src/main/java/net/minecraft/server/ItemStack.java
+@@ -159,7 +159,7 @@ public final class ItemStack {
+     }
+ 
+     // CraftBukkit - break into own method
+-    private void load(NBTTagCompound nbttagcompound) {
++    public void load(NBTTagCompound nbttagcompound) { // Kenzie - make public
+         this.item = (Item) IRegistry.ITEM.get(new MinecraftKey(nbttagcompound.getString("id")));
+         this.count = nbttagcompound.getByte("Count");
+         if (nbttagcompound.hasKeyOfType("tag", 10)) {
