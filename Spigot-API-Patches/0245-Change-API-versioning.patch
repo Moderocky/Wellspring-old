@@ -1,0 +1,41 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Thu, 24 Sep 2020 09:37:01 +0100
+Subject: [PATCH] Change API versioning.
+
+
+diff --git a/pom.xml b/pom.xml
+index f305f3b4817b4a930619335157d8522d4172dae6..7b4721c9bafb26d1af9808c60aea03e3c2116348 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -8,8 +8,9 @@
+         <version>dev-SNAPSHOT</version>
+     </parent>
+ 
+-    <groupId>com.destroystokyo.paper</groupId>
+-    <artifactId>paper-api</artifactId>
++    <!--   // Kenzie-->
++    <groupId>mx.kenzie.wellspring</groupId>
++    <artifactId>wellspring-api</artifactId>
+     <version>1.16.3-R0.1-SNAPSHOT</version>
+     <packaging>jar</packaging>
+ 
+@@ -24,6 +25,18 @@
+         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+     </properties>
+ 
++    <!--   // Kenzie-->
++    <distributionManagement>
++        <repository>
++            <id>pan-repo</id>
++            <url>https://gitlab.com/api/v4/projects/18568066/packages/maven</url>
++        </repository>
++        <snapshotRepository>
++            <id>pan-repo</id>
++            <url>https://gitlab.com/api/v4/projects/18568066/packages/maven</url>
++        </snapshotRepository>
++    </distributionManagement>
++
+     <repositories>
+         <!--
+             If you are a plugin developer, please use https://hub.spigotmc.org/nexus/content/repositories/snapshots/
