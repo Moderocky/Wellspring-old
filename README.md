@@ -4,6 +4,31 @@ Wellspring
 A fork of paper with some tweaks to allow for additional content, modification of internal Minecraft features and better access to the Minecraft Registry for plugins.
 No breaking changes should be made to existing features. Wellspring's sole aim is to provide more accessibilty.
 
+Maven Information
+-----
+Repository information:
+```xml
+<repository>
+    <id>pan-repo</id>
+    <name>Pandaemonium Repository</name>
+    <url>https://gitlab.com/api/v4/projects/18568066/packages/maven</url>
+</repository>
+```
+
+Dependency information:
+```xml
+<dependency>
+    <groupId>mx.kenzie.wellspring</groupId>
+    <artifactId>wellspring-api</artifactId>
+    <version>1.16.3-R0.1-SNAPSHOT</version>
+    <scope>provided</scope>
+</dependency>
+```
+
+As a lot of Wellspring's additions are in the `Server` layer (which cannot be distributed) you may want to build from the source yourself.
+Instructions for this are available on Paper's repository.
+
+
 Current additional features:
 -----
  * NBT is now accessible without requiring version-specific methods, unsafe utilities or reflection.
@@ -72,8 +97,6 @@ Fairly. It ought to be kept up-to-date with Paper upstream. New major Minecraft 
 I believe so. Wellspring forms a part of KenzieServer (the platform used by my servers) so it is very likely that any bugs will be found by me.
 That said-- I cannot possibly check every potential use case by myself, so I would definitely advise caution and prior testing before using the more advanced features.
 
-#### Is there a Maven repository?
-Not currently. As a lot of Wellspring's additions are in the `Server` layer (which cannot be distributed) you ought to build from source yourself. Instructions for this are available on Paper's repository.
 
 
 This project forms part of the base for KenzieServer. Additions may be inconsistent, but it will generally be maintained as it is used in live production servers.
