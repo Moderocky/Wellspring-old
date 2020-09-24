@@ -1,0 +1,39 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Thu, 24 Sep 2020 13:24:06 +0100
+Subject: [PATCH] Markers for fake entities.
+
+
+diff --git a/pom.xml b/pom.xml
+index 5da925e7438d3cd52cb88816fc552f8ae22d8a6f..9542b6c637ef23d9017d3a1d96686ad8d7550fa7 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -241,6 +241,7 @@
+                 <artifactId>maven-javadoc-plugin</artifactId>
+                 <version>3.2.0</version>
+                 <configuration>
++                    <stylesheetfile>${basedir}/</stylesheetfile>
+                     <stylesheetfile>javadoc-style.css</stylesheetfile>
+                     <failOnError>false</failOnError>
+                     <links>
+diff --git a/src/main/java/org/bukkit/entity/Entity.java b/src/main/java/org/bukkit/entity/Entity.java
+index 1e02242b47f38c90d925b3084a7d284696234475..755153e9b63d5a402ffc2742daa405772aff22c6 100644
+--- a/src/main/java/org/bukkit/entity/Entity.java
++++ b/src/main/java/org/bukkit/entity/Entity.java
+@@ -694,4 +694,16 @@ public interface Entity extends Metadatable, CommandSender, Nameable, Persistent
+      */
+     public boolean isInLava();
+     // Paper end
++
++    // Kenzie start
++
++    /**
++     * If an entity is marked as being 'fake' by an implementation.
++     *
++     * Note that this might not actually mean the entity 'is' fake, simply that
++     * plugins ought to treat it as such.
++     */
++    public boolean isFake();
++
++    // Kenzie end
+ }
