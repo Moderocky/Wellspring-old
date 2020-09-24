@@ -1,0 +1,18 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Wed, 23 Sep 2020 21:30:25 +0100
+Subject: [PATCH] Remove broken entity type.
+
+
+diff --git a/src/main/java/org/bukkit/entity/EntityType.java b/src/main/java/org/bukkit/entity/EntityType.java
+index 455e7afd0c5aff5caccca311a079fb5e2fccd6fd..445466183cedb80581254a502dd999f84d12a7ef 100644
+--- a/src/main/java/org/bukkit/entity/EntityType.java
++++ b/src/main/java/org/bukkit/entity/EntityType.java
+@@ -280,7 +280,6 @@ public enum EntityType implements Keyed {
+      */
+     LIGHTNING("lightning_bolt", LightningStrike.class, -1, false),
+     PLAYER("player", Player.class, -1, false),
+-    HUMAN("human", Human.class, -1, false), // Kenzie - humans
+     /**
+      * An unknown entity without an Entity Class
+      */

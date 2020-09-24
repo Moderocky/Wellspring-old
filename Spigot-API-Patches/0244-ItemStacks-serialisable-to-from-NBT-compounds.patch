@@ -1,0 +1,132 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Thu, 24 Sep 2020 09:22:30 +0100
+Subject: [PATCH] ItemStacks serialisable to/from NBT compounds.
+
+
+diff --git a/src/main/java/mx/kenzie/wellspring/nbt/NBTFactory.java b/src/main/java/mx/kenzie/wellspring/nbt/NBTFactory.java
+index d4b2ad5c5a98db95819b08e1d73b045d0e2566c1..ef3e31fd7a7e79cadf98635112b3fa717df3d803 100644
+--- a/src/main/java/mx/kenzie/wellspring/nbt/NBTFactory.java
++++ b/src/main/java/mx/kenzie/wellspring/nbt/NBTFactory.java
+@@ -56,8 +56,14 @@ public abstract class NBTFactory {
+ 
+     public abstract @NotNull NBTCompound getNBT(@NotNull Entity entity);
+ 
++    public abstract void mergeNBT(@NotNull ItemStack itemStack, @NotNull NBTCompound compound);
++
++    public abstract void setNBT(@NotNull ItemStack itemStack, @NotNull NBTCompound compound);
++
+     public abstract @NotNull NBTCompound getNBT(@NotNull ItemStack itemStack);
+ 
+-    public abstract @NotNull NBTCompound getTagCompound(@NotNull ItemStack itemStack);
++    public abstract @NotNull NBTCompound getAsCompound(@NotNull ItemStack itemStack);
++
++    public abstract @NotNull ItemStack createItem(@NotNull NBTCompound compound);
+ 
+ }
+diff --git a/src/main/java/org/bukkit/inventory/ItemStack.java b/src/main/java/org/bukkit/inventory/ItemStack.java
+index ccd81fca25233c2a9c2a8c3f4dda3053d7b2e723..2b4d77cf1581233103942f71ea439755812e7764 100644
+--- a/src/main/java/org/bukkit/inventory/ItemStack.java
++++ b/src/main/java/org/bukkit/inventory/ItemStack.java
+@@ -5,6 +5,10 @@ import java.util.LinkedHashMap;
+ import java.util.List; // Paper
+ import java.util.Map;
+ import java.util.Set; // Paper
++
++import mx.kenzie.wellspring.nbt.NBT;
++import mx.kenzie.wellspring.nbt.NBTCompound;
++import mx.kenzie.wellspring.nbt.NBTHolder;
+ import org.apache.commons.lang.Validate;
+ import org.bukkit.Bukkit;
+ import org.bukkit.Material;
+@@ -25,7 +29,7 @@ import org.jetbrains.annotations.Nullable;
+  * use this class to encapsulate Materials for which {@link Material#isItem()}
+  * returns false.</b>
+  */
+-public class ItemStack implements Cloneable, ConfigurationSerializable {
++public class ItemStack implements Cloneable, ConfigurationSerializable, NBTHolder { // Kenzie
+     private Material type = Material.AIR;
+     private int amount = 0;
+     private MaterialData data = null;
+@@ -790,5 +794,81 @@ public class ItemStack implements Cloneable, ConfigurationSerializable {
+         ItemMeta itemMeta = getItemMeta();
+         return itemMeta.hasItemFlag(flag);
+     }
++
++    // Kenzie start
++
++    /**
++     * Creates an itemstack from an NBT compound. This must be a valid, fully-
++     * serialised item compound containing the ID and count.
++     *
++     * @param compound a serialised item's NBT compound
++     * @return a new ItemStack
++     */
++    public static @NotNull ItemStack create(@NotNull NBTCompound compound) {
++        return Bukkit.getNBTFactory().createItem(compound);
++    }
++
++    /**
++     * Creates an itemstack from an NBT compound. This must be a valid, fully-
++     * serialised item compound containing the ID and count.
++     *
++     * Note that this internally creates a clonal copy, so using
++     * {@link mx.kenzie.wellspring.nbt.NBTFactory#createItem(NBTCompound)} is the
++     * better option.
++     * @param compound a serialised item's NBT compound
++     */
++    public ItemStack(@NotNull NBTCompound compound) {
++        try {
++            ItemStack clonalCopy = Bukkit.getNBTFactory().createItem(compound);
++            this.type = clonalCopy.type;
++            this.amount = clonalCopy.amount;
++            if (clonalCopy.getDurability() != 0) {
++                setDurability(clonalCopy.getDurability());
++            }
++            if (clonalCopy.data != null) {
++                data = clonalCopy.data;
++            }
++            this.setItemMeta(clonalCopy.getItemMeta());
++        } catch (Throwable ex) {
++            throw new IllegalArgumentException("Invalid NBT compound!", ex);
++        }
++    }
++
++    /**
++     * This gets the "tag" of the itemstack, containing any unique data.
++     * This is NOT the complete tag - the item's ID and amount are not contained within it.
++     *
++     * If you would like the entire serialised item, see {@link ItemStack#getAsCompound()} instead.
++     *
++     * @return The NBT "Tag" of the item
++     */
++    @NotNull
++    @Override
++    public NBTCompound getNBT() {
++        return Bukkit.getNBTFactory().getNBT(this);
++    }
++
++    @Override
++    public void mergeNBT(@NotNull NBTCompound compound) {
++        Bukkit.getNBTFactory().mergeNBT(this, compound);
++    }
++
++    @Override
++    public void loadNBT(@NotNull NBTCompound compound) {
++        Bukkit.getNBTFactory().setNBT(this, compound);
++    }
++
++    /**
++     * This produces the entire itemstack serialised to an NBT compound.
++     * This is the same feature as is used to store items. It contains all of the
++     * necessary data to re-create the item, and as such can be used to store
++     * the item.
++     * @return The item, as NBT
++     */
++    public @NotNull NBTCompound getAsCompound() {
++        return Bukkit.getNBTFactory().getAsCompound(this);
++    }
++
++    // Kenzie end
+     // Paper end
+ }
