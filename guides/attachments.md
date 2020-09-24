@@ -3,15 +3,16 @@ Attachments
 
 Wellspring's attachment system is designed to provide plugin creators with a fast and simple method of linking plugin-provided data to entities.
 
-### Goals of Attachments
+#### Goals of Attachments
  * To provide a simpler and faster system than Spigot's metadata and persistent data containers
  * To follow OOP principles and not force users to rely on singleton maps and manager classes
  * To give developers more freedom about what data to store and how to store it
  * To avoid superfluous null-checks at every access
+ * To offer a new way of providing public APIs without needing singleton API classes
 
-### Non-goals of Attachments
+#### Non-goals of Attachments
  * This is not a place to add custom behaviour and tick-actions to entities - please use pathfinder goals instead
- * This is not a place to try and perform illegal NBT edits during entity saving/loading
+ * This is not a place to try to perform illegal NBT edits during entity saving/loading
  * This is not a place to store static code and global utility functions
 
 
@@ -115,10 +116,14 @@ This requires:
 
 Referring to the examples seen above, one would register the example attachments using the following methods:
 ```java
-@Override
-public void onEnable() {
-    Bukkit.registerAttachment(this, PlayerData::new, Player.class);
-    Bukkit.registerAttachment(this, PlayerTag::new, Player.class);
+public class MyPlugin implements JavaPlugin {
+
+    @Override
+    public void onEnable() {
+        Bukkit.registerAttachment(this, PlayerData::new, Player.class);
+        Bukkit.registerAttachment(this, PlayerTag::new, Player.class);
+    }
+
 }
 ```
 
@@ -135,3 +140,109 @@ This means that, supposing you /reload the server with a new plugin on (which is
 This uses an internal weak cache. You will, however, have missed the initial loading phase for the entities, so any NBT changes will not be loaded.
 
 
+How to Access an Attachment
+----
+
+Unlike Bukkit's metadata and persistent data systems, Wellspring's attachments are designed to be very simple and easy to use.
+They will always be present on the object by default, meaning that no null-check are required.
+
+```java
+public class JoinListener implements Listener {
+
+    @EventHandler
+    public void onJoin(PlayerJoinEvent event) {
+        Player player = event.getPlayer();
+        PlayerData data = player.getAttachment(PlayerData.class); // The attachment will be pre-cast to the type
+        data.myBooleanField = true; // Access your (public) fields
+        data.myMethod(); // You can call your custom methods
+        if (data.isSomething()) { // An example if-statement
+            data.setSomething(false);
+        }
+
+        if (!data.hasPlayedBefore()) { // An example of something you could do with this.
+            player.sendMessage("Welcome! Here's $1000");
+            data.setPlayedBefore(true);
+            data.setMoney(1000L); // You could
+        }
+        
+
+        // No need to re-set or save the attachment - your access was direct
+    }
+}
+```
+
+Below is a brief comparison of various methods of storing a boolean value on a player.
+
+#### Using Wellspring
+```java 
+Player player = event.getPlayer();
+PlayerData data = player.getAttachment(PlayerData.class);
+data.myBoolean = true;
+boolean boo = data.myBoolean; // true
+```
+
+#### Using Persistent Data Containers
+```java 
+Player player = event.getPlayer();
+PersistentDataContainer container = player.getPersistentDataContainer();
+container.set(new NamespacedKey(plugin, "myBoolean"), PersistentDataType.BYTE, (byte) 1);
+boolean boo = container.getOrDefault(new NamespacedKey(plugin, "myBoolean"), PersistentDataType.BYTE, 0) == (byte) 1 ? true : false; // true
+```
+ 
+#### Using Metadata
+```java 
+Player player = event.getPlayer();
+List<MetadataValue> list = player.getMetadata("myBoolean");
+list.add(new FixedMetadataValue(plugin, true));
+boolean boo = false;
+for (MetadataValue value : list) {
+    if (value.getOwningPlugin() == plugin)
+        boo = value.asBoolean();
+}
+```
+
+As you can see from those examples, attachments are a much shorter and concise option for storing data.
+However, __they are not appropriate for every situation__. Since you first need to set up and register the attachment class,
+it might well be preferable to use persistent data for small amounts of primitive data.
+
+
+Advantages and Disadvantages of Attachments
+----
+
+#### Advantages
+ * You have control over what data to save, and the format
+ * You are not limited to basic primitive types
+ * You can include other code (methods) within your attachment
+ * You do not require a plugin instance to access the attachment
+ * You do not require a singleton manager class for extra data
+ * The storage in NBT can be smaller than persistent data containers (no pointless keys)
+ * Your attachments can be applied to anything sharing a common interface
+ * Your code can follow OOP principles (no static singleton manager classes)
+ * Attachments are easy to access from other plugins or locations
+
+#### Disadvantages
+ * You are required to pre-define what data to store
+ * You have to store the data yourself
+ * Attachments have to be registered
+ * Attachments are easy to edit from other plugins - difficult to control who can access them
+ 
+ 
+Accessing Attachments from Other Plugins (API)
+----
+
+Wellspring's attachment system is designed to be useful as an API-style system.
+As long as you are able to see the attachment class, you can access an attachment from any plugin.
+
+This makes attachments a great choice for providing an API for your plugin that can be accessed by other plugins.
+
+For example, if you are making a money/economy plugin and would like other plugins to be able to see the balance of a player:
+```java 
+Money money = player.getAttachment(MoneyAttachment.class);
+int i = money.get();
+money.add(100);
+if (money.canAfford(1000)) ... ;
+```
+
+As you can see, an implementation like this is a lot simpler than the traditional way of creating a singleton API class and forcing plugins to have to obtain an instance of it.
+
+Note: this does not mean your code needs to be put in an attachment - you may simply use the attachment as an access route.
