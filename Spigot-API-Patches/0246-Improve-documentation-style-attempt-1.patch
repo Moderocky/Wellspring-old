@@ -1,0 +1,104 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Thu, 24 Sep 2020 10:33:58 +0100
+Subject: [PATCH] Improve documentation style attempt 1.
+
+
+diff --git a/javadoc-style.css b/javadoc-style.css
+index 98055b22d6d5bed7792d6857aa760cf914c62653..c74cdde5e7bd1405a36922ba5d36214b89c1484f 100644
+--- a/javadoc-style.css
++++ b/javadoc-style.css
+@@ -18,7 +18,7 @@ a:link, a:visited {
+ }
+ a:hover, a:focus {
+     text-decoration:none;
+-    color:#bb7a2a;
++    color: #2be28c;
+ }
+ a:active {
+     text-decoration:none;
+@@ -101,7 +101,7 @@ Document title and Copyright styles
+     text-decoration:none;
+ }
+ .bar a:hover, .bar a:focus {
+-    color:#bb7a2a;
++    color:#2be28c;
+ }
+ .tab {
+     background-color:#0066FF;
+@@ -122,7 +122,7 @@ Navigation bar styles
+     margin:0;
+ }
+ .topNav {
+-    background-color:#4D7A97;
++    background-color:#00a59d;
+     color:#FFFFFF;
+     float:left;
+     padding:0;
+@@ -181,11 +181,11 @@ ul.subNavList li{
+ }
+ .topNav a:hover, .bottomNav a:hover {
+     text-decoration:none;
+-    color:#bb7a2a;
++    color:#1df8ee;
+     text-transform:uppercase;
+ }
+ .navBarCell1Rev {
+-    background-color:#F8981D;
++    background-color:#1de4f8;
+     color:#253441;
+     margin: auto 5px;
+ }
+@@ -400,7 +400,7 @@ Table styles
+     padding-bottom:7px;
+     display:inline-block;
+     float:left;
+-    background-color:#F8981D;
++    background-color:#1df8ee;
+     border: none;
+     height:16px;
+ }
+@@ -412,7 +412,7 @@ Table styles
+     margin-right:3px;
+     display:inline-block;
+     float:left;
+-    background-color:#F8981D;
++    background-color:#1df8ee;
+     height:16px;
+ }
+ .memberSummary caption span.tableTab span {
+@@ -440,7 +440,7 @@ Table styles
+     width:5px;
+     position:relative;
+     float:left;
+-    background-color:#F8981D;
++    background-color:#1df8ee;
+ }
+ .memberSummary .activeTableTab .tabEnd {
+     display:none;
+@@ -448,7 +448,7 @@ Table styles
+     margin-right:3px;
+     position:relative; 
+     float:left;
+-    background-color:#F8981D;
++    background-color:#1df8ee;
+ }
+ .memberSummary .tableTab .tabEnd {
+     display:none;
+diff --git a/pom.xml b/pom.xml
+index 7b4721c9bafb26d1af9808c60aea03e3c2116348..5da925e7438d3cd52cb88816fc552f8ae22d8a6f 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -14,9 +14,9 @@
+     <version>1.16.3-R0.1-SNAPSHOT</version>
+     <packaging>jar</packaging>
+ 
+-    <name>Paper-API</name>
+-    <url>https://github.com/PaperMC/Paper</url>
+-    <description>An enhanced plugin API for Minecraft servers.</description>
++    <name>Wellspring-API</name>
++    <url>https://github.com/Moderocky/Wellspring</url>
++    <description>A cutting-edge plugin API that exposes more Minecraft features.</description>
+ 
+     <properties>
+         <!-- <skipTests>true</skipTests> Paper - This [was] not going to end well -->
