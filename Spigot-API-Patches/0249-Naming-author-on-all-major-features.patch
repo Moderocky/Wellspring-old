@@ -1,0 +1,206 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Fri, 25 Sep 2020 12:11:31 +0100
+Subject: [PATCH] Naming author on all major features.
+
+
+diff --git a/src/main/java/mx/kenzie/wellspring/Wellspring.java b/src/main/java/mx/kenzie/wellspring/Wellspring.java
+index 175ade9000a0f3c1f85dbac696e1ffb512300c84..db16f747ebf77ae7ccb1453c6c78adb080155d71 100644
+--- a/src/main/java/mx/kenzie/wellspring/Wellspring.java
++++ b/src/main/java/mx/kenzie/wellspring/Wellspring.java
+@@ -7,6 +7,14 @@ import org.bukkit.Server;
+ import org.bukkit.entity.EntityType;
+ import org.jetbrains.annotations.NotNull;
+ 
++/**
++ * A second interface to evade Bukkit's Bukkit/Server parity tests.
++ *
++ * This generally should not be used by plugins, but is technically
++ * an instance of CraftServer.
++ *
++ * @author Moderocky
++ */
+ public interface Wellspring extends Server {
+ 
+     static @NotNull Wellspring getInstance() {
+diff --git a/src/main/java/mx/kenzie/wellspring/enchantment/EnchantmentBuilder.java b/src/main/java/mx/kenzie/wellspring/enchantment/EnchantmentBuilder.java
+index ae34c45ad156d51e569465957ceeecf2440f242c..d6e4f35a7c401f071c49534418d4aadd9a981d6f 100644
+--- a/src/main/java/mx/kenzie/wellspring/enchantment/EnchantmentBuilder.java
++++ b/src/main/java/mx/kenzie/wellspring/enchantment/EnchantmentBuilder.java
+@@ -21,7 +21,7 @@ import java.util.function.Function;
+  * Used to create new custom enchantments.
+  * This should be used during the STARTUP phase to assure proper conversion.
+  *
+- * @author moderocky
++ * @author Moderocky
+  */
+ public abstract class EnchantmentBuilder {
+ 
+diff --git a/src/main/java/mx/kenzie/wellspring/enchantment/EnchantmentStrikeConsumer.java b/src/main/java/mx/kenzie/wellspring/enchantment/EnchantmentStrikeConsumer.java
+index 8e635bf50033a553540956ade398fe93ef0bea7e..5154b00d097e8423017d5422a83eb4a0fc0c7762 100644
+--- a/src/main/java/mx/kenzie/wellspring/enchantment/EnchantmentStrikeConsumer.java
++++ b/src/main/java/mx/kenzie/wellspring/enchantment/EnchantmentStrikeConsumer.java
+@@ -11,7 +11,7 @@ import org.jetbrains.annotations.Nullable;
+  * Used for enchantment callbacks when the wielder deals
+  * or takes damage.
+  *
+- * @author moderocky
++ * @author Moderocky
+  */
+ public interface EnchantmentStrikeConsumer {
+ 
+diff --git a/src/main/java/mx/kenzie/wellspring/nbt/NBT.java b/src/main/java/mx/kenzie/wellspring/nbt/NBT.java
+index 7c4a01ba5672c281401412f0ae558e8600743b53..1dabec9a18d9f8dab14748b8995fa36146fc25c9 100644
+--- a/src/main/java/mx/kenzie/wellspring/nbt/NBT.java
++++ b/src/main/java/mx/kenzie/wellspring/nbt/NBT.java
+@@ -12,6 +12,8 @@ import java.util.Map;
+  * a list of bases, or a simple wrapped value.
+  *
+  * In order to determine which, {@link NBT#getType()} can be used.
++ *
++ * @author Moderocky
+  */
+ public interface NBT {
+ 
+diff --git a/src/main/java/mx/kenzie/wellspring/nbt/NBTCompound.java b/src/main/java/mx/kenzie/wellspring/nbt/NBTCompound.java
+index cc0091410d0be572a20982d4e670f9f0bfa7fea7..029dc8e2528fb68433fc2a24cc00334a4ab416b4 100644
+--- a/src/main/java/mx/kenzie/wellspring/nbt/NBTCompound.java
++++ b/src/main/java/mx/kenzie/wellspring/nbt/NBTCompound.java
+@@ -8,6 +8,8 @@ import java.util.*;
+ 
+ /**
+  * This represents an NBT 'compound,' which is a (String) key -> (NBT base) value map.
++ *
++ * @author Moderocky
+  */
+ public interface NBTCompound extends NBT {
+ 
+diff --git a/src/main/java/mx/kenzie/wellspring/nbt/NBTFactory.java b/src/main/java/mx/kenzie/wellspring/nbt/NBTFactory.java
+index ef3e31fd7a7e79cadf98635112b3fa717df3d803..5e68d32122c1da8aef7e6b482aea489e52d27c6a 100644
+--- a/src/main/java/mx/kenzie/wellspring/nbt/NBTFactory.java
++++ b/src/main/java/mx/kenzie/wellspring/nbt/NBTFactory.java
+@@ -9,6 +9,8 @@ import org.jetbrains.annotations.NotNull;
+  *
+  * Generally speaking, it should not be used as most of the functions can be
+  * employed via their respective classes.
++ *
++ * @author Moderocky
+  */
+ public abstract class NBTFactory {
+ 
+diff --git a/src/main/java/mx/kenzie/wellspring/nbt/NBTHolder.java b/src/main/java/mx/kenzie/wellspring/nbt/NBTHolder.java
+index 6879c4edf4547a2bce61eaf7d228fe717b7b427c..bebd550bbd2613a7d5307787a58b451766308087 100644
+--- a/src/main/java/mx/kenzie/wellspring/nbt/NBTHolder.java
++++ b/src/main/java/mx/kenzie/wellspring/nbt/NBTHolder.java
+@@ -14,6 +14,8 @@ import org.jetbrains.annotations.NotNull;
+  *
+  * NBT access is potentially SLOWER than using the direct methods! It should not be
+  * treated as an alternative to the existing entity/item API.
++ *
++ * @author Moderocky
+  */
+ public interface NBTHolder {
+ 
+diff --git a/src/main/java/mx/kenzie/wellspring/nbt/NBTList.java b/src/main/java/mx/kenzie/wellspring/nbt/NBTList.java
+index af13f3f384aa860e80e0e4482f960d2b6a8b5bd3..6d197d8d803f9cf294d3b5a010279e0b1cf47dfe 100644
+--- a/src/main/java/mx/kenzie/wellspring/nbt/NBTList.java
++++ b/src/main/java/mx/kenzie/wellspring/nbt/NBTList.java
+@@ -10,6 +10,8 @@ import java.util.*;
+  *
+  * This is (internally) a {@link Collection} but cannot be typed as such.
+  * You may safely use {@link NBTList#getAsArray()} or {@link NBTList#getAsList()} for iteration.
++ *
++ * @author Moderocky
+  */
+ public interface NBTList extends NBT {
+ 
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/Packet.java b/src/main/java/mx/kenzie/wellspring/packet/Packet.java
+index e07599951e53daa83ca036647fb62623ed161132..bf408dadad101091a0bdaee2d7f9715d71070e4c 100644
+--- a/src/main/java/mx/kenzie/wellspring/packet/Packet.java
++++ b/src/main/java/mx/kenzie/wellspring/packet/Packet.java
+@@ -4,6 +4,11 @@ import org.bukkit.Bukkit;
+ import org.bukkit.entity.Player;
+ import org.jetbrains.annotations.NotNull;
+ 
++/**
++ * A small message for sending client server.
++ *
++ * @author Moderocky
++ */
+ public interface Packet {
+ 
+     @NotNull
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/PacketBuilder.java b/src/main/java/mx/kenzie/wellspring/packet/PacketBuilder.java
+index 522f6e56484eb01513c28947b3ecb9a3fe538276..52e43a4cc6170e3cf37e580ac824a6f96f3a0fb9 100644
+--- a/src/main/java/mx/kenzie/wellspring/packet/PacketBuilder.java
++++ b/src/main/java/mx/kenzie/wellspring/packet/PacketBuilder.java
+@@ -7,6 +7,11 @@ import org.jetbrains.annotations.Nullable;
+ import java.util.ArrayList;
+ import java.util.List;
+ 
++/**
++ * Used to build a packet internally.
++ *
++ * @author Moderocky
++ */
+ public class PacketBuilder {
+ 
+     private final @NotNull PacketType type;
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java b/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java
+index 9ae4901c755a0b29a68f466fc4f2304d88d9fa89..9888aceab7f50cb5081a69e6a12dbb921f5dd9f9 100644
+--- a/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java
++++ b/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java
+@@ -15,6 +15,13 @@ import java.util.Map;
+ import java.util.Set;
+ import java.util.UUID;
+ 
++/**
++ * For creating and sending outgoing packets to the client.
++ *
++ * Not fully implemented!
++ *
++ * @author Moderocky
++ */
+ public abstract class PacketFactory {
+ 
+     /**
+diff --git a/src/main/java/mx/kenzie/wellspring/potion/CustomPotionEffect.java b/src/main/java/mx/kenzie/wellspring/potion/CustomPotionEffect.java
+deleted file mode 100644
+index 2e5691c0b92e7ca197c72445504218662fde26f1..0000000000000000000000000000000000000000
+--- a/src/main/java/mx/kenzie/wellspring/potion/CustomPotionEffect.java
++++ /dev/null
+@@ -1,5 +0,0 @@
+-package mx.kenzie.wellspring.potion;
+-
+-public interface CustomPotionEffect {
+-
+-}
+diff --git a/src/main/java/mx/kenzie/wellspring/potion/PotionBuilder.java b/src/main/java/mx/kenzie/wellspring/potion/PotionBuilder.java
+index a6c00ffdfa8de8b6ceefef3c986701f8da88a287..957f79e5a3c883288a1c600e407588d70ba25f36 100644
+--- a/src/main/java/mx/kenzie/wellspring/potion/PotionBuilder.java
++++ b/src/main/java/mx/kenzie/wellspring/potion/PotionBuilder.java
+@@ -24,6 +24,8 @@ import java.util.function.BiConsumer;
+  * This also requires a consistent effect index to be used.
+  *
+  * To create a builder, use {@link Bukkit#createPotionEffect(NamespacedKey, String)}
++ *
++ * @author Moderocky
+  */
+ public abstract class PotionBuilder {
+ 
+diff --git a/src/main/java/mx/kenzie/wellspring/potion/PotionType.java b/src/main/java/mx/kenzie/wellspring/potion/PotionType.java
+index 93ced1a8427028773b21a3faf5da590bf3fb6a65..0f778787315431d1b9ad1152cd30bdcfdc389b78 100644
+--- a/src/main/java/mx/kenzie/wellspring/potion/PotionType.java
++++ b/src/main/java/mx/kenzie/wellspring/potion/PotionType.java
+@@ -1,7 +1,7 @@
+ package mx.kenzie.wellspring.potion;
+ 
+ public enum PotionType {
+-        HARMFUL,
+-        NEUTRAL,
+-        BENEFICIAL
+-    }
++    HARMFUL,
++    NEUTRAL,
++    BENEFICIAL
++}

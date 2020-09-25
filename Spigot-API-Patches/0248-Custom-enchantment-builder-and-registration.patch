@@ -1,0 +1,406 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Fri, 25 Sep 2020 12:06:59 +0100
+Subject: [PATCH] Custom enchantment builder and registration.
+
+
+diff --git a/src/main/java/mx/kenzie/wellspring/Wellspring.java b/src/main/java/mx/kenzie/wellspring/Wellspring.java
+index d5e8e4d81bc0849600f23f48b614a0598ecf8f5b..175ade9000a0f3c1f85dbac696e1ffb512300c84 100644
+--- a/src/main/java/mx/kenzie/wellspring/Wellspring.java
++++ b/src/main/java/mx/kenzie/wellspring/Wellspring.java
+@@ -1,16 +1,21 @@
+ package mx.kenzie.wellspring;
+ 
++import mx.kenzie.wellspring.enchantment.EnchantmentBuilder;
+ import org.bukkit.Bukkit;
++import org.bukkit.NamespacedKey;
+ import org.bukkit.Server;
+ import org.bukkit.entity.EntityType;
+ import org.jetbrains.annotations.NotNull;
+ 
+ public interface Wellspring extends Server {
+ 
+-    static  @NotNull Wellspring getInstance() {
++    static @NotNull Wellspring getInstance() {
+         return (Wellspring) Bukkit.getServer();
+     }
+ 
++    @NotNull
++    EnchantmentBuilder createEnchantment(@NotNull NamespacedKey key, @NotNull String name);
++
+     @NotNull Bridge getBridge();
+ 
+     /**
+diff --git a/src/main/java/mx/kenzie/wellspring/enchantment/EnchantmentBuilder.java b/src/main/java/mx/kenzie/wellspring/enchantment/EnchantmentBuilder.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..ae34c45ad156d51e569465957ceeecf2440f242c
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/enchantment/EnchantmentBuilder.java
+@@ -0,0 +1,240 @@
++package mx.kenzie.wellspring.enchantment;
++
++import com.sun.org.apache.xpath.internal.operations.Bool;
++import mx.kenzie.wellspring.Wellspring;
++import net.md_5.bungee.api.ChatColor;
++import net.md_5.bungee.api.chat.BaseComponent;
++import net.md_5.bungee.api.chat.ComponentBuilder;
++import net.md_5.bungee.api.chat.TranslatableComponent;
++import org.bukkit.NamespacedKey;
++import org.bukkit.enchantments.Enchantment;
++import org.bukkit.entity.EntityCategory;
++import org.bukkit.event.entity.EntityDamageEvent;
++import org.bukkit.inventory.EquipmentSlot;
++import org.bukkit.inventory.ItemStack;
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
++
++import java.util.function.Function;
++
++/**
++ * Used to create new custom enchantments.
++ * This should be used during the STARTUP phase to assure proper conversion.
++ *
++ * @author moderocky
++ */
++public abstract class EnchantmentBuilder {
++
++    protected final NamespacedKey key;
++    protected final String name;
++    protected Rarity rarity = Rarity.COMMON;
++    protected Target target = Target.BREAKABLE;
++    protected Function<ItemStack, Boolean> canEnchant;
++    protected Function<EntityDamageEvent.DamageCause, Integer> damageProtection = cause -> 0;
++    protected Function<EntityCategory, Float> damageBonus = cat -> 0.0F;
++    protected Function<Enchantment, Boolean> compatible = enchantment -> true;
++    protected String description;
++    protected Function<Integer, BaseComponent[]> nameByLevel;
++    protected EquipmentSlot[] effectiveSlots;
++    protected EnchantmentStrikeConsumer onDealDamage, onTakeDamage;
++    protected boolean treasure, curse, tradable, discoverable;
++    protected int minLevel = 1, maxLevel = 1, minCost = 1, maxCost = 1;
++
++    /**
++     * Create a new enchantment builder.
++     * @param key The key to register this under
++     * @param name The enchantment's name (used in messages, etc.)
++     * @return The builder
++     */
++    public static @NotNull EnchantmentBuilder create(@NotNull NamespacedKey key, @NotNull String name) {
++        return Wellspring.getInstance().createEnchantment(key, name);
++    }
++
++    protected EnchantmentBuilder(@NotNull NamespacedKey key, @NotNull String name) {
++        this.key = key;
++        this.name = name;
++
++        this.nameByLevel = integer -> {
++            ComponentBuilder builder = new ComponentBuilder(name).color(curse ? ChatColor.RED : ChatColor.GRAY);
++            if (maxLevel > 1) {
++                builder.append(" ").append(new TranslatableComponent("enchantment.level." + integer));
++            }
++            return builder.create();
++        };
++    }
++
++    /**
++     * Governs the rarity of the enchantment, which
++     * determines how common it is.
++     */
++    public @NotNull EnchantmentBuilder setRarity(@NotNull Rarity rarity) {
++        this.rarity = rarity;
++        return this;
++    }
++
++    /**
++     * Which types of items this can be applied to.
++     */
++    public @NotNull EnchantmentBuilder setTarget(@NotNull Target target) {
++        this.target = target;
++        this.canEnchant = null;
++        return this;
++    }
++
++    /**
++     * Is this a 'treasure' enchantment found only in
++     * loot chests (e.g. Mending, Frost Walker.)
++     */
++    public @NotNull EnchantmentBuilder setTreasure(boolean treasure) {
++        this.treasure = treasure;
++        return this;
++    }
++
++    /**
++     * Is this a 'curse' enchantment - not removable via grindstone.
++     */
++    public @NotNull EnchantmentBuilder setCurse(boolean curse) {
++        this.curse = curse;
++        return this;
++    }
++
++    /**
++     * Will this appear within the villager trading set, like Mending?
++     */
++    public @NotNull EnchantmentBuilder setTradable(boolean tradable) {
++        this.tradable = tradable;
++        return this;
++    }
++
++    /**
++     * Exact purpose is unknown.
++     * Currently, soul speed is the only enchantment with this marked
++     * as FALSE. All others are true by default.
++     *
++     * May have something to do with enchantment tables?
++     */
++    public @NotNull EnchantmentBuilder setDiscoverable(boolean discoverable) {
++        this.discoverable = discoverable;
++        return this;
++    }
++
++    /**
++     * The minimum (starting) level, almost always 1.
++     */
++    public @NotNull EnchantmentBuilder setMinLevel(int minLevel) {
++        this.minLevel = minLevel;
++        return this;
++    }
++
++    /**
++     * The maximum safe level.
++     */
++    public @NotNull EnchantmentBuilder setMaxLevel(int maxLevel) {
++        this.maxLevel = maxLevel;
++        return this;
++    }
++
++    /**
++     * Experience and anvil multipliers.
++     */
++    public @NotNull EnchantmentBuilder setMinCost(int minCost) {
++        this.minCost = minCost;
++        return this;
++    }
++
++    /**
++     * Experience and anvil multipliers.
++     */
++    public @NotNull EnchantmentBuilder setMaxCost(int maxCost) {
++        this.maxCost = maxCost;
++        return this;
++    }
++
++    /**
++     * Whether this can be applied to the target item stack.
++     */
++    public @NotNull EnchantmentBuilder setCanEnchant(@Nullable Function<ItemStack, Boolean> canEnchant) {
++        this.canEnchant = canEnchant;
++        this.target = null;
++        return this;
++    }
++
++    /**
++     * Whether this enchantment is active or inert in the given slot.
++     * For example; frost walker is inert unless on the boots.
++     */
++    public @NotNull EnchantmentBuilder setEffectiveSlots(@NotNull EquipmentSlot[] effectiveSlots) {
++        this.effectiveSlots = effectiveSlots;
++        return this;
++    }
++
++    /**
++     * This is used to influence taken damage. The exact purpose is unclear, but
++     * it is used by protection enchantments.
++     */
++    public @NotNull EnchantmentBuilder setDamageProtection(@NotNull Function<EntityDamageEvent.DamageCause, Integer> damageProtection) {
++        this.damageProtection = damageProtection;
++        return this;
++    }
++
++    /**
++     * This is used to affect damage bonuses against entity types.
++     * (e.g. smite, bane of arthropods.)
++     */
++    public @NotNull EnchantmentBuilder setDamageBonus(@NotNull Function<EntityCategory, Float> damageBonus) {
++        this.damageBonus = damageBonus;
++        return this;
++    }
++
++    /**
++     * Whether this enchantment can be applied in conjunction with the another.
++     * (e.g. sharpness conflicts with smite.)
++     */
++    public @NotNull EnchantmentBuilder setCompatible(@NotNull Function<Enchantment, Boolean> compatible) {
++        this.compatible = compatible;
++        return this;
++    }
++
++    /**
++     * The description language key.
++     * Exact implementation is unknown.
++     */
++    public @NotNull EnchantmentBuilder setDescription(@NotNull String description) {
++        this.description = description;
++        return this;
++    }
++
++    /**
++     * A function to create a name based on the enchantment level.
++     * (e.g. Sharpness IV)
++     *
++     * By default, this will generate one akin to the generic.
++     */
++    public @NotNull EnchantmentBuilder setNameByLevel(@NotNull Function<Integer, BaseComponent[]> nameByLevel) {
++        this.nameByLevel = nameByLevel;
++        return this;
++    }
++
++    /**
++     * Schedule a function to be executed upon dealing damage to an entity.
++     */
++    public @NotNull EnchantmentBuilder onDealDamage(@Nullable EnchantmentStrikeConsumer onDealDamage) {
++        this.onDealDamage = onDealDamage;
++        return this;
++    }
++
++    /**
++     * Schedule a function to be executed upon taking damage.
++     */
++    public @NotNull EnchantmentBuilder onTakeDamage(@Nullable EnchantmentStrikeConsumer onTakeDamage) {
++        this.onTakeDamage = onTakeDamage;
++        return this;
++    }
++
++    /**
++     * Registers and creates the enchantment.
++     * @return the newly-registered enchantment.
++     */
++    public abstract @NotNull Enchantment create();
++
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/enchantment/EnchantmentStrikeConsumer.java b/src/main/java/mx/kenzie/wellspring/enchantment/EnchantmentStrikeConsumer.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..8e635bf50033a553540956ade398fe93ef0bea7e
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/enchantment/EnchantmentStrikeConsumer.java
+@@ -0,0 +1,26 @@
++package mx.kenzie.wellspring.enchantment;
++
++import org.bukkit.UndefinedNullability;
++import org.bukkit.entity.Entity;
++import org.bukkit.entity.LivingEntity;
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
++
++
++/**
++ * Used for enchantment callbacks when the wielder deals
++ * or takes damage.
++ *
++ * @author moderocky
++ */
++public interface EnchantmentStrikeConsumer {
++
++    /**
++     * This is used for dealing/taking damage
++     * @param holder The wielder of the enchanted item
++     * @param opponent The opponent - may be null during damage-taking
++     * @param level The enchantment level
++     */
++    void onStrike(@NotNull LivingEntity holder, @Nullable Entity opponent, int level);
++
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/enchantment/Rarity.java b/src/main/java/mx/kenzie/wellspring/enchantment/Rarity.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..9880a26984223bb7a3d0217d4ac12dd3bf2ba2c3
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/enchantment/Rarity.java
+@@ -0,0 +1,21 @@
++package mx.kenzie.wellspring.enchantment;
++
++/**
++ * Enchantment rarity - governs discovery chances.
++ */
++public enum Rarity {
++    COMMON(10),
++    UNCOMMON(5),
++    RARE(2),
++    VERY_RARE(1);
++
++    private final int weight;
++
++    Rarity(int weight) {
++        this.weight = weight;
++    }
++
++    public int getWeight() {
++        return this.weight;
++    }
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/enchantment/Target.java b/src/main/java/mx/kenzie/wellspring/enchantment/Target.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..032f546aeb8de83bde3f8448a63d568a274f6bcb
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/enchantment/Target.java
+@@ -0,0 +1,23 @@
++package mx.kenzie.wellspring.enchantment;
++
++/**
++ * Enchantment item type target
++ * - governs what types of items may benefit from
++ * this enchantment.
++ */
++public enum Target {
++    ARMOR,
++    ARMOR_FEET,
++    ARMOR_LEGS,
++    ARMOR_CHEST,
++    ARMOR_HEAD,
++    WEAPON,
++    DIGGER,
++    FISHING_ROD,
++    TRIDENT,
++    BREAKABLE,
++    BOW,
++    WEARABLE,
++    CROSSBOW,
++    VANISHABLE
++}
+diff --git a/src/main/java/org/bukkit/enchantments/Enchantment.java b/src/main/java/org/bukkit/enchantments/Enchantment.java
+index b833ef63fbe01271ceb2bd83a9eb4a84c9912761..f530af9ddc6082b89d4231d4b3c8a02d0dfc2e1b 100644
+--- a/src/main/java/org/bukkit/enchantments/Enchantment.java
++++ b/src/main/java/org/bukkit/enchantments/Enchantment.java
+@@ -2,6 +2,8 @@ package org.bukkit.enchantments;
+ 
+ import java.util.HashMap;
+ import java.util.Map;
++
++import mx.kenzie.wellspring.enchantment.EnchantmentBuilder;
+ import org.bukkit.Keyed;
+ import org.bukkit.NamespacedKey;
+ import org.bukkit.inventory.ItemStack;
+@@ -338,6 +340,25 @@ public abstract class Enchantment implements Keyed {
+         byName.put(enchantment.getName(), enchantment);
+     }
+ 
++    // Kenzie start - registration
++
++    /**
++     * This method is practically the same as the above, except that it allows for overrides and
++     * replacements as well as registration at runtime.
++     * It is far simpler for us to use our own method rather than to try and interfere with Bukkit.
++     *
++     * This should be used by internal services only.
++     * You may be looking for {@link EnchantmentBuilder#create()} instead.
++     *
++     * @param enchantment the pre-registered enchantment wrapper
++     */
++    @Deprecated // I.U.O
++    public static void registerCustomEnchantment(@NotNull Enchantment enchantment) {
++        byKey.put(enchantment.key, enchantment);
++        byName.put(enchantment.getName(), enchantment);
++    }
++    // Kenzie end
++
+     /**
+      * Checks if this is accepting Enchantment registrations.
+      *
