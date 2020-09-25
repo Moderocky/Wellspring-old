@@ -42,7 +42,7 @@ Current additional features:
    * Persist over restarts.
    * Work with existing bukkit effects.
    * Allow for custom attribute attachments and on-tick behaviour.
- * Custom enchantment [builder]((https://github.com/Moderocky/Wellspring/blob/master/guides/enchantments.md)).
+ * Custom enchantment [builder](https://github.com/Moderocky/Wellspring/blob/master/guides/enchantments.md).
    * Persist over restarts.
    * Allow for customisable behaviour.
    * Work properly with the default enchantment system.
