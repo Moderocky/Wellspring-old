@@ -1,0 +1,38 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Sun, 27 Sep 2020 13:16:22 +0100
+Subject: [PATCH] Allow for custom attribute registration via API.
+
+
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+index 4f114dc0958873c9b08b093b2b7143fd7e070144..529237a7102fedea9b2a436bf55aef5ad778974a 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+@@ -79,6 +79,7 @@ import org.bukkit.World.Environment;
+ import org.bukkit.WorldCreator;
+ import org.bukkit.attachment.Attachable;
+ import org.bukkit.attachment.Attachment;
++import org.bukkit.attribute.Attribute;
+ import org.bukkit.block.data.BlockData;
+ import org.bukkit.boss.BarColor;
+ import org.bukkit.boss.BarFlag;
+@@ -2396,6 +2397,19 @@ public final class CraftServer implements Server, Wellspring { // Kenzie - Secon
+         return new EnchantmentBuilderImplementation(key, name);
+     }
+ 
++    @Override
++    public Attribute registerAttribute(NamespacedKey key, double defaultValue) {
++        IRegistry.a(IRegistry.ATTRIBUTE, key.toString(), new AttributeBase(key.getKey(), defaultValue) {
++        });
++        return new Attribute(key);
++    }
++
++    @Override
++    public Attribute registerAttribute(NamespacedKey key, double defaultValue, double min, double max) {
++        IRegistry.a(IRegistry.ATTRIBUTE, key.toString(), new AttributeRanged(key.getKey(), defaultValue, min, max));
++        return new Attribute(key);
++    }
++
+     @Override
+     public Bridge getBridge() {
+         return bridge;
