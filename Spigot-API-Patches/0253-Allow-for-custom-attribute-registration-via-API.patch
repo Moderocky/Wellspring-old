@@ -1,0 +1,94 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Sun, 27 Sep 2020 13:16:16 +0100
+Subject: [PATCH] Allow for custom attribute registration via API.
+
+
+diff --git a/src/main/java/org/bukkit/Bukkit.java b/src/main/java/org/bukkit/Bukkit.java
+index 25ddfd88cfc6ac80d1e45e0aa3b34ab7f609618e..ce823a1e122c68102c4f2b50538c1bb0d39d15af 100644
+--- a/src/main/java/org/bukkit/Bukkit.java
++++ b/src/main/java/org/bukkit/Bukkit.java
+@@ -22,6 +22,7 @@ import org.bukkit.Warning.WarningState;
+ import org.bukkit.advancement.Advancement;
+ import org.bukkit.attachment.Attachable;
+ import org.bukkit.attachment.Attachment;
++import org.bukkit.attribute.Attribute;
+ import org.bukkit.block.data.BlockData;
+ import org.bukkit.boss.BarColor;
+ import org.bukkit.boss.BarFlag;
+@@ -1777,6 +1778,34 @@ public final class Bukkit {
+ 
+     // Kenzie end - attachments
+ 
++    // Kenzie start - attributes
++
++    /**
++     * Registers a new attribute with the given key and default value.
++     * @param key the key to use
++     * @param defaultValue the default value
++     * @return the new attribute marker
++     */
++    public static @NotNull
++    Attribute registerAttribute(@NotNull NamespacedKey key, double defaultValue) {
++        return server.registerAttribute(key, defaultValue);
++    }
++
++    /**
++     * Registers a new ranged attribute with the given key and values.
++     * @param key the key to use
++     * @param defaultValue the default value
++     * @param min the minimum permitted value
++     * @param max the maximum permitted value
++     * @return the new attribute marker
++     */
++    public static @NotNull
++    Attribute registerRangedAttribute(@NotNull NamespacedKey key, double defaultValue, double min, double max) {
++        return server.registerAttribute(key, defaultValue, min, max);
++    }
++
++    // Kenzie end - attributes
++
+     // Kenzie start - Factories
+     /**
+      * Retrieves the server's NBT factory, used for instantiating compound tags,
+diff --git a/src/main/java/org/bukkit/Server.java b/src/main/java/org/bukkit/Server.java
+index 68063393666751604663e7cd46c26a4bd2acd953..2581b12d85b15d9d560c8ec7846c748b388ebe94 100644
+--- a/src/main/java/org/bukkit/Server.java
++++ b/src/main/java/org/bukkit/Server.java
+@@ -22,6 +22,7 @@ import org.bukkit.Warning.WarningState;
+ import org.bukkit.advancement.Advancement;
+ import org.bukkit.attachment.Attachable;
+ import org.bukkit.attachment.Attachment;
++import org.bukkit.attribute.Attribute;
+ import org.bukkit.block.data.BlockData;
+ import org.bukkit.boss.BarColor;
+ import org.bukkit.boss.BarFlag;
+@@ -1464,6 +1465,28 @@ public interface Server extends PluginMessageRecipient {
+     void unregisterAttachments(@NotNull Plugin plugin);
+     // Kenzie end
+ 
++    // Kenzie start - attributes
++    /**
++     * Registers a new attribute with the given key and default value.
++     * @param key the key to use
++     * @param defaultValue the default value
++     * @return the new attribute marker
++     */
++    @NotNull
++    Attribute registerAttribute(@NotNull NamespacedKey key, double defaultValue);
++
++    /**
++     * Registers a new ranged attribute with the given key and values.
++     * @param key the key to use
++     * @param defaultValue the default value
++     * @param min the minimum permitted value
++     * @param max the maximum permitted value
++     * @return the new attribute marker
++     */
++    @NotNull
++    Attribute registerAttribute(@NotNull NamespacedKey key, double defaultValue, double min, double max);
++    // Kenzie end
++
+     // Kenzie start - Factories
+     /**
+      * Retrieves the server's NBT factory, used for instantiating compound tags,
