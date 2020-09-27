@@ -1,0 +1,19 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Sun, 27 Sep 2020 13:31:30 +0100
+Subject: [PATCH] Make attribute provider map mutable.
+
+
+diff --git a/src/main/java/net/minecraft/server/AttributeProvider.java b/src/main/java/net/minecraft/server/AttributeProvider.java
+index 0e34f624a345293498607c31a53ab2972aefaa07..120042783fd5b2aed8f989a08063dac40cea46dc 100644
+--- a/src/main/java/net/minecraft/server/AttributeProvider.java
++++ b/src/main/java/net/minecraft/server/AttributeProvider.java
+@@ -15,7 +15,7 @@ public class AttributeProvider {
+     private final Map<AttributeBase, AttributeModifiable> a;
+ 
+     public AttributeProvider(Map<AttributeBase, AttributeModifiable> var0) {
+-        this.a = ImmutableMap.copyOf(var0);
++        this.a = new HashMap<>(var0); // Kenzie - make mutable
+     }
+ 
+     // Kenzie start - make map public

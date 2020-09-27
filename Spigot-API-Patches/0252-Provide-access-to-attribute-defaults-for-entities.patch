@@ -1,0 +1,165 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Sun, 27 Sep 2020 12:49:47 +0100
+Subject: [PATCH] Provide access to attribute defaults for entities.
+
+
+diff --git a/src/main/java/mx/kenzie/wellspring/Wellspring.java b/src/main/java/mx/kenzie/wellspring/Wellspring.java
+index b5aaff4d9b1da7880ba3de64b5114c6547b66fb4..aef72c91fc27de3d17de6a05a5b86ee114025a94 100644
+--- a/src/main/java/mx/kenzie/wellspring/Wellspring.java
++++ b/src/main/java/mx/kenzie/wellspring/Wellspring.java
+@@ -4,9 +4,12 @@ import mx.kenzie.wellspring.enchantment.EnchantmentBuilder;
+ import org.bukkit.Bukkit;
+ import org.bukkit.NamespacedKey;
+ import org.bukkit.Server;
++import org.bukkit.attribute.Attribute;
+ import org.bukkit.entity.EntityType;
+ import org.jetbrains.annotations.NotNull;
+ 
++import java.util.Map;
++
+ /**
+  * A second interface to evade Bukkit's Bukkit/Server parity tests.
+  * <p>
+@@ -22,6 +25,11 @@ public interface Wellspring extends Server {
+         return (Wellspring) Bukkit.getServer();
+     }
+ 
++    static @NotNull
++    Bridge bridge() {
++        return getInstance().getBridge();
++    }
++
+     @NotNull
+     EnchantmentBuilder createEnchantment(@NotNull NamespacedKey key, @NotNull String name);
+ 
+@@ -42,6 +50,18 @@ public interface Wellspring extends Server {
+         public abstract float getHeight(@NotNull EntityType type);
+ 
+         public abstract int getEntityIndex(@NotNull String entityKey);
++
++        public abstract @NotNull
++        Map<Attribute, Double> getBaseValues(@NotNull EntityType type);
++
++        public abstract void setBaseValues(@NotNull EntityType type, @NotNull Map<Attribute, Double> attributes);
++
++        public abstract double getBaseValue(@NotNull EntityType type, @NotNull Attribute attribute);
++
++        public abstract void setBaseValue(@NotNull EntityType type, @NotNull Attribute attribute, double value);
++
++        public abstract void removeBase(@NotNull EntityType type, @NotNull Attribute attribute);
++
+     }
+ 
+ }
+diff --git a/src/main/java/mx/kenzie/wellspring/attribute/AttributeProvider.java b/src/main/java/mx/kenzie/wellspring/attribute/AttributeProvider.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..6acc60dea88eeea7e6190624c24e4ce4b0ead3b9
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/attribute/AttributeProvider.java
+@@ -0,0 +1,84 @@
++package mx.kenzie.wellspring.attribute;
++
++import mx.kenzie.wellspring.Wellspring;
++import org.bukkit.attribute.Attribute;
++import org.bukkit.entity.EntityType;
++import org.jetbrains.annotations.NotNull;
++
++import java.util.Map;
++
++/**
++ * An access point for the attribute provider for entities.
++ *
++ * This allows you to change the default attributes that an
++ * entity-type has, and to add new custom ones.
++ * This is only for setting the baseline values, not for
++ * making individual edits.
++ * Edits to the provider should only be done during the STARTUP
++ * phase to prevent complications.
++ *
++ * @author Moderocky
++ */
++public interface AttributeProvider {
++
++    /**
++     * Provides a map of the default attributes for this entity type,
++     * and their baseline values.
++     * @return a cloned map
++     */
++    default @NotNull
++    Map<Attribute, Double> getBaseValues() {
++        return Wellspring.bridge().getBaseValues((EntityType) this);
++    }
++
++    /**
++     * Replaces the existing attribute map with this new one.
++     * This may cause issues with entities already loaded.
++     *
++     * Please note: removing attributes from default entity types
++     * will almost certainly cause errors.
++     *
++     * @param attributes the new attribute map
++     */
++    default void setBaseValues(@NotNull Map<Attribute, Double> attributes) {
++        Wellspring.bridge().setBaseValues((EntityType) this, attributes);
++    }
++
++    /**
++     * Provides the baseline value for the attribute on this entity type.
++     *
++     * @param attribute the attribute to test
++     * @return the value otherwise zero
++     */
++    default double getBaseValue(@NotNull Attribute attribute) {
++        return Wellspring.bridge().getBaseValue((EntityType) this, attribute);
++    }
++
++    /**
++     * Change an individual attribute's value for an entity type
++     * This can be used to add a custom attribute to the entity type
++     *
++     * @param attribute the attribute to set
++     * @param value the value
++     */
++    default void setBaseValue(@NotNull Attribute attribute, double value) {
++        Wellspring.bridge().setBaseValue((EntityType) this, attribute, value);
++    }
++
++    /**
++     * Removes a default attribute entry from this entity type
++     *
++     * NOTE: removing default attributes WILL cause errors!
++     * - These are not null-checked internally as they are
++     * assumed always to be present.
++     *
++     * This should only be used for adding or removing custom
++     * attribute types.
++     *
++     * @param attribute the attribute base to remove
++     */
++    default void removeBase(@NotNull Attribute attribute) {
++        Wellspring.bridge().removeBase((EntityType) this, attribute);
++    }
++
++}
+diff --git a/src/main/java/org/bukkit/entity/EntityType.java b/src/main/java/org/bukkit/entity/EntityType.java
+index 65dde51f6bb32555b04a1d49b39f7149bde6f463..d0f94818cf0b764055cf4b8cd422152c38618713 100644
+--- a/src/main/java/org/bukkit/entity/EntityType.java
++++ b/src/main/java/org/bukkit/entity/EntityType.java
+@@ -4,6 +4,7 @@ import com.google.common.base.Preconditions;
+ import java.util.HashMap;
+ import java.util.Map;
+ 
++import mx.kenzie.wellspring.attribute.AttributeProvider;
+ import org.bukkit.Keyed;
+ import org.bukkit.Location;
+ import org.bukkit.NamespacedKey;
+@@ -21,7 +22,7 @@ import org.jetbrains.annotations.Contract;
+ import org.jetbrains.annotations.NotNull;
+ import org.jetbrains.annotations.Nullable;
+ 
+-public enum EntityType implements Keyed {
++public enum EntityType implements Keyed, AttributeProvider { // Kenzie - attributes
+ 
+     // These strings MUST match the strings in nms.EntityTypes and are case sensitive.
+     /**
