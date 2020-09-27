@@ -1,0 +1,113 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Sat, 26 Sep 2020 17:58:00 +0100
+Subject: [PATCH] Enchantment holder utility.
+
+
+diff --git a/src/main/java/mx/kenzie/server/CraftBridge.java b/src/main/java/mx/kenzie/server/CraftBridge.java
+index a6aa74900e11dbdd39e7f00737075237eb77a7d4..ae8d0f0d48de1c1da50321aa4955165833af3ebe 100644
+--- a/src/main/java/mx/kenzie/server/CraftBridge.java
++++ b/src/main/java/mx/kenzie/server/CraftBridge.java
+@@ -1,10 +1,17 @@
+ package mx.kenzie.server;
+ 
+ import mx.kenzie.wellspring.Wellspring;
++import net.minecraft.server.EnchantmentManager;
+ import net.minecraft.server.IRegistry;
++import net.minecraft.server.ItemStack;
+ import net.minecraft.server.MinecraftKey;
++import org.bukkit.craftbukkit.entity.CraftEntity;
++import org.bukkit.craftbukkit.entity.CraftLivingEntity;
++import org.bukkit.enchantments.Enchantment;
+ import org.bukkit.entity.EntityType;
+ 
++import java.util.Iterator;
++
+ public class CraftBridge extends Wellspring.Bridge {
+ 
+     @Override
+@@ -21,4 +28,25 @@ public class CraftBridge extends Wellspring.Bridge {
+     public int getEntityIndex(String entityKey) {
+         return IRegistry.ENTITY_TYPE.a(IRegistry.ENTITY_TYPE.get(new MinecraftKey(entityKey)));
+     }
++
++    public int getMaxPresentLevel(Enchantment enchantment, CraftEntity entity) {
++        if (enchantment == null) return 0;
++        if (!(entity instanceof CraftLivingEntity)) return 0;
++        net.minecraft.server.Enchantment ench = IRegistry.ENCHANTMENT.get(new MinecraftKey(enchantment.getKey().toString()));
++        if (ench == null) return 0;
++        return net.minecraft.server.EnchantmentManager.a(ench, ((CraftLivingEntity) entity).getHandle());
++    }
++
++    public int getCumulativeLevel(Enchantment enchantment, CraftEntity entity) {
++        if (enchantment == null) return 0;
++        if (!(entity instanceof CraftLivingEntity)) return 0;
++        net.minecraft.server.Enchantment ench = IRegistry.ENCHANTMENT.get(new MinecraftKey(enchantment.getKey().toString()));
++        if (ench == null) return 0;
++        int i = 0;
++        for (ItemStack stack : ench.a(((CraftLivingEntity) entity).getHandle()).values()) {
++            i += EnchantmentManager.getEnchantmentLevel(ench, stack);
++        }
++        return i;
++    }
++
+ }
+diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
+index 9c4bd1059e341b268f62d1587ff0bbc959688221..d7aac431a0d3b73772eca506998ee911456d67c9 100644
+--- a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
++++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
+@@ -7,6 +7,7 @@ import java.util.List;
+ import java.util.Set;
+ import java.util.UUID;
+ 
++import mx.kenzie.server.CraftBridge;
+ import mx.kenzie.wellspring.nbt.NBTCompound;
+ import net.minecraft.server.AxisAlignedBB;
+ import net.minecraft.server.BlockPosition;
+@@ -161,6 +162,7 @@ import org.bukkit.craftbukkit.persistence.CraftPersistentDataContainer;
+ import org.bukkit.craftbukkit.persistence.CraftPersistentDataTypeRegistry;
+ import org.bukkit.craftbukkit.util.CraftChatMessage;
+ import org.bukkit.craftbukkit.util.CraftVector;
++import org.bukkit.enchantments.Enchantment;
+ import org.bukkit.entity.Pose;
+ import org.bukkit.event.entity.EntityDamageEvent;
+ import org.bukkit.event.player.PlayerTeleportEvent.TeleportCause;
+@@ -197,7 +199,19 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
+         // Kenzie end
+     }
+ 
+-    // Kenzie start - NBT holder and fakes
++    // Kenzie start - NBT holder, enchantments and fakes
++
++    @Override
++    public int getMaxPresentLevel(Enchantment enchantment) {
++        if (!(this instanceof CraftLivingEntity)) return 0;
++        return ((CraftBridge) server.getBridge()).getMaxPresentLevel(enchantment, this);
++    }
++
++    @Override
++    public int getCumulativeLevel(Enchantment enchantment) {
++        if (!(this instanceof CraftLivingEntity)) return 0;
++        return ((CraftBridge) server.getBridge()).getCumulativeLevel(enchantment, this);
++    }
+ 
+     @Override
+     public boolean isFake() {
+@@ -1167,7 +1181,7 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
+     public boolean isInWater() {
+         return getHandle().isInWater();
+     }
+-    
++
+     public boolean isInRain() {
+         return getHandle().isInRain();
+     }
+@@ -1183,7 +1197,7 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
+     public boolean isInWaterOrBubbleColumn() {
+         return getHandle().isInWaterOrBubbleColumn();
+     }
+-    
++
+     public boolean isInWaterOrRainOrBubbleColumn() {
+         return getHandle().isInWaterOrRainOrBubble();
+     }
