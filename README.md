@@ -46,13 +46,12 @@ Current additional features:
    * Persist over restarts.
    * Allow for customisable behaviour.
    * Work properly with the default enchantment system.
+ * Custom [attributes](https://github.com/Moderocky/Wellspring/blob/master/guides/attributes.md) can now be registered by plugins.
+   * Conversion of attributes from an enum to a field to allow for custom attribute types to work properly with Bukkit.
+   * Attributes can be created and added to entities, items, potion effects, and other things.
+   * This also allows you to add your custom attributes to entities by default.
  * Custom entities can now be saved properly over restarts, and displayed correctly to the client.
    * The entity type sent in packets can be separated from the internal type.
- * Conversion of attributes from an enum to a field to allow for custom attribute types to work properly with Bukkit.
-   * Custom attributes can be created and added to entities, items, potion effects, and other things.
- * Entity default attribute map is now mutable, allowing for more freedom to customise and edit entity types, and to add new ones.
-   * This still *currently* has to be accessed through NMS, but allows custom entity types to have their own attributes.
-   * This also allows you to add your custom attributes to entities by default.
  * Code changes to allow for the proper creation, storage and viewing of custom entity types.
    * No more limits on the entity type registry.
    * The existing attribute mappings are now mutable.
