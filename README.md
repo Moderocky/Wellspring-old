@@ -42,6 +42,10 @@ Current additional features:
    * Persist over restarts.
    * Work with existing bukkit effects.
    * Allow for custom attribute attachments and on-tick behaviour.
+ * Custom enchantment [builder](https://github.com/Moderocky/Wellspring/blob/master/guides/enchantments.md).
+   * Persist over restarts.
+   * Allow for customisable behaviour.
+   * Work properly with the default enchantment system.
  * Custom entities can now be saved properly over restarts, and displayed correctly to the client.
    * The entity type sent in packets can be separated from the internal type.
  * Conversion of attributes from an enum to a field to allow for custom attribute types to work properly with Bukkit.
