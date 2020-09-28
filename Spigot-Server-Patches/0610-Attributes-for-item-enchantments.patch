@@ -1,0 +1,255 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Mon, 28 Sep 2020 13:06:50 +0100
+Subject: [PATCH] Attributes for item enchantments.
+
+
+diff --git a/src/main/java/net/minecraft/server/Enchantment.java b/src/main/java/net/minecraft/server/Enchantment.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..8ba31c04f12a9d6562f013dfb9442398e6279b53
+--- /dev/null
++++ b/src/main/java/net/minecraft/server/Enchantment.java
+@@ -0,0 +1,184 @@
++package net.minecraft.server;
++
++import com.google.common.collect.Maps;
++
++import java.nio.charset.StandardCharsets;
++import java.util.HashMap;
++import java.util.Map;
++import java.util.UUID;
++import javax.annotation.Nullable;
++
++public abstract class Enchantment {
++    private final EnumItemSlot[] a;
++    private final Enchantment.Rarity d;
++    public final EnchantmentSlotType itemTarget;
++    @Nullable
++    protected String c;
++    private final Map<AttributeBase, AttributeModifier> attributes = new HashMap<>(); // Kenzie - attributes
++
++    protected Enchantment(Enchantment.Rarity var0, EnchantmentSlotType var1, EnumItemSlot[] var2) {
++        this.d = var0;
++        this.itemTarget = var1;
++        this.a = var2;
++    }
++
++    // Kenzie start - attributes
++
++    public void addAttribute(AttributeBase var0, double var2, AttributeModifier.Operation var4) {
++        AttributeModifier var5 = new AttributeModifier(UUID.nameUUIDFromBytes(f().getBytes(StandardCharsets.UTF_8)), f(), var2, var4);
++        this.attributes.put(var0, var5);
++    }
++
++    public void addAttribute(AttributeBase base, AttributeModifier modifier) {
++        attributes.put(base, modifier);
++    }
++
++    public Map<AttributeBase, AttributeModifier> getAttributes() {
++        return attributes;
++    }
++
++    public Map<AttributeBase, AttributeModifier> getAttributes(EnumItemSlot slot) {
++        if (isEffective(slot)) return getAttributes();
++        return new HashMap<>();
++    }
++
++    public Map<AttributeBase, AttributeModifier> cloneAttributes() {
++        Map<AttributeBase, AttributeModifier> map = new HashMap<>();
++        for (Map.Entry<AttributeBase, AttributeModifier> entry : getAttributes().entrySet()) {
++            AttributeModifier original = entry.getValue();
++            AttributeModifier value = new AttributeModifier(original.getUniqueId(), original.getName(), original.getAmount(), original.getOperation());
++            map.put(entry.getKey(), value);
++        }
++        return map;
++    }
++
++    public boolean isEffective(EnumItemSlot slot) {
++        for (EnumItemSlot enumItemSlot : a) {
++            if (enumItemSlot == slot) return true;
++        }
++        return false;
++    }
++
++    // Kenzie end
++
++    public Map<EnumItemSlot, ItemStack> a(EntityLiving var0) {
++        Map<EnumItemSlot, ItemStack> var1 = Maps.newEnumMap(EnumItemSlot.class);
++        EnumItemSlot[] var3 = this.a;
++        int var4 = var3.length;
++
++        for (EnumItemSlot slot : var3) { // Kenzie - decompile error
++            ItemStack var6 = var0.getEquipment(slot);
++            if (!var6.isEmpty()) {
++                var1.put(slot, var6);
++            }
++        } // Kenzie end
++
++        return var1;
++    }
++
++    public Enchantment.Rarity d() {
++        return this.d;
++    }
++
++    public int getStartLevel() {
++        return 1;
++    }
++
++    public int getMaxLevel() {
++        return 1;
++    }
++
++    public int a(int var0) {
++        return 1 + var0 * 10;
++    }
++
++    public int b(int var0) {
++        return this.a(var0) + 5;
++    }
++
++    public int a(int var0, DamageSource var1) {
++        return 0;
++    }
++
++    public float a(int var0, EnumMonsterType var1) {
++        return 0.0F;
++    }
++
++    public final boolean isCompatible(Enchantment var0) {
++        return this.a(var0) && var0.a(this);
++    }
++
++    protected boolean a(Enchantment var0) {
++        return this != var0;
++    }
++
++    protected String f() {
++        if (this.c == null) {
++            this.c = SystemUtils.a("enchantment", IRegistry.ENCHANTMENT.getKey(this));
++        }
++
++        return this.c;
++    }
++
++    public String g() {
++        return this.f();
++    }
++
++    public IChatBaseComponent d(int var0) {
++        IChatMutableComponent var1 = new ChatMessage(this.g());
++        if (this.c()) {
++            var1.a(EnumChatFormat.RED);
++        } else {
++            var1.a(EnumChatFormat.GRAY);
++        }
++
++        if (var0 != 1 || this.getMaxLevel() != 1) {
++            var1.c(" ").addSibling(new ChatMessage("enchantment.level." + var0));
++        }
++
++        return var1;
++    }
++
++    public boolean canEnchant(ItemStack var0) {
++        return this.itemTarget.canEnchant(var0.getItem());
++    }
++
++    public void a(EntityLiving var0, Entity var1, int var2) {
++    }
++
++    public void b(EntityLiving var0, Entity var1, int var2) {
++    }
++
++    public boolean isTreasure() {
++        return false;
++    }
++
++    public boolean c() {
++        return false;
++    }
++
++    public boolean h() {
++        return true;
++    }
++
++    public boolean i() {
++        return true;
++    }
++
++    public static enum Rarity {
++        COMMON(10),
++        UNCOMMON(5),
++        RARE(2),
++        VERY_RARE(1);
++
++        private final int e;
++
++        private Rarity(int var2) {
++            this.e = var2;
++        }
++
++        public int a() {
++            return this.e;
++        }
++    }
++}
+diff --git a/src/main/java/net/minecraft/server/ItemStack.java b/src/main/java/net/minecraft/server/ItemStack.java
+index c519e8520c0de6aff766441d4088b76548791508..966796719df164c113b9e059e322d94876af3141 100644
+--- a/src/main/java/net/minecraft/server/ItemStack.java
++++ b/src/main/java/net/minecraft/server/ItemStack.java
+@@ -9,22 +9,17 @@ import com.mojang.serialization.Codec;
+ import com.mojang.serialization.codecs.RecordCodecBuilder;
+ import java.text.DecimalFormat;
+ import java.text.DecimalFormatSymbols;
+-import java.util.Collections;
+-import java.util.Comparator;
+-import java.util.Locale;
+-import java.util.Objects;
+-import java.util.Optional;
+-import java.util.Random;
++import java.util.*;
+ import java.util.function.Consumer;
+ import java.util.function.Predicate;
+ import javax.annotation.Nullable;
++
++import mx.kenzie.wellspring.nbt.NBTCompound;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+ 
+ // CraftBukkit start
+ import com.mojang.serialization.Dynamic;
+-import java.util.List;
+-import java.util.Map;
+ 
+ import org.bukkit.Location;
+ import org.bukkit.TreeType;
+@@ -851,7 +846,27 @@ public final class ItemStack {
+             object = this.getItem().a(enumitemslot);
+         }
+ 
+-        return (Multimap) object;
++        // Kenzie start - enchant attributes
++        Multimap<AttributeBase, AttributeModifier> map = (Multimap) object;
++
++        if (hasEnchantments()) {
++            for (NBTBase base : getEnchantments()) {
++                NBTCompound compound = ((NBTTagCompound) base);
++                MinecraftKey key = MinecraftKey.a(compound.getString("id"));
++                Enchantment enchantment = IRegistry.ENCHANTMENT.get(key);
++                if (enchantment == null) continue;
++                int level = MathHelper.clamp(compound.getInt("lvl"), 0, 255);
++                Map<AttributeBase, AttributeModifier> modifiers = enchantment.getAttributes(enumitemslot);
++                for (Map.Entry<AttributeBase, AttributeModifier> entry : modifiers.entrySet()) {
++                    AttributeModifier value = entry.getValue();
++                    AttributeModifier modifier = new AttributeModifier(value.getUniqueId(), value.getName(), value.getAmount() * level, value.getOperation());
++                    map.put(entry.getKey(), modifier);
++                }
++            }
++        }
++
++        return map;
++        // Kenzie end
+     }
+ 
+     public void a(AttributeBase attributebase, AttributeModifier attributemodifier, @Nullable EnumItemSlot enumitemslot) {

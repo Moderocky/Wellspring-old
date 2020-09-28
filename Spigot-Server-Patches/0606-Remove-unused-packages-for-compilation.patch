@@ -1,0 +1,18 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Sat, 26 Sep 2020 18:18:49 +0100
+Subject: [PATCH] Remove unused packages for compilation.
+
+
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
+index c7853ab8ddc6b42e249901d3e353a17c74d10590..a83402124c3af148409b23a23c646e4b6e7ceba2 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
+@@ -26,7 +26,6 @@ import java.util.function.Predicate;
+ import java.util.stream.Collectors;
+ 
+ import mx.kenzie.server.attachment.AttachmentHolder;
+-import mx.kenzie.wellspring.entity.Human;
+ import mx.kenzie.wellspring.nbt.NBTCompound;
+ import net.minecraft.server.*;
+ import org.apache.commons.lang.Validate;

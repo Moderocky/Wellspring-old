@@ -1,0 +1,514 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Fri, 25 Sep 2020 12:07:05 +0100
+Subject: [PATCH] Custom enchantment builder and registration.
+
+
+diff --git a/src/main/java/mx/kenzie/server/CraftBridge.java b/src/main/java/mx/kenzie/server/CraftBridge.java
+index a10c7dc9a8b66827dbc2e2587b6e86aa30d53527..b90c2f6cdbc599e61db4b30dc1c67340cd6749db 100644
+--- a/src/main/java/mx/kenzie/server/CraftBridge.java
++++ b/src/main/java/mx/kenzie/server/CraftBridge.java
+@@ -1,26 +1,11 @@
+ package mx.kenzie.server;
+ 
+-import mx.kenzie.server.entity.Human;
+ import mx.kenzie.wellspring.Wellspring;
+ import net.minecraft.server.*;
+ import org.bukkit.entity.EntityType;
+ 
+-import java.util.Map;
+-
+ public class CraftBridge extends Wellspring.Bridge {
+ 
+-    public static final EntityTypes<EntityHuman> HUMAN;
+-    public static final Map<EntityTypes<? extends EntityLiving>, AttributeProvider> PROVIDER_MAP = AttributeDefaults.getAttributeDefaults();
+-
+-    static {
+-        {
+-            EntityTypes.Builder<Entity> builder = EntityTypes.Builder.a(EnumCreatureType.MISC).b().a().a(0.6F, 1.8F).trackingRange(32).updateInterval(2);
+-            HUMAN = (EntityTypes<EntityHuman>) (EntityTypes<?>) IRegistry.a(IRegistry.ENTITY_TYPE, "human", builder.a("human"));
+-            PROVIDER_MAP.put(HUMAN, EntityHuman.eo().a());
+-            Human.class.getName(); // Initialise
+-        }
+-    }
+-
+     @Override
+     public float getWidth(EntityType type) {
+         return IRegistry.ENTITY_TYPE.get(new MinecraftKey(type.getKey().toString())).j();
+diff --git a/src/main/java/mx/kenzie/server/enchantment/EnchantmentBuilderImplementation.java b/src/main/java/mx/kenzie/server/enchantment/EnchantmentBuilderImplementation.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..bfe6c1b0efb3dfe06f92d5eab35154e3c2a90ef4
+--- /dev/null
++++ b/src/main/java/mx/kenzie/server/enchantment/EnchantmentBuilderImplementation.java
+@@ -0,0 +1,162 @@
++package mx.kenzie.server.enchantment;
++
++import mx.kenzie.wellspring.enchantment.EnchantmentBuilder;
++import mx.kenzie.wellspring.enchantment.Target;
++import net.md_5.bungee.chat.ComponentSerializer;
++import net.minecraft.server.*;
++import org.bukkit.NamespacedKey;
++import org.bukkit.craftbukkit.enchantments.CraftEnchantment;
++import org.bukkit.craftbukkit.inventory.CraftItemStack;
++import org.bukkit.enchantments.Enchantment;
++import org.bukkit.entity.EntityCategory;
++import org.bukkit.entity.LivingEntity;
++import org.bukkit.event.entity.EntityDamageEvent;
++
++import java.util.Map;
++
++public class EnchantmentBuilderImplementation extends EnchantmentBuilder {
++
++    public EnchantmentBuilderImplementation(NamespacedKey key, String name) {
++        super(key, name);
++    }
++
++    @Override
++    public org.bukkit.enchantments.Enchantment create() {
++
++        class CustomEnchantment extends net.minecraft.server.Enchantment {
++
++            protected CustomEnchantment(Rarity var0, EnchantmentSlotType var1, EnumItemSlot[] var2) {
++                super(var0, var1, var2);
++            }
++
++            @Override
++            public boolean isTreasure() {
++                return treasure;
++            }
++
++            @Override
++            public boolean c() {
++                return curse;
++            }
++
++            @Override
++            public boolean h() {
++                return tradable;
++            }
++
++            @Override
++            public boolean i() {
++                return discoverable;
++            }
++
++            @Override
++            public boolean canEnchant(ItemStack var0) {
++                return canEnchant.apply(CraftItemStack.asBukkitCopy(var0));
++            }
++
++            @Override
++            public int getStartLevel() {
++                return minLevel;
++            }
++
++            @Override
++            public int getMaxLevel() {
++                return maxLevel;
++            }
++
++            @Override
++            public int a(int var0) {
++                return minCost;
++            }
++
++            @Override
++            public int b(int var0) {
++                return maxCost;
++            }
++
++            @Override
++            public int a(int var0, DamageSource var1) {
++                EntityDamageEvent.DamageCause cause;
++                if (var1 == DamageSource.ANVIL) cause = EntityDamageEvent.DamageCause.FALLING_BLOCK;
++                else if (var1 == DamageSource.BURN) cause = EntityDamageEvent.DamageCause.FIRE_TICK;
++                else if (var1 == DamageSource.CACTUS) cause = EntityDamageEvent.DamageCause.CONTACT;
++                else if (var1 == DamageSource.CRAMMING) cause = EntityDamageEvent.DamageCause.CRAMMING;
++                else if (var1 == DamageSource.DRAGON_BREATH) cause = EntityDamageEvent.DamageCause.DRAGON_BREATH;
++                else if (var1 == DamageSource.DROWN) cause = EntityDamageEvent.DamageCause.DROWNING;
++                else if (var1 == DamageSource.DRYOUT) cause = EntityDamageEvent.DamageCause.DRYOUT;
++                else if (var1 == DamageSource.FIRE) cause = EntityDamageEvent.DamageCause.FIRE;
++                else if (var1 == DamageSource.FLY_INTO_WALL) cause = EntityDamageEvent.DamageCause.FLY_INTO_WALL;
++                else if (var1 == DamageSource.FALLING_BLOCK) cause = EntityDamageEvent.DamageCause.FALLING_BLOCK;
++                else if (var1 == DamageSource.FALL) cause = EntityDamageEvent.DamageCause.FALL;
++                else if (var1 == DamageSource.GENERIC) cause = EntityDamageEvent.DamageCause.ENTITY_ATTACK;
++                else if (var1 == DamageSource.SWEET_BERRY_BUSH) cause = EntityDamageEvent.DamageCause.CONTACT;
++                else if (var1 == DamageSource.HOT_FLOOR) cause = EntityDamageEvent.DamageCause.HOT_FLOOR;
++                else if (var1 == DamageSource.WITHER) cause = EntityDamageEvent.DamageCause.WITHER;
++                else if (var1 == DamageSource.LAVA) cause = EntityDamageEvent.DamageCause.LAVA;
++                else if (var1 == DamageSource.LIGHTNING) cause = EntityDamageEvent.DamageCause.LIGHTNING;
++                else if (var1 == DamageSource.MAGIC) cause = EntityDamageEvent.DamageCause.MAGIC;
++                else if (var1 == DamageSource.STARVE) cause = EntityDamageEvent.DamageCause.STARVATION;
++                else if (var1 == DamageSource.OUT_OF_WORLD) cause = EntityDamageEvent.DamageCause.VOID;
++                else cause = EntityDamageEvent.DamageCause.CUSTOM;
++                return damageProtection.apply(cause);
++            }
++
++            @Override
++            public float a(int var0, EnumMonsterType var1) {
++                EntityCategory category;
++                if (var1 == EnumMonsterType.ARTHROPOD) category = EntityCategory.ARTHROPOD;
++                else if (var1 == EnumMonsterType.ILLAGER) category = EntityCategory.ILLAGER;
++                else if (var1 == EnumMonsterType.UNDEAD) category = EntityCategory.UNDEAD;
++                else if (var1 == EnumMonsterType.WATER_MOB) category = EntityCategory.WATER;
++                else category = EntityCategory.NONE;
++                return damageBonus.apply(category);
++            }
++
++            @Override // is compatible
++            protected boolean a(net.minecraft.server.Enchantment var0) {
++                String string = IRegistry.ENCHANTMENT.getKey(var0).toString();
++                String[] parts = string.split(":");
++                Enchantment enchantment = Enchantment.getByKey(new NamespacedKey(parts[0], parts[1]));
++                return compatible.apply(enchantment);
++            }
++
++            @Override
++            protected String f() {
++                return description;
++            }
++
++            @Override
++            public String g() {
++                return f();
++            }
++
++            @Override
++            public IChatBaseComponent d(int var0) {
++                return IChatBaseComponent.ChatSerializer.jsonToComponent(ComponentSerializer.toString(nameByLevel.apply(var0)));
++            }
++
++            @Override
++            public void a(EntityLiving var0, Entity var1, int var2) {
++                LivingEntity holder = var0.getBukkitLivingEntity();
++                org.bukkit.entity.Entity target = var1 != null ? var1.getBukkitEntity() : null;
++                onDealDamage.onStrike(holder, target, var2);
++            }
++
++            @Override
++            public void b(EntityLiving var0, Entity var1, int var2) {
++                LivingEntity holder = var0.getBukkitLivingEntity();
++                org.bukkit.entity.Entity target = var1 != null ? var1.getBukkitEntity() : null;
++                onTakeDamage.onStrike(holder, target, var2);
++            }
++        }
++
++        CustomEnchantment enchantment = new CustomEnchantment(net.minecraft.server.Enchantment.Rarity.valueOf(rarity.toString()),
++            EnchantmentSlotType.valueOf(target.toString()),
++            EnumItemSlot.convert(effectiveSlots));
++
++        net.minecraft.server.Enchantment ench = IRegistry.a(IRegistry.ENCHANTMENT, key.toString(), enchantment);
++        Enchantment wrapper = new CraftEnchantment(ench);
++        Enchantment.registerCustomEnchantment(wrapper);
++        return wrapper;
++    }
++}
+diff --git a/src/main/java/mx/kenzie/server/entity/Human.java b/src/main/java/mx/kenzie/server/entity/Human.java
+deleted file mode 100644
+index 0353b4d16debdf5ebe33a5c88c9cc806f15cd3f0..0000000000000000000000000000000000000000
+--- a/src/main/java/mx/kenzie/server/entity/Human.java
++++ /dev/null
+@@ -1,64 +0,0 @@
+-package mx.kenzie.server.entity;
+-
+-import com.mojang.authlib.GameProfile;
+-import mx.kenzie.server.CraftBridge;
+-import net.minecraft.server.*;
+-import org.bukkit.craftbukkit.block.impl.CraftBamboo;
+-
+-import java.util.Map;
+-
+-@SuppressWarnings("unchecked")
+-public class Human extends EntityPlayer {
+-
+-    public static final String KEY = "human";
+-    public static final EntityTypes<EntityHuman> TYPE = CraftBridge.HUMAN;
+-    public static final int INDEX = IRegistry.ENTITY_TYPE.a(TYPE);;
+-
+-    public Human(WorldServer world, GameProfile profile) {
+-        this(world.getMinecraftServer(), world, profile, null);
+-    }
+-
+-    public Human(MinecraftServer minecraftserver, WorldServer worldserver, GameProfile gameprofile, PlayerInteractManager playerinteractmanager) {
+-        super(minecraftserver, worldserver, gameprofile, playerinteractmanager);
+-        display();
+-    }
+-
+-    public void display() {
+-        Packet<?> a = new PacketPlayOutPlayerInfo(PacketPlayOutPlayerInfo.EnumPlayerInfoAction.ADD_PLAYER, this);
+-        Packet<?> b = new PacketPlayOutNamedEntitySpawn(this);
+-        Packet<?> c = new PacketPlayOutPlayerInfo(PacketPlayOutPlayerInfo.EnumPlayerInfoAction.REMOVE_PLAYER, this);
+-        for (EntityHuman player : world.getPlayers()) {
+-            if (player instanceof EntityPlayer) {
+-                NetworkManager manager = ((EntityPlayer) player).playerConnection.networkManager;
+-                manager.sendPacket(a);
+-                manager.sendPacket(b);
+-                manager.sendPacket(c);
+-            }
+-        }
+-    }
+-
+-    @Override
+-    public void die() {
+-        super.die();
+-        Packet<?> packet = new PacketPlayOutEntityDestroy(this.getId());
+-        Packet<?> tab = new PacketPlayOutPlayerInfo(PacketPlayOutPlayerInfo.EnumPlayerInfoAction.REMOVE_PLAYER, this);
+-        for (EntityHuman player : world.getPlayers()) {
+-            if (player instanceof EntityPlayer) {
+-                NetworkManager manager = ((EntityPlayer) player).playerConnection.networkManager;
+-                manager.sendPacket(packet);
+-                manager.sendPacket(tab);
+-            }
+-        }
+-    }
+-
+-    @Override
+-    public EntityTypes<?> getEntityType() {
+-        return TYPE;
+-    }
+-
+-    @Override
+-    public EntityTypes<?> getVisualType() {
+-        return super.getVisualType();
+-    }
+-
+-}
+diff --git a/src/main/java/mx/kenzie/server/entity/craft/CraftCustomLivingEntity.java b/src/main/java/mx/kenzie/server/entity/craft/CraftCustomLivingEntity.java
+deleted file mode 100644
+index 97daa30f4eabb0722ad8d91303c3e447f4133de5..0000000000000000000000000000000000000000
+--- a/src/main/java/mx/kenzie/server/entity/craft/CraftCustomLivingEntity.java
++++ /dev/null
+@@ -1,32 +0,0 @@
+-package mx.kenzie.server.entity.craft;
+-
+-import mx.kenzie.server.entity.custom.CustomLivingEntity;
+-import mx.kenzie.wellspring.entity.CustomEntity;
+-import mx.kenzie.wellspring.entity.CustomEntityType;
+-import org.bukkit.craftbukkit.CraftServer;
+-import org.bukkit.craftbukkit.entity.CraftLivingEntity;
+-import org.bukkit.entity.EntityType;
+-import org.bukkit.plugin.Plugin;
+-
+-public class CraftCustomLivingEntity extends CraftLivingEntity implements CustomEntity {
+-
+-    public CraftCustomLivingEntity(CraftServer server, CustomLivingEntity entity) {
+-        super(server, entity);
+-    }
+-
+-    @Override
+-    public CustomEntityType getCustomType() {
+-        return ((CustomLivingEntity) entity).getImplementation().getCustomType();
+-    }
+-
+-    @Override
+-    public Plugin getProvidingPlugin() {
+-        return ((CustomLivingEntity) entity).getImplementation().getProvidingPlugin();
+-    }
+-
+-    @Override
+-    public EntityType getType() {
+-        return EntityType.UNKNOWN;
+-    }
+-
+-}
+diff --git a/src/main/java/mx/kenzie/server/entity/craft/CraftHuman.java b/src/main/java/mx/kenzie/server/entity/craft/CraftHuman.java
+deleted file mode 100644
+index 0903da3d77c2ca384147dcceeaf1b0ec0741cdb4..0000000000000000000000000000000000000000
+--- a/src/main/java/mx/kenzie/server/entity/craft/CraftHuman.java
++++ /dev/null
+@@ -1,18 +0,0 @@
+-package mx.kenzie.server.entity.craft;
+-
+-import mx.kenzie.server.entity.Human;
+-import org.bukkit.craftbukkit.CraftServer;
+-import org.bukkit.craftbukkit.entity.CraftPlayer;
+-import org.bukkit.entity.EntityType;
+-
+-public class CraftHuman extends CraftPlayer {
+-
+-    public CraftHuman(CraftServer server, Human entity) {
+-        super(server, entity);
+-    }
+-
+-    @Override
+-    public EntityType getType() {
+-        return super.getType();
+-    }
+-}
+diff --git a/src/main/java/mx/kenzie/server/entity/custom/CustomLivingEntity.java b/src/main/java/mx/kenzie/server/entity/custom/CustomLivingEntity.java
+deleted file mode 100644
+index e5a82c2dc25d58c45527def126dbf0f9b9b920de..0000000000000000000000000000000000000000
+--- a/src/main/java/mx/kenzie/server/entity/custom/CustomLivingEntity.java
++++ /dev/null
+@@ -1,81 +0,0 @@
+-package mx.kenzie.server.entity.custom;
+-
+-import com.google.common.collect.Lists;
+-import net.minecraft.server.*;
+-import org.bukkit.NamespacedKey;
+-import org.bukkit.craftbukkit.CraftWorld;
+-import org.bukkit.craftbukkit.inventory.CraftItemStack;
+-import org.bukkit.inventory.EquipmentSlot;
+-
+-import java.util.stream.Collectors;
+-
+-public class CustomLivingEntity extends EntityLiving {
+-
+-    protected final mx.kenzie.wellspring.entity.CustomLivingEntity implementation;
+-
+-    @SuppressWarnings("all")
+-    public CustomLivingEntity(org.bukkit.World world, NamespacedKey type, mx.kenzie.wellspring.entity.CustomLivingEntity implementation) {
+-        super((EntityTypes<? extends EntityLiving>) IRegistry.ENTITY_TYPE.get(new MinecraftKey(type.toString())), ((CraftWorld) world).getHandle());
+-        this.implementation = implementation;
+-    }
+-
+-    @Override
+-    public EntityTypes<?> getVisualType() {
+-        return IRegistry.ENTITY_TYPE.get(new MinecraftKey(implementation.getVisualType().getKey().toString()));
+-    }
+-
+-    @Override
+-    public Iterable<ItemStack> getArmorItems() {
+-        return implementation.getArmorItems().stream().map(CraftItemStack::asNMSCopy).collect(Collectors.toList());
+-    }
+-
+-    @Override
+-    public ItemStack getEquipment(EnumItemSlot enumitemslot) {
+-        switch (enumitemslot) {
+-            case HEAD:
+-                return CraftItemStack.asNMSCopy(implementation.getEquipment(EquipmentSlot.HEAD));
+-            case CHEST:
+-                return CraftItemStack.asNMSCopy(implementation.getEquipment(EquipmentSlot.CHEST));
+-            case LEGS:
+-                return CraftItemStack.asNMSCopy(implementation.getEquipment(EquipmentSlot.LEGS));
+-            case FEET:
+-                return CraftItemStack.asNMSCopy(implementation.getEquipment(EquipmentSlot.FEET));
+-            case MAINHAND:
+-                return CraftItemStack.asNMSCopy(implementation.getEquipment(EquipmentSlot.HAND));
+-            case OFFHAND:
+-                return CraftItemStack.asNMSCopy(implementation.getEquipment(EquipmentSlot.OFF_HAND));
+-            default:
+-                return null;
+-        }
+-    }
+-
+-    @Override
+-    public void setSlot(EnumItemSlot enumitemslot, ItemStack itemstack) {
+-        switch (enumitemslot) {
+-            case HEAD:
+-                implementation.setEquipment(EquipmentSlot.HEAD, CraftItemStack.asBukkitCopy(itemstack));
+-            case CHEST:
+-                implementation.setEquipment(EquipmentSlot.CHEST, CraftItemStack.asBukkitCopy(itemstack));
+-            case LEGS:
+-                implementation.setEquipment(EquipmentSlot.LEGS, CraftItemStack.asBukkitCopy(itemstack));
+-            case FEET:
+-                implementation.setEquipment(EquipmentSlot.FEET, CraftItemStack.asBukkitCopy(itemstack));
+-            case MAINHAND:
+-                implementation.setEquipment(EquipmentSlot.HAND, CraftItemStack.asBukkitCopy(itemstack));
+-            case OFFHAND:
+-                implementation.setEquipment(EquipmentSlot.OFF_HAND, CraftItemStack.asBukkitCopy(itemstack));
+-        }
+-    }
+-
+-    @Override
+-    public EnumMainHand getMainHand() {
+-        if (implementation.getMainHand() == mx.kenzie.wellspring.entity.CustomLivingEntity.Hand.RIGHT)
+-            return EnumMainHand.RIGHT;
+-        return EnumMainHand.LEFT;
+-    }
+-
+-    public mx.kenzie.wellspring.entity.CustomLivingEntity getImplementation() {
+-        return implementation;
+-    }
+-
+-}
+diff --git a/src/main/java/net/minecraft/server/EnumItemSlot.java b/src/main/java/net/minecraft/server/EnumItemSlot.java
+index 3ad9b3e69ef0ed8ad8eebcb323024670ce7599d1..da30716c90e3ca9c9d0cdf7fa11e68cbc2bcabab 100644
+--- a/src/main/java/net/minecraft/server/EnumItemSlot.java
++++ b/src/main/java/net/minecraft/server/EnumItemSlot.java
+@@ -1,5 +1,7 @@
+ package net.minecraft.server;
+ 
++import org.bukkit.inventory.EquipmentSlot;
++
+ public enum EnumItemSlot {
+ 
+     MAINHAND(EnumItemSlot.Function.HAND, 0, 0, "mainhand"), OFFHAND(EnumItemSlot.Function.HAND, 1, 5, "offhand"), FEET(EnumItemSlot.Function.ARMOR, 0, 1, "feet"), LEGS(EnumItemSlot.Function.ARMOR, 1, 2, "legs"), CHEST(EnumItemSlot.Function.ARMOR, 2, 3, "chest"), HEAD(EnumItemSlot.Function.ARMOR, 3, 4, "head");
+@@ -16,6 +18,33 @@ public enum EnumItemSlot {
+         this.j = s;
+     }
+ 
++    // Kenzie start - converters
++    public static EnumItemSlot[] convert(EquipmentSlot... slots) {
++        EnumItemSlot[] itemSlots = new EnumItemSlot[slots.length];
++        for (int i = 0; i < slots.length; i++) {
++            itemSlots[i] = convert(slots[i]);
++        }
++        return itemSlots;
++    }
++
++    public static EnumItemSlot convert(EquipmentSlot slot) {
++        switch (slot) {
++            case HEAD:
++                return HEAD;
++            case CHEST:
++                return CHEST;
++            case LEGS:
++                return LEGS;
++            case FEET:
++                return FEET;
++            case HAND:
++                return MAINHAND;
++            case OFF_HAND:
++                return OFFHAND;
++        }
++        return MAINHAND;
++    }
++    // Kenzie end
+     public EnumItemSlot.Function getType() { return this.a(); } // Paper - OBFHELPER
+     public EnumItemSlot.Function a() {
+         return this.g;
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+index 5d19a2389894fbd99c133cfbbc1ac8ba27aba57b..4f114dc0958873c9b08b093b2b7143fd7e070144 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+@@ -48,9 +48,11 @@ import java.util.logging.Logger;
+ import javax.imageio.ImageIO;
+ //import jline.console.ConsoleReader; // Paper
+ import mx.kenzie.server.CraftBridge;
++import mx.kenzie.server.enchantment.EnchantmentBuilderImplementation;
+ import mx.kenzie.server.nbt.NBTFactoryImplementation;
+ import mx.kenzie.server.potion.PotionBuilderImpl;
+ import mx.kenzie.wellspring.Wellspring;
++import mx.kenzie.wellspring.enchantment.EnchantmentBuilder;
+ import mx.kenzie.wellspring.nbt.NBT;
+ import mx.kenzie.wellspring.nbt.NBTCompound;
+ import mx.kenzie.wellspring.nbt.NBTFactory;
+@@ -2389,6 +2391,11 @@ public final class CraftServer implements Server, Wellspring { // Kenzie - Secon
+         return new PotionBuilderImpl(key, name);
+     }
+ 
++    @Override
++    public EnchantmentBuilder createEnchantment(NamespacedKey key, String name) {
++        return new EnchantmentBuilderImplementation(key, name);
++    }
++
+     @Override
+     public Bridge getBridge() {
+         return bridge;
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
+index 8d2c8b02bc6738496ee08a9f3f7f9ec31760a45c..c7853ab8ddc6b42e249901d3e353a17c74d10590 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
+@@ -1659,11 +1659,6 @@ public class CraftWorld implements World {
+                 entity = EntityTypes.GHAST.a(world);
+             } else if (Pig.class.isAssignableFrom(clazz)) {
+                 entity = EntityTypes.PIG.a(world);
+-            } else if (Human.class.isAssignableFrom(clazz)) { // Kenzie start - humans
+-                entity = new mx.kenzie.server.entity.Human(
+-                    world,
+-                    new GameProfile(UUID.randomUUID(), "Human"));
+-                    // Kenzie end
+             } else if (Player.class.isAssignableFrom(clazz)) {
+                 // need a net server handler for this one
+             } else if (Sheep.class.isAssignableFrom(clazz)) {

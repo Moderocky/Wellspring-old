@@ -1,0 +1,149 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Fri, 25 Sep 2020 13:15:21 +0100
+Subject: [PATCH] Nullity assurance on consumers.
+
+
+diff --git a/src/main/java/mx/kenzie/server/enchantment/EnchantmentBuilderImplementation.java b/src/main/java/mx/kenzie/server/enchantment/EnchantmentBuilderImplementation.java
+index 8a6e25c2584c799e25d55b2b2a7f248aa1f0ed35..0ada7d9ad50e8e1ddba7d06c69256351fae00003 100644
+--- a/src/main/java/mx/kenzie/server/enchantment/EnchantmentBuilderImplementation.java
++++ b/src/main/java/mx/kenzie/server/enchantment/EnchantmentBuilderImplementation.java
+@@ -1,6 +1,8 @@
+ package mx.kenzie.server.enchantment;
+ 
+ import mx.kenzie.wellspring.enchantment.EnchantmentBuilder;
++import mx.kenzie.wellspring.enchantment.Rarity;
++import mx.kenzie.wellspring.enchantment.Target;
+ import net.md_5.bungee.chat.ComponentSerializer;
+ import net.minecraft.server.*;
+ import org.bukkit.NamespacedKey;
+@@ -48,7 +50,9 @@ public class EnchantmentBuilderImplementation extends EnchantmentBuilder {
+ 
+             @Override
+             public boolean canEnchant(ItemStack var0) {
+-                return canEnchant.apply(CraftItemStack.asBukkitCopy(var0));
++                if (canEnchant != null)
++                    return canEnchant.apply(CraftItemStack.asBukkitCopy(var0));
++                return super.canEnchant(var0);
+             }
+ 
+             @Override
+@@ -73,6 +77,7 @@ public class EnchantmentBuilderImplementation extends EnchantmentBuilder {
+ 
+             @Override
+             public int a(int var0, DamageSource var1) {
++                if (damageProtection == null) return super.a(var0, var1);
+                 EntityDamageEvent.DamageCause cause;
+                 if (var1 == DamageSource.ANVIL) cause = EntityDamageEvent.DamageCause.FALLING_BLOCK;
+                 else if (var1 == DamageSource.BURN) cause = EntityDamageEvent.DamageCause.FIRE_TICK;
+@@ -100,6 +105,7 @@ public class EnchantmentBuilderImplementation extends EnchantmentBuilder {
+ 
+             @Override
+             public float a(int var0, EnumMonsterType var1) {
++                if (damageBonus == null) return super.a(var0, var1);
+                 EntityCategory category;
+                 if (var1 == EnumMonsterType.ARTHROPOD) category = EntityCategory.ARTHROPOD;
+                 else if (var1 == EnumMonsterType.ILLAGER) category = EntityCategory.ILLAGER;
+@@ -111,6 +117,7 @@ public class EnchantmentBuilderImplementation extends EnchantmentBuilder {
+ 
+             @Override // is compatible
+             protected boolean a(net.minecraft.server.Enchantment var0) {
++                if (compatible == null) return super.a(var0);
+                 String string = IRegistry.ENCHANTMENT.getKey(var0).toString();
+                 String[] parts = string.split(":");
+                 Enchantment enchantment = Enchantment.getByKey(new NamespacedKey(parts[0], parts[1]));
+@@ -119,6 +126,7 @@ public class EnchantmentBuilderImplementation extends EnchantmentBuilder {
+ 
+             @Override
+             protected String f() {
++                if (description == null) return super.f();
+                 return description;
+             }
+ 
+@@ -129,11 +137,13 @@ public class EnchantmentBuilderImplementation extends EnchantmentBuilder {
+ 
+             @Override
+             public IChatBaseComponent d(int var0) {
++                if (nameByLevel == null) return super.d(var0);
+                 return IChatBaseComponent.ChatSerializer.jsonToComponent(ComponentSerializer.toString(nameByLevel.apply(var0)));
+             }
+ 
+             @Override
+             public void a(EntityLiving var0, Entity var1, int var2) {
++                if (onDealDamage == null) return;
+                 LivingEntity holder = var0.getBukkitLivingEntity();
+                 org.bukkit.entity.Entity target = var1 != null ? var1.getBukkitEntity() : null;
+                 onDealDamage.onStrike(holder, target, var2);
+@@ -141,14 +151,15 @@ public class EnchantmentBuilderImplementation extends EnchantmentBuilder {
+ 
+             @Override
+             public void b(EntityLiving var0, Entity var1, int var2) {
++                if (onTakeDamage == null) return;
+                 LivingEntity holder = var0.getBukkitLivingEntity();
+                 org.bukkit.entity.Entity target = var1 != null ? var1.getBukkitEntity() : null;
+                 onTakeDamage.onStrike(holder, target, var2);
+             }
+         }
+ 
+-        CustomEnchantment enchantment = new CustomEnchantment(net.minecraft.server.Enchantment.Rarity.valueOf(rarity.toString()),
+-            EnchantmentSlotType.valueOf(target.toString()),
++        CustomEnchantment enchantment = new CustomEnchantment(convert(rarity),
++            convert(target),
+             EnumItemSlot.convert(effectiveSlots));
+ 
+         net.minecraft.server.Enchantment ench = IRegistry.a(IRegistry.ENCHANTMENT, key.toString(), enchantment);
+@@ -156,4 +167,54 @@ public class EnchantmentBuilderImplementation extends EnchantmentBuilder {
+         Enchantment.registerCustomEnchantment(wrapper);
+         return wrapper;
+     }
++
++    private EnchantmentSlotType convert(Target target) {
++        if (target == null) return EnchantmentSlotType.WEAPON;
++        switch (target) {
++            case WEARABLE:
++                return EnchantmentSlotType.WEARABLE;
++            case WEAPON:
++                return EnchantmentSlotType.WEAPON;
++            case BOW:
++                return EnchantmentSlotType.BOW;
++            case ARMOR:
++                return EnchantmentSlotType.ARMOR;
++            case DIGGER:
++                return EnchantmentSlotType.DIGGER;
++            case TRIDENT:
++                return EnchantmentSlotType.TRIDENT;
++            case CROSSBOW:
++                return EnchantmentSlotType.CROSSBOW;
++            case BREAKABLE:
++                return EnchantmentSlotType.BREAKABLE;
++            case ARMOR_HEAD:
++                return EnchantmentSlotType.ARMOR_HEAD;
++            case ARMOR_CHEST:
++                return EnchantmentSlotType.ARMOR_CHEST;
++            case ARMOR_LEGS:
++                return EnchantmentSlotType.ARMOR_LEGS;
++            case ARMOR_FEET:
++                return EnchantmentSlotType.ARMOR_FEET;
++            case VANISHABLE:
++                return EnchantmentSlotType.VANISHABLE;
++            case FISHING_ROD:
++                return EnchantmentSlotType.FISHING_ROD;
++        }
++        return EnchantmentSlotType.WEAPON;
++    }
++
++    private net.minecraft.server.Enchantment.Rarity convert(Rarity rarity) {
++        if (rarity == null) return net.minecraft.server.Enchantment.Rarity.COMMON;
++        switch (rarity) {
++            case RARE:
++                return net.minecraft.server.Enchantment.Rarity.RARE;
++            case COMMON:
++                return net.minecraft.server.Enchantment.Rarity.COMMON;
++            case UNCOMMON:
++                return net.minecraft.server.Enchantment.Rarity.UNCOMMON;
++            case VERY_RARE:
++                return net.minecraft.server.Enchantment.Rarity.VERY_RARE;
++        }
++        return net.minecraft.server.Enchantment.Rarity.COMMON;
++    }
+ }

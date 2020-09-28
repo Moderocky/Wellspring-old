@@ -1,0 +1,942 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Sat, 26 Sep 2020 17:57:46 +0100
+Subject: [PATCH] Enchantment holder utility.
+
+
+diff --git a/src/main/java/mx/kenzie/wellspring/clientside/entity/ClientsideEntity.java b/src/main/java/mx/kenzie/wellspring/clientside/entity/ClientsideEntity.java
+deleted file mode 100644
+index a5e9b093251853f316490bb30438fb760435da86..0000000000000000000000000000000000000000
+--- a/src/main/java/mx/kenzie/wellspring/clientside/entity/ClientsideEntity.java
++++ /dev/null
+@@ -1,599 +0,0 @@
+-package mx.kenzie.wellspring.clientside.entity;
+-
+-import mx.kenzie.wellspring.Wellspring;
+-import mx.kenzie.wellspring.nbt.NBTCompound;
+-import mx.kenzie.wellspring.packet.Packet;
+-import mx.kenzie.wellspring.packet.PacketType;
+-import net.md_5.bungee.api.chat.BaseComponent;
+-import net.md_5.bungee.api.chat.TextComponent;
+-import org.bukkit.*;
+-import org.bukkit.attachment.Attachment;
+-import org.bukkit.block.BlockFace;
+-import org.bukkit.block.PistonMoveReaction;
+-import org.bukkit.entity.Entity;
+-import org.bukkit.entity.EntityType;
+-import org.bukkit.entity.Player;
+-import org.bukkit.entity.Pose;
+-import org.bukkit.event.entity.CreatureSpawnEvent;
+-import org.bukkit.event.entity.EntityDamageEvent;
+-import org.bukkit.event.player.PlayerTeleportEvent;
+-import org.bukkit.metadata.MetadataValue;
+-import org.bukkit.permissions.Permission;
+-import org.bukkit.permissions.PermissionAttachment;
+-import org.bukkit.permissions.PermissionAttachmentInfo;
+-import org.bukkit.persistence.PersistentDataContainer;
+-import org.bukkit.plugin.Plugin;
+-import org.bukkit.util.BoundingBox;
+-import org.bukkit.util.Vector;
+-import org.jetbrains.annotations.NotNull;
+-import org.jetbrains.annotations.Nullable;
+-
+-import java.util.*;
+-
+-public abstract class ClientsideEntity implements Entity {
+-
+-    private final int id;
+-    private final UUID uuid;
+-    private final EntityType type;
+-    private transient Vector motion;
+-    private transient Location location;
+-    private final transient World world;
+-    private float pitch, yaw, head;
+-    private boolean nameVisible, glowing, invisible, silent;
+-
+-    private BaseComponent[] name;
+-
+-    private final transient Wellspring server = ((Wellspring) Bukkit.getServer());
+-
+-    protected ClientsideEntity(int id, @NotNull UUID uuid, @NotNull EntityType type) {
+-        this.id = id;
+-        this.uuid = uuid;
+-        this.type = type;
+-        this.world = Bukkit.getWorlds().get(0);
+-    }
+-
+-    @NotNull
+-    @Override
+-    public Location getLocation() {
+-        return location.clone();
+-    }
+-
+-    @Nullable
+-    @Override
+-    public Location getLocation(@Nullable Location loc) {
+-        if (loc == null) return null;
+-        return loc.set(location.getX(), location.getY(), location.getZ());
+-    }
+-
+-    @NotNull
+-    @Override
+-    public Vector getVelocity() {
+-        return motion.clone();
+-    }
+-
+-    @Override
+-    public void setVelocity(@NotNull Vector velocity) {
+-        motion = velocity.clone();
+-    }
+-
+-    @Override
+-    public double getHeight() {
+-        return server.getBridge().getHeight(type);
+-    }
+-
+-    @Override
+-    public double getWidth() {
+-        return server.getBridge().getWidth(type);
+-    }
+-
+-    @NotNull
+-    @Override
+-    public BoundingBox getBoundingBox() {
+-        double x = getWidth() / 2, y = getHeight() / 2, z = getWidth() / 2;
+-        return BoundingBox.of(getLocation().add(x, y, z), x, y, z);
+-    }
+-
+-    @Override
+-    public boolean isOnGround() {
+-        return false;
+-    }
+-
+-    @NotNull
+-    @Override
+-    public World getWorld() {
+-        return world;
+-    }
+-
+-    @Override
+-    public void setRotation(float yaw, float pitch) {
+-        this.pitch = pitch;
+-        this.yaw = yaw;
+-    }
+-
+-    @Override
+-    public boolean teleport(@NotNull Location location) {
+-        this.location = location.clone();
+-        return true;
+-    }
+-
+-    @Override
+-    public boolean teleport(@NotNull Location location, @NotNull PlayerTeleportEvent.TeleportCause cause) {
+-        this.location = location.clone();
+-        return true;
+-    }
+-
+-    @Override
+-    public boolean teleport(@NotNull Entity destination) {
+-        this.location = destination.getLocation().clone();
+-        return true;
+-    }
+-
+-    @Override
+-    public boolean teleport(@NotNull Entity destination, @NotNull PlayerTeleportEvent.TeleportCause cause) {
+-        this.location = destination.getLocation().clone();
+-        return true;
+-    }
+-
+-    @NotNull
+-    @Override
+-    public List<Entity> getNearbyEntities(double x, double y, double z) {
+-        return new ArrayList<>(world.getNearbyEntities(location, x, y, z));
+-    }
+-
+-    @Override
+-    public int getEntityId() {
+-        return id;
+-    }
+-
+-    @Override
+-    public int getFireTicks() {
+-        return -1;
+-    }
+-
+-    @Override
+-    public void setFireTicks(int ticks) {
+-
+-    }
+-
+-    @Override
+-    public int getMaxFireTicks() {
+-        return -1;
+-    }
+-
+-    @Override
+-    public void remove() {
+-
+-    }
+-
+-    @Override
+-    public boolean isDead() {
+-        return false;
+-    }
+-
+-    @Override
+-    public boolean isValid() {
+-        return false;
+-    }
+-
+-    @Override
+-    public void sendMessage(@NotNull String message) {
+-
+-    }
+-
+-    @Override
+-    public void sendMessage(@NotNull String[] messages) {
+-
+-    }
+-
+-    @NotNull
+-    @Override
+-    public Server getServer() {
+-        return server;
+-    }
+-
+-    @NotNull
+-    @Override
+-    public String getName() {
+-        return TextComponent.toLegacyText(name);
+-    }
+-
+-    @Override
+-    public boolean isPersistent() {
+-        return false;
+-    }
+-
+-    @Override
+-    public void setPersistent(boolean persistent) {
+-
+-    }
+-
+-    @Nullable
+-    @Override
+-    public Entity getPassenger() {
+-        return null;
+-    }
+-
+-    @Override
+-    public boolean setPassenger(@NotNull Entity passenger) {
+-        return false;
+-    }
+-
+-    @NotNull
+-    @Override
+-    public List<Entity> getPassengers() {
+-        return new ArrayList<>();
+-    }
+-
+-    @Override
+-    public boolean addPassenger(@NotNull Entity passenger) {
+-        return false;
+-    }
+-
+-    @Override
+-    public boolean removePassenger(@NotNull Entity passenger) {
+-        return false;
+-    }
+-
+-    @Override
+-    public boolean isEmpty() {
+-        return true;
+-    }
+-
+-    @Override
+-    public boolean eject() {
+-        return false;
+-    }
+-
+-    @Override
+-    public float getFallDistance() {
+-        return 0;
+-    }
+-
+-    @Override
+-    public void setFallDistance(float distance) {
+-
+-    }
+-
+-    @Nullable
+-    @Override
+-    public EntityDamageEvent getLastDamageCause() {
+-        return null;
+-    }
+-
+-    @Override
+-    public void setLastDamageCause(@Nullable EntityDamageEvent event) {
+-
+-    }
+-
+-    @NotNull
+-    @Override
+-    public UUID getUniqueId() {
+-        return uuid;
+-    }
+-
+-    @Override
+-    public int getTicksLived() {
+-        return 0;
+-    }
+-
+-    @Override
+-    public void setTicksLived(int value) {
+-
+-    }
+-
+-    @Override
+-    public void playEffect(@NotNull EntityEffect type) {
+-        Packet packet = server.getPacketFactory().createFrom(PacketType.Outgoing.ANIMATION, id, type.getData());
+-        packet.send(Bukkit.getOnlinePlayers().toArray(new Player[0]));
+-    }
+-
+-    @NotNull
+-    @Override
+-    public EntityType getType() {
+-        return type;
+-    }
+-
+-    @Override
+-    public boolean isInsideVehicle() {
+-        return false;
+-    }
+-
+-    @Override
+-    public boolean leaveVehicle() {
+-        return false;
+-    }
+-
+-    @Nullable
+-    @Override
+-    public Entity getVehicle() {
+-        return null;
+-    }
+-
+-    @Override
+-    public boolean isCustomNameVisible() {
+-        return nameVisible;
+-    }
+-
+-    @Override
+-    public void setCustomNameVisible(boolean flag) {
+-        nameVisible = flag;
+-    }
+-
+-    @Override
+-    public boolean isGlowing() {
+-        return glowing;
+-    }
+-
+-    @Override
+-    public void setGlowing(boolean flag) {
+-        glowing = flag;
+-    }
+-
+-    @Override
+-    public boolean isInvulnerable() {
+-        return true;
+-    }
+-
+-    @Override
+-    public void setInvulnerable(boolean flag) {
+-
+-    }
+-
+-    @Override
+-    public boolean isSilent() {
+-        return silent;
+-    }
+-
+-    @Override
+-    public void setSilent(boolean flag) {
+-        this.silent = flag;
+-    }
+-
+-    @Override
+-    public boolean hasGravity() {
+-        return false;
+-    }
+-
+-    @Override
+-    public void setGravity(boolean gravity) {
+-
+-    }
+-
+-    @Override
+-    public int getPortalCooldown() {
+-        return 0;
+-    }
+-
+-    @Override
+-    public void setPortalCooldown(int cooldown) {
+-
+-    }
+-
+-    @NotNull
+-    @Override
+-    public Set<String> getScoreboardTags() {
+-        return new HashSet<>();
+-    }
+-
+-    @Override
+-    public boolean addScoreboardTag(@NotNull String tag) {
+-        return false;
+-    }
+-
+-    @Override
+-    public boolean removeScoreboardTag(@NotNull String tag) {
+-        return false;
+-    }
+-
+-    @NotNull
+-    @Override
+-    public PistonMoveReaction getPistonMoveReaction() {
+-        return PistonMoveReaction.IGNORE;
+-    }
+-
+-    @NotNull
+-    @Override
+-    public BlockFace getFacing() {
+-        return BlockFace.SELF;
+-    }
+-
+-    @NotNull
+-    @Override
+-    public Pose getPose() {
+-        return Pose.STANDING;
+-    }
+-
+-    @NotNull
+-    @Override
+-    public Spigot spigot() {
+-        return new Spigot();
+-    }
+-
+-    @Nullable
+-    @Override
+-    public Location getOrigin() {
+-        return null;
+-    }
+-
+-    @Override
+-    public boolean fromMobSpawner() {
+-        return false;
+-    }
+-
+-    @NotNull
+-    @Override
+-    public Chunk getChunk() {
+-        return null;
+-    }
+-
+-    @NotNull
+-    @Override
+-    public CreatureSpawnEvent.SpawnReason getEntitySpawnReason() {
+-        return null;
+-    }
+-
+-    @Override
+-    public boolean isInWater() {
+-        return false;
+-    }
+-
+-    @Override
+-    public boolean isInRain() {
+-        return false;
+-    }
+-
+-    @Override
+-    public boolean isInBubbleColumn() {
+-        return false;
+-    }
+-
+-    @Override
+-    public boolean isInWaterOrRain() {
+-        return false;
+-    }
+-
+-    @Override
+-    public boolean isInWaterOrBubbleColumn() {
+-        return false;
+-    }
+-
+-    @Override
+-    public boolean isInWaterOrRainOrBubbleColumn() {
+-        return false;
+-    }
+-
+-    @Override
+-    public boolean isInLava() {
+-        return false;
+-    }
+-
+-    @NotNull
+-    @Override
+-    public NBTCompound getNBT() {
+-        return NBTCompound.create();
+-    }
+-
+-    @Override
+-    public void loadNBT(@NotNull NBTCompound compound) {
+-
+-    }
+-
+-    @Nullable
+-    @Override
+-    public String getCustomName() {
+-        return TextComponent.toLegacyText(name);
+-    }
+-
+-    @Override
+-    public void setCustomName(@Nullable String name) {
+-        this.name = TextComponent.fromLegacyText(name);
+-    }
+-
+-    @NotNull
+-    @Override
+-    public <T extends Attachment<?>> T getAttachment(@NotNull Class<T> attachmentClass) throws RuntimeException {
+-        throw new RuntimeException(new IllegalAccessException("Unable to attach anything to client-side entities."));
+-    }
+-
+-    @Override
+-    public <T extends Attachment<?>> boolean hasAttachment(@NotNull Class<T> attachmentClass) {
+-        return false;
+-    }
+-
+-    @Override
+-    public void setMetadata(@NotNull String metadataKey, @NotNull MetadataValue newMetadataValue) {
+-
+-    }
+-
+-    @NotNull
+-    @Override
+-    public List<MetadataValue> getMetadata(@NotNull String metadataKey) {
+-        return new ArrayList<>();
+-    }
+-
+-    @Override
+-    public boolean hasMetadata(@NotNull String metadataKey) {
+-        return false;
+-    }
+-
+-    @Override
+-    public void removeMetadata(@NotNull String metadataKey, @NotNull Plugin owningPlugin) {
+-
+-    }
+-
+-    @Override
+-    public boolean isPermissionSet(@NotNull String name) {
+-        return false;
+-    }
+-
+-    @Override
+-    public boolean isPermissionSet(@NotNull Permission perm) {
+-        return false;
+-    }
+-
+-    @Override
+-    public boolean hasPermission(@NotNull String name) {
+-        return false;
+-    }
+-
+-    @Override
+-    public boolean hasPermission(@NotNull Permission perm) {
+-        return false;
+-    }
+-
+-    @NotNull
+-    @Override
+-    public PermissionAttachment addAttachment(@NotNull Plugin plugin, @NotNull String name, boolean value) throws RuntimeException {
+-        throw new RuntimeException(new IllegalAccessException("Unable to attach anything to client-side entities."));
+-    }
+-
+-    @NotNull
+-    @Override
+-    public PermissionAttachment addAttachment(@NotNull Plugin plugin) throws RuntimeException {
+-        throw new RuntimeException(new IllegalAccessException("Unable to attach anything to client-side entities."));
+-    }
+-
+-    @Nullable
+-    @Override
+-    public PermissionAttachment addAttachment(@NotNull Plugin plugin, @NotNull String name, boolean value, int ticks) throws RuntimeException {
+-        throw new RuntimeException(new IllegalAccessException("Unable to attach anything to client-side entities."));
+-    }
+-
+-    @Nullable
+-    @Override
+-    public PermissionAttachment addAttachment(@NotNull Plugin plugin, int ticks) throws RuntimeException {
+-        throw new RuntimeException(new IllegalAccessException("Unable to attach anything to client-side entities."));
+-    }
+-
+-    @Override
+-    public void removeAttachment(@NotNull PermissionAttachment attachment) throws RuntimeException {
+-        throw new RuntimeException(new IllegalAccessException("Unable to attach anything to client-side entities."));
+-    }
+-
+-    @Override
+-    public void recalculatePermissions() {
+-
+-    }
+-
+-    @NotNull
+-    @Override
+-    public Set<PermissionAttachmentInfo> getEffectivePermissions() {
+-        return new HashSet<>();
+-    }
+-
+-    @Override
+-    public boolean isOp() {
+-        return false;
+-    }
+-
+-    @Override
+-    public void setOp(boolean value) {
+-
+-    }
+-
+-    @NotNull
+-    @Override
+-    public PersistentDataContainer getPersistentDataContainer() throws RuntimeException {
+-        throw new RuntimeException(new IllegalAccessException("Unable to attach anything to client-side entities."));
+-    }
+-}
+diff --git a/src/main/java/mx/kenzie/wellspring/enchantment/EnchantmentHolder.java b/src/main/java/mx/kenzie/wellspring/enchantment/EnchantmentHolder.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..22fc06b09211bb4f5944cc34f9048a4863e8004f
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/enchantment/EnchantmentHolder.java
+@@ -0,0 +1,52 @@
++package mx.kenzie.wellspring.enchantment;
++
++import org.bukkit.enchantments.Enchantment;
++import org.jetbrains.annotations.NotNull;
++
++/**
++ * An enchantment holder - either an entity with equipment
++ * or an item stack.
++ *
++ * This can be used to find the highest-level enchantment on
++ * an entity's total gear.
++ * Entities will only count valid enchantments.
++ *
++ * For an item it will only include present enchantments.
++ *
++ * @author Moderocky
++ */
++public interface EnchantmentHolder {
++
++    /**
++     * Whether the enchantment is present on the holder.
++     * If the holder is an entity, it will check for any valid
++     * enchantments on any gear.
++     *
++     * @param enchantment the enchantment to check
++     * @return whether present
++     */
++    default boolean hasEnchantment(@NotNull Enchantment enchantment) {
++        return getMaxPresentLevel(enchantment) > 0;
++    }
++
++    /**
++     * The highest level present for this enchantment.
++     *
++     * @param enchantment the enchantment to check
++     * @return the level
++     */
++    int getMaxPresentLevel(@NotNull Enchantment enchantment);
++
++    /**
++     * The cumulative total level of an enchantment for this holder.
++     * If the holder is an entity and has multiple of the same enchantment
++     * on different gear, these will be totalled.
++     *
++     * @param enchantment the enchantment to check
++     * @return the total level
++     */
++    default int getCumulativeLevel(@NotNull Enchantment enchantment) {
++        return getMaxPresentLevel(enchantment);
++    }
++
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/entity/CustomEntity.java b/src/main/java/mx/kenzie/wellspring/entity/CustomEntity.java
+deleted file mode 100644
+index ccda18d4eb0878736a8b72facf8120d20c34329e..0000000000000000000000000000000000000000
+--- a/src/main/java/mx/kenzie/wellspring/entity/CustomEntity.java
++++ /dev/null
+@@ -1,22 +0,0 @@
+-package mx.kenzie.wellspring.entity;
+-
+-import org.bukkit.entity.Entity;
+-import org.bukkit.entity.EntityType;
+-import org.bukkit.plugin.Plugin;
+-import org.jetbrains.annotations.NotNull;
+-
+-public interface CustomEntity extends Entity {
+-
+-    @NotNull
+-    @Override
+-    default EntityType getType() {
+-        return EntityType.UNKNOWN;
+-    }
+-
+-    @NotNull
+-    CustomEntityType getCustomType();
+-
+-    @NotNull
+-    Plugin getProvidingPlugin();
+-
+-}
+diff --git a/src/main/java/mx/kenzie/wellspring/entity/CustomEntityRegistry.java b/src/main/java/mx/kenzie/wellspring/entity/CustomEntityRegistry.java
+deleted file mode 100644
+index dcc6b750a927e0499395f29e01046e2d5687e279..0000000000000000000000000000000000000000
+--- a/src/main/java/mx/kenzie/wellspring/entity/CustomEntityRegistry.java
++++ /dev/null
+@@ -1,23 +0,0 @@
+-package mx.kenzie.wellspring.entity;
+-
+-import mx.kenzie.wellspring.Wellspring;
+-import org.bukkit.NamespacedKey;
+-import org.jetbrains.annotations.NotNull;
+-
+-public abstract class CustomEntityRegistry {
+-
+-    protected final Wellspring server;
+-
+-    protected CustomEntityRegistry(@NotNull Wellspring wellspring) {
+-        this.server = wellspring;
+-    }
+-
+-    /**
+-     * Internal route.
+-     */
+-    protected @NotNull
+-    CustomEntityType createType(@NotNull String name, @NotNull NamespacedKey key, @NotNull Class<? extends CustomEntity> cls, short id, boolean spawnable, boolean alive) {
+-        return new CustomEntityType(name, key, cls, id, spawnable, alive);
+-    }
+-
+-}
+diff --git a/src/main/java/mx/kenzie/wellspring/entity/CustomEntityType.java b/src/main/java/mx/kenzie/wellspring/entity/CustomEntityType.java
+deleted file mode 100644
+index 4faedaa1958a349ed4253f82e151a8c4e96e5a66..0000000000000000000000000000000000000000
+--- a/src/main/java/mx/kenzie/wellspring/entity/CustomEntityType.java
++++ /dev/null
+@@ -1,57 +0,0 @@
+-package mx.kenzie.wellspring.entity;
+-
+-import org.bukkit.NamespacedKey;
+-import org.bukkit.entity.Entity;
+-import org.jetbrains.annotations.NotNull;
+-import org.jetbrains.annotations.Nullable;
+-
+-public class CustomEntityType implements IEntityType {
+-
+-    private final String name;
+-    private final NamespacedKey key;
+-    private final Class<? extends CustomEntity> cls;
+-    private final short id;
+-    private final boolean spawnable, alive;
+-
+-    CustomEntityType(@NotNull String name, @NotNull NamespacedKey key, @NotNull Class<? extends CustomEntity> cls, short id, boolean spawnable, boolean alive) {
+-        this.name = name;
+-        this.key = key;
+-        this.cls = cls;
+-        this.id = id;
+-        this.spawnable = spawnable;
+-        this.alive = alive;
+-    }
+-
+-    @Nullable
+-    @Override
+-    public String getName() {
+-        return name;
+-    }
+-
+-    @NotNull
+-    @Override
+-    public NamespacedKey getKey() {
+-        return key;
+-    }
+-
+-    @Nullable
+-    @Override
+-    public Class<? extends Entity> getEntityClass() {
+-        return cls;
+-    }
+-
+-    @Override
+-    public short getTypeId() {
+-        return id;
+-    }
+-
+-    @Override
+-    public boolean isSpawnable() {
+-        return spawnable;
+-    }
+-
+-    @Override
+-    public boolean isAlive() {
+-        return alive;
+-    }
+-}
+diff --git a/src/main/java/mx/kenzie/wellspring/entity/CustomLivingEntity.java b/src/main/java/mx/kenzie/wellspring/entity/CustomLivingEntity.java
+deleted file mode 100644
+index c66031d29ad0007ee025f634b0111722fada873f..0000000000000000000000000000000000000000
+--- a/src/main/java/mx/kenzie/wellspring/entity/CustomLivingEntity.java
++++ /dev/null
+@@ -1,36 +0,0 @@
+-package mx.kenzie.wellspring.entity;
+-
+-import org.bukkit.entity.EntityType;
+-import org.bukkit.inventory.EquipmentSlot;
+-import org.bukkit.inventory.ItemStack;
+-import org.bukkit.plugin.Plugin;
+-import org.jetbrains.annotations.NotNull;
+-
+-import java.util.List;
+-
+-public interface CustomLivingEntity {
+-
+-    @NotNull
+-    EntityType getVisualType();
+-
+-    @NotNull
+-    List<ItemStack> getArmorItems();
+-
+-    @NotNull
+-    ItemStack getEquipment(@NotNull EquipmentSlot slot);
+-
+-    void setEquipment(@NotNull EquipmentSlot slot, @NotNull ItemStack item);
+-
+-    @NotNull
+-    Hand getMainHand();
+-
+-    @NotNull
+-    CustomEntityType getCustomType();
+-
+-    @NotNull
+-    Plugin getProvidingPlugin();
+-
+-    enum Hand {
+-        RIGHT, LEFT
+-    }
+-}
+diff --git a/src/main/java/mx/kenzie/wellspring/entity/Human.java b/src/main/java/mx/kenzie/wellspring/entity/Human.java
+deleted file mode 100644
+index ab2988bdedf108f7a1a307fd0efb7eae5e75bbcd..0000000000000000000000000000000000000000
+--- a/src/main/java/mx/kenzie/wellspring/entity/Human.java
++++ /dev/null
+@@ -1,6 +0,0 @@
+-package mx.kenzie.wellspring.entity;
+-
+-import org.bukkit.entity.Player;
+-
+-public interface Human extends Player {
+-}
+diff --git a/src/main/java/mx/kenzie/wellspring/entity/IEntityType.java b/src/main/java/mx/kenzie/wellspring/entity/IEntityType.java
+deleted file mode 100644
+index 2f5d7eff76be38cc483a97e3c78213b1fa67baaa..0000000000000000000000000000000000000000
+--- a/src/main/java/mx/kenzie/wellspring/entity/IEntityType.java
++++ /dev/null
+@@ -1,25 +0,0 @@
+-package mx.kenzie.wellspring.entity;
+-
+-import org.bukkit.NamespacedKey;
+-import org.bukkit.entity.Entity;
+-import org.jetbrains.annotations.NotNull;
+-import org.jetbrains.annotations.Nullable;
+-
+-public interface IEntityType {
+-    @Deprecated
+-    @Nullable
+-    String getName();
+-
+-    @NotNull
+-    NamespacedKey getKey();
+-
+-    @Nullable
+-    Class<? extends Entity> getEntityClass();
+-
+-    @Deprecated
+-    short getTypeId();
+-
+-    boolean isSpawnable();
+-
+-    boolean isAlive();
+-}
+diff --git a/src/main/java/org/bukkit/entity/Entity.java b/src/main/java/org/bukkit/entity/Entity.java
+index 755153e9b63d5a402ffc2742daa405772aff22c6..9aca4f9952834983a2891d3a45ee93019f9e7a33 100644
+--- a/src/main/java/org/bukkit/entity/Entity.java
++++ b/src/main/java/org/bukkit/entity/Entity.java
+@@ -4,6 +4,7 @@ import java.util.List;
+ import java.util.Set;
+ import java.util.UUID;
+ 
++import mx.kenzie.wellspring.enchantment.EnchantmentHolder;
+ import mx.kenzie.wellspring.nbt.NBTHolder;
+ import org.bukkit.Chunk; // Paper
+ import org.bukkit.EntityEffect;
+@@ -29,7 +30,7 @@ import org.jetbrains.annotations.Nullable;
+ /**
+  * Represents a base entity in the world
+  */
+-public interface Entity extends Metadatable, CommandSender, Nameable, PersistentDataHolder, Attachable, NBTHolder {
++public interface Entity extends Metadatable, CommandSender, Nameable, PersistentDataHolder, Attachable, NBTHolder, EnchantmentHolder {
+ 
+     /*
+      * Gets the entity's current position
+diff --git a/src/main/java/org/bukkit/entity/EntityType.java b/src/main/java/org/bukkit/entity/EntityType.java
+index 445466183cedb80581254a502dd999f84d12a7ef..65dde51f6bb32555b04a1d49b39f7149bde6f463 100644
+--- a/src/main/java/org/bukkit/entity/EntityType.java
++++ b/src/main/java/org/bukkit/entity/EntityType.java
+@@ -4,8 +4,6 @@ import com.google.common.base.Preconditions;
+ import java.util.HashMap;
+ import java.util.Map;
+ 
+-import mx.kenzie.wellspring.Wellspring;
+-import mx.kenzie.wellspring.entity.Human;
+ import org.bukkit.Keyed;
+ import org.bukkit.Location;
+ import org.bukkit.NamespacedKey;
+diff --git a/src/main/java/org/bukkit/inventory/ItemStack.java b/src/main/java/org/bukkit/inventory/ItemStack.java
+index 2b4d77cf1581233103942f71ea439755812e7764..5c8ca4ea19c49f5d211136f83244e196eb307991 100644
+--- a/src/main/java/org/bukkit/inventory/ItemStack.java
++++ b/src/main/java/org/bukkit/inventory/ItemStack.java
+@@ -6,6 +6,8 @@ import java.util.List; // Paper
+ import java.util.Map;
+ import java.util.Set; // Paper
+ 
++import mx.kenzie.wellspring.enchantment.EnchantmentBuilder;
++import mx.kenzie.wellspring.enchantment.EnchantmentHolder;
+ import mx.kenzie.wellspring.nbt.NBT;
+ import mx.kenzie.wellspring.nbt.NBTCompound;
+ import mx.kenzie.wellspring.nbt.NBTHolder;
+@@ -29,7 +31,7 @@ import org.jetbrains.annotations.Nullable;
+  * use this class to encapsulate Materials for which {@link Material#isItem()}
+  * returns false.</b>
+  */
+-public class ItemStack implements Cloneable, ConfigurationSerializable, NBTHolder { // Kenzie
++public class ItemStack implements Cloneable, ConfigurationSerializable, NBTHolder, EnchantmentHolder { // Kenzie
+     private Material type = Material.AIR;
+     private int amount = 0;
+     private MaterialData data = null;
+@@ -869,6 +871,11 @@ public class ItemStack implements Cloneable, ConfigurationSerializable, NBTHolde
+         return Bukkit.getNBTFactory().getAsCompound(this);
+     }
+ 
++    @Override
++    public int getMaxPresentLevel(@NotNull Enchantment enchantment) {
++        return getItemMeta().getEnchantLevel(enchantment);
++    }
++
+     // Kenzie end
+     // Paper end
+ }

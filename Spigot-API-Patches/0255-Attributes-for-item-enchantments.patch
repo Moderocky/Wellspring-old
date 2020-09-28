@@ -1,0 +1,44 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Mon, 28 Sep 2020 13:17:49 +0100
+Subject: [PATCH] Attributes for item enchantments.
+
+
+diff --git a/src/main/java/mx/kenzie/wellspring/enchantment/EnchantmentBuilder.java b/src/main/java/mx/kenzie/wellspring/enchantment/EnchantmentBuilder.java
+index 403335799ece202c9b6f8937957ed2b00891b9cf..88afadd8cd31b878b969509ab6f8b7b0c278fff3 100644
+--- a/src/main/java/mx/kenzie/wellspring/enchantment/EnchantmentBuilder.java
++++ b/src/main/java/mx/kenzie/wellspring/enchantment/EnchantmentBuilder.java
+@@ -6,6 +6,8 @@ import net.md_5.bungee.api.chat.BaseComponent;
+ import net.md_5.bungee.api.chat.ComponentBuilder;
+ import net.md_5.bungee.api.chat.TranslatableComponent;
+ import org.bukkit.NamespacedKey;
++import org.bukkit.attribute.Attribute;
++import org.bukkit.attribute.AttributeModifier;
+ import org.bukkit.enchantments.Enchantment;
+ import org.bukkit.entity.EntityCategory;
+ import org.bukkit.event.entity.EntityDamageEvent;
+@@ -251,6 +253,24 @@ public abstract class EnchantmentBuilder {
+         return this;
+     }
+ 
++    /**
++     * Add an attribute for this enchantment.
++     * The attribute will only function when the item is put in the correct slot.
++     *
++     * The modifier's value will be multiplied by the enchantment's level, so be careful
++     * of using large values.
++     *
++     * This will be combined with the item's attributes for use cases, but will not
++     * be stored within the item's NBT.
++     *
++     * @param attribute the attribute to add
++     * @param value the value of the attribute, to be multiplied by the enchantment level
++     * @param operation the attribute operation
++     * @return builder method
++     */
++    public abstract @NotNull
++    EnchantmentBuilder addAttribute(Attribute attribute, double value, AttributeModifier.Operation operation);
++
+     /**
+      * Registers and creates the enchantment.
+      *

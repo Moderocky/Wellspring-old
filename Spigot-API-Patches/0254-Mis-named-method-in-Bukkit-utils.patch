@@ -1,0 +1,19 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Sun, 27 Sep 2020 13:20:21 +0100
+Subject: [PATCH] Mis-named method in Bukkit utils.
+
+
+diff --git a/src/main/java/org/bukkit/Bukkit.java b/src/main/java/org/bukkit/Bukkit.java
+index ce823a1e122c68102c4f2b50538c1bb0d39d15af..f2648a96b293a959813ae76ab537474360c4454a 100644
+--- a/src/main/java/org/bukkit/Bukkit.java
++++ b/src/main/java/org/bukkit/Bukkit.java
+@@ -1800,7 +1800,7 @@ public final class Bukkit {
+      * @return the new attribute marker
+      */
+     public static @NotNull
+-    Attribute registerRangedAttribute(@NotNull NamespacedKey key, double defaultValue, double min, double max) {
++    Attribute registerAttribute(@NotNull NamespacedKey key, double defaultValue, double min, double max) {
+         return server.registerAttribute(key, defaultValue, min, max);
+     }
+ 

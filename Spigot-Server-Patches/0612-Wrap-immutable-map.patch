@@ -1,0 +1,19 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Mon, 28 Sep 2020 14:37:05 +0100
+Subject: [PATCH] Wrap immutable map.
+
+
+diff --git a/src/main/java/net/minecraft/server/ItemStack.java b/src/main/java/net/minecraft/server/ItemStack.java
+index 966796719df164c113b9e059e322d94876af3141..ed89e6baccb6a62ac2017f8e4c4e7dc84728c415 100644
+--- a/src/main/java/net/minecraft/server/ItemStack.java
++++ b/src/main/java/net/minecraft/server/ItemStack.java
+@@ -843,7 +843,7 @@ public final class ItemStack {
+                 }
+             }
+         } else {
+-            object = this.getItem().a(enumitemslot);
++            object = HashMultimap.create(this.getItem().a(enumitemslot));
+         }
+ 
+         // Kenzie start - enchant attributes

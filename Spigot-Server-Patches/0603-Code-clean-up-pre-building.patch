@@ -1,0 +1,232 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Fri, 25 Sep 2020 12:28:45 +0100
+Subject: [PATCH] Code clean-up pre-building.
+
+
+diff --git a/src/main/java/mx/kenzie/server/CraftBridge.java b/src/main/java/mx/kenzie/server/CraftBridge.java
+index b90c2f6cdbc599e61db4b30dc1c67340cd6749db..a6aa74900e11dbdd39e7f00737075237eb77a7d4 100644
+--- a/src/main/java/mx/kenzie/server/CraftBridge.java
++++ b/src/main/java/mx/kenzie/server/CraftBridge.java
+@@ -1,7 +1,8 @@
+ package mx.kenzie.server;
+ 
+ import mx.kenzie.wellspring.Wellspring;
+-import net.minecraft.server.*;
++import net.minecraft.server.IRegistry;
++import net.minecraft.server.MinecraftKey;
+ import org.bukkit.entity.EntityType;
+ 
+ public class CraftBridge extends Wellspring.Bridge {
+diff --git a/src/main/java/mx/kenzie/server/attachment/AttachmentFactory.java b/src/main/java/mx/kenzie/server/attachment/AttachmentFactory.java
+index 5f8ca289e060bddde07894d4e240552d284940f9..33b971e137a4c26daefcfba3df89a3314b7fe8ed 100644
+--- a/src/main/java/mx/kenzie/server/attachment/AttachmentFactory.java
++++ b/src/main/java/mx/kenzie/server/attachment/AttachmentFactory.java
+@@ -51,7 +51,7 @@ public class AttachmentFactory {
+         addAttachments(target, holder);
+         return holder;
+     }
+-    
++
+     public <T extends Attachable> void addAttachments(T target, AttachmentHolder holder) {
+         Set<Function<Attachable, Attachment<?>>> providers = getAttachmentProviders(target.getClass());
+         for (Function<Attachable, Attachment<?>> provider : providers) {
+@@ -99,7 +99,7 @@ public class AttachmentFactory {
+             }
+         }
+         holders.clear();
+-        pluginFactoryMethods.clear();;
++        pluginFactoryMethods.clear();
+     }
+ 
+ }
+diff --git a/src/main/java/mx/kenzie/server/attachment/AttachmentHolder.java b/src/main/java/mx/kenzie/server/attachment/AttachmentHolder.java
+index 8dd2ff66ff0731d24622a079429632e3d766e278..2a6e02de88b4c58104cfe9303209b4406dcbeec9 100644
+--- a/src/main/java/mx/kenzie/server/attachment/AttachmentHolder.java
++++ b/src/main/java/mx/kenzie/server/attachment/AttachmentHolder.java
+@@ -5,7 +5,9 @@ import org.bukkit.attachment.Attachable;
+ import org.bukkit.attachment.Attachment;
+ import org.bukkit.plugin.Plugin;
+ 
+-import java.util.*;
++import java.util.ArrayList;
++import java.util.HashSet;
++import java.util.Set;
+ 
+ public class AttachmentHolder extends ArrayList<Attachment<?>> {
+ 
+@@ -39,15 +41,15 @@ public class AttachmentHolder extends ArrayList<Attachment<?>> {
+ 
+     public void removeAll(Plugin plugin) {
+         this.removeIf(attachment -> {
+-           if (attachment.getOwningPlugin() == plugin) {
+-               try {
+-                   attachment.onDisposal();
+-               } catch (Throwable throwable) {
+-                   throwable.printStackTrace();
+-               }
+-               return true;
+-           }
+-           return false;
++            if (attachment.getOwningPlugin() == plugin) {
++                try {
++                    attachment.onDisposal();
++                } catch (Throwable throwable) {
++                    throwable.printStackTrace();
++                }
++                return true;
++            }
++            return false;
+         });
+     }
+ 
+diff --git a/src/main/java/mx/kenzie/server/enchantment/EnchantmentBuilderImplementation.java b/src/main/java/mx/kenzie/server/enchantment/EnchantmentBuilderImplementation.java
+index bfe6c1b0efb3dfe06f92d5eab35154e3c2a90ef4..8a6e25c2584c799e25d55b2b2a7f248aa1f0ed35 100644
+--- a/src/main/java/mx/kenzie/server/enchantment/EnchantmentBuilderImplementation.java
++++ b/src/main/java/mx/kenzie/server/enchantment/EnchantmentBuilderImplementation.java
+@@ -1,7 +1,6 @@
+ package mx.kenzie.server.enchantment;
+ 
+ import mx.kenzie.wellspring.enchantment.EnchantmentBuilder;
+-import mx.kenzie.wellspring.enchantment.Target;
+ import net.md_5.bungee.chat.ComponentSerializer;
+ import net.minecraft.server.*;
+ import org.bukkit.NamespacedKey;
+@@ -12,8 +11,6 @@ import org.bukkit.entity.EntityCategory;
+ import org.bukkit.entity.LivingEntity;
+ import org.bukkit.event.entity.EntityDamageEvent;
+ 
+-import java.util.Map;
+-
+ public class EnchantmentBuilderImplementation extends EnchantmentBuilder {
+ 
+     public EnchantmentBuilderImplementation(NamespacedKey key, String name) {
+diff --git a/src/main/java/mx/kenzie/server/packet/PacketFactoryImpl.java b/src/main/java/mx/kenzie/server/packet/PacketFactoryImpl.java
+index 733497f862971c563ef64483ef4e3a258cc97f2f..ac331f8d486d377c95c560f3b85e808739a12a17 100644
+--- a/src/main/java/mx/kenzie/server/packet/PacketFactoryImpl.java
++++ b/src/main/java/mx/kenzie/server/packet/PacketFactoryImpl.java
+@@ -28,7 +28,8 @@ import static mx.kenzie.wellspring.packet.PacketType.Outgoing;
+ public class PacketFactoryImpl extends PacketFactory {
+ 
+     static {
+-        incoming: {
++        incoming:
++        {
+             Incoming.LOGIN_CUSTOM_PAYLOAD = new Incoming(PacketLoginInCustomPayload.class, PacketLoginInCustomPayload::new);
+             Incoming.ABILITIES = new Incoming(PacketPlayInAbilities.class, PacketPlayInAbilities::new);
+             Incoming.ADVANCEMENTS = new Incoming(PacketPlayInAdvancements.class, PacketPlayInAdvancements::new);
+@@ -75,7 +76,8 @@ public class PacketFactoryImpl extends PacketFactory {
+             Incoming.VEHICLE_MOVE = new Incoming(PacketPlayInVehicleMove.class, PacketPlayInVehicleMove::new);
+             Incoming.WINDOW_CLICK = new Incoming(PacketPlayInWindowClick.class, PacketPlayInWindowClick::new);
+         }
+-        outgoing: {
++        outgoing:
++        {
+             Outgoing.LOGIN_CUSTOM_PAYLOAD = new Outgoing(PacketLoginOutCustomPayload.class, PacketLoginOutCustomPayload::new);
+             Outgoing.ABILITIES = new Outgoing(PacketPlayOutAbilities.class, PacketPlayOutAbilities::new);
+             Outgoing.ADVANCEMENTS = new Outgoing(PacketPlayOutAdvancements.class, PacketPlayOutAdvancements::new);
+diff --git a/src/main/java/mx/kenzie/server/potion/PotionBuilderImpl.java b/src/main/java/mx/kenzie/server/potion/PotionBuilderImpl.java
+index b21fd9917a68ba0769f3d22c87cf8ebf6f460ee1..9187dd9c31f8a978d2d3a8c8c40726e20424ab4c 100644
+--- a/src/main/java/mx/kenzie/server/potion/PotionBuilderImpl.java
++++ b/src/main/java/mx/kenzie/server/potion/PotionBuilderImpl.java
+@@ -5,13 +5,11 @@ import mx.kenzie.wellspring.potion.PotionType;
+ import net.minecraft.server.AttributeBase;
+ import net.minecraft.server.IRegistry;
+ import net.minecraft.server.MinecraftKey;
+-import net.minecraft.server.PotionRegistry;
+ import org.bukkit.NamespacedKey;
+ import org.bukkit.attribute.Attribute;
+ import org.bukkit.attribute.AttributeModifier;
+ import org.bukkit.entity.LivingEntity;
+ import org.bukkit.plugin.Plugin;
+-import org.bukkit.potion.PotionEffect;
+ import org.bukkit.potion.PotionEffectType;
+ 
+ import java.awt.*;
+@@ -19,15 +17,19 @@ import java.util.Map;
+ import java.util.function.BiConsumer;
+ 
+ public class PotionBuilderImpl extends PotionBuilder {
+-    
++
+     protected int color = 0;
+     protected PotionType type = PotionType.NEUTRAL;
+     protected BiConsumer<LivingEntity, Integer> consumer;
+-    
++
+     public PotionBuilderImpl(NamespacedKey key, String name) {
+         super(key, name);
+     }
+ 
++    private static AttributeBase convert(Attribute attribute) {
++        return IRegistry.ATTRIBUTE.get(new MinecraftKey(attribute.getKey().toString()));
++    }
++
+     @Override
+     public PotionBuilder setColor(Color color) {
+         this.color = color.getRGB();
+@@ -94,10 +96,6 @@ public class PotionBuilderImpl extends PotionBuilder {
+         PotionEffectType.registerPotion(key, type, plugin);
+     }
+ 
+-    private static AttributeBase convert(Attribute attribute) {
+-        return IRegistry.ATTRIBUTE.get(new MinecraftKey(attribute.getKey().toString()));
+-    }
+-
+     private net.minecraft.server.AttributeModifier.Operation convertOperation(AttributeModifier modifier) {
+         if (modifier.getOperation() == org.bukkit.attribute.AttributeModifier.Operation.ADD_SCALAR)
+             return net.minecraft.server.AttributeModifier.Operation.MULTIPLY_BASE;
+@@ -105,5 +103,5 @@ public class PotionBuilderImpl extends PotionBuilder {
+             return net.minecraft.server.AttributeModifier.Operation.MULTIPLY_TOTAL;
+         return net.minecraft.server.AttributeModifier.Operation.ADDITION;
+     }
+-    
++
+ }
+diff --git a/src/main/java/mx/kenzie/server/potion/TickingMobEffect.java b/src/main/java/mx/kenzie/server/potion/TickingMobEffect.java
+index b9e67198fa4e58f1ef31d1a9a238aa3e2dc062f0..47e0be28afcf382ba9167f3db0c1a45e8e0e532d 100644
+--- a/src/main/java/mx/kenzie/server/potion/TickingMobEffect.java
++++ b/src/main/java/mx/kenzie/server/potion/TickingMobEffect.java
+@@ -1,17 +1,15 @@
+ package mx.kenzie.server.potion;
+ 
+-import mx.kenzie.wellspring.potion.CustomPotionEffect;
+ import mx.kenzie.wellspring.potion.PotionType;
+ import net.minecraft.server.EntityLiving;
+ import net.minecraft.server.MobEffectInfo;
+ import net.minecraft.server.MobEffectList;
+ import org.bukkit.entity.LivingEntity;
+-import org.bukkit.potion.PotionEffectType;
+ 
+ import java.awt.*;
+ import java.util.function.BiConsumer;
+ 
+-public class TickingMobEffect extends MobEffectList implements CustomPotionEffect {
++public class TickingMobEffect extends MobEffectList {
+ 
+     public BiConsumer<LivingEntity, Integer> consumer;
+ 
+@@ -33,6 +31,12 @@ public class TickingMobEffect extends MobEffectList implements CustomPotionEffec
+         consumer = null;
+     }
+ 
++    private static MobEffectInfo convert(PotionType type) {
++        if (type == PotionType.BENEFICIAL) return MobEffectInfo.BENEFICIAL;
++        if (type == PotionType.HARMFUL) return MobEffectInfo.HARMFUL;
++        return MobEffectInfo.NEUTRAL;
++    }
++
+     @Override
+     public boolean a(int i, int j) {
+         return true;
+@@ -46,10 +50,4 @@ public class TickingMobEffect extends MobEffectList implements CustomPotionEffec
+         }
+     }
+ 
+-    private static MobEffectInfo convert(PotionType type) {
+-        if (type == PotionType.BENEFICIAL) return MobEffectInfo.BENEFICIAL;
+-        if (type == PotionType.HARMFUL) return MobEffectInfo.HARMFUL;
+-        return MobEffectInfo.NEUTRAL;
+-    }
+-
+ }

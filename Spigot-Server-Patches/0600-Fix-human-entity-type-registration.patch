@@ -1,0 +1,87 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Thu, 24 Sep 2020 12:23:17 +0100
+Subject: [PATCH] Fix human entity type registration.
+
+
+diff --git a/pom.xml b/pom.xml
+index 662f32fce568ac1ed9f95d6c2f485a813ec004cf..d5813a84a33f2f21419ecf52e38a2c014a77b084 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -26,8 +26,8 @@
+ 
+     <dependencies>
+         <dependency>
+-            <groupId>com.destroystokyo.paper</groupId>
+-            <artifactId>paper-api</artifactId>
++            <groupId>mx.kenzie.wellspring</groupId>
++            <artifactId>wellspring-api</artifactId>
+             <version>${project.version}</version>
+             <scope>compile</scope>
+         </dependency>
+diff --git a/src/main/java/mx/kenzie/server/CraftBridge.java b/src/main/java/mx/kenzie/server/CraftBridge.java
+index 8fc641d500b95e04d8a30f26d828b263bc4fad3d..a10c7dc9a8b66827dbc2e2587b6e86aa30d53527 100644
+--- a/src/main/java/mx/kenzie/server/CraftBridge.java
++++ b/src/main/java/mx/kenzie/server/CraftBridge.java
+@@ -1,11 +1,26 @@
+ package mx.kenzie.server;
+ 
++import mx.kenzie.server.entity.Human;
+ import mx.kenzie.wellspring.Wellspring;
+-import net.minecraft.server.IRegistry;
+-import net.minecraft.server.MinecraftKey;
++import net.minecraft.server.*;
+ import org.bukkit.entity.EntityType;
+ 
++import java.util.Map;
++
+ public class CraftBridge extends Wellspring.Bridge {
++
++    public static final EntityTypes<EntityHuman> HUMAN;
++    public static final Map<EntityTypes<? extends EntityLiving>, AttributeProvider> PROVIDER_MAP = AttributeDefaults.getAttributeDefaults();
++
++    static {
++        {
++            EntityTypes.Builder<Entity> builder = EntityTypes.Builder.a(EnumCreatureType.MISC).b().a().a(0.6F, 1.8F).trackingRange(32).updateInterval(2);
++            HUMAN = (EntityTypes<EntityHuman>) (EntityTypes<?>) IRegistry.a(IRegistry.ENTITY_TYPE, "human", builder.a("human"));
++            PROVIDER_MAP.put(HUMAN, EntityHuman.eo().a());
++            Human.class.getName(); // Initialise
++        }
++    }
++
+     @Override
+     public float getWidth(EntityType type) {
+         return IRegistry.ENTITY_TYPE.get(new MinecraftKey(type.getKey().toString())).j();
+diff --git a/src/main/java/mx/kenzie/server/entity/Human.java b/src/main/java/mx/kenzie/server/entity/Human.java
+index 7077c9ac665d3190ac42c53fe71890becc02b997..0353b4d16debdf5ebe33a5c88c9cc806f15cd3f0 100644
+--- a/src/main/java/mx/kenzie/server/entity/Human.java
++++ b/src/main/java/mx/kenzie/server/entity/Human.java
+@@ -1,7 +1,9 @@
+ package mx.kenzie.server.entity;
+ 
+ import com.mojang.authlib.GameProfile;
++import mx.kenzie.server.CraftBridge;
+ import net.minecraft.server.*;
++import org.bukkit.craftbukkit.block.impl.CraftBamboo;
+ 
+ import java.util.Map;
+ 
+@@ -9,16 +11,8 @@ import java.util.Map;
+ public class Human extends EntityPlayer {
+ 
+     public static final String KEY = "human";
+-    public static final EntityTypes<EntityHuman> TYPE;
+-    public static final Map<EntityTypes<? extends EntityLiving>, AttributeProvider> PROVIDER_MAP = AttributeDefaults.getAttributeDefaults();
+-    public static final int INDEX;
+-
+-    static {
+-        EntityTypes.Builder<Entity> builder = EntityTypes.Builder.a(EnumCreatureType.MISC).b().a().a(0.6F, 1.8F).trackingRange(32).updateInterval(2);
+-        TYPE = (EntityTypes<EntityHuman>) (EntityTypes<?>) IRegistry.a(IRegistry.ENTITY_TYPE, KEY, builder.a(KEY));
+-        PROVIDER_MAP.put(TYPE, EntityHuman.eo().a());
+-        INDEX = IRegistry.ENTITY_TYPE.a(TYPE);
+-    }
++    public static final EntityTypes<EntityHuman> TYPE = CraftBridge.HUMAN;
++    public static final int INDEX = IRegistry.ENTITY_TYPE.a(TYPE);;
+ 
+     public Human(WorldServer world, GameProfile profile) {
+         this(world.getMinecraftServer(), world, profile, null);

@@ -1,0 +1,82 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Mon, 28 Sep 2020 13:29:48 +0100
+Subject: [PATCH] Fix broken erasure.
+
+
+diff --git a/src/main/java/mx/kenzie/server/enchantment/EnchantmentBuilderImplementation.java b/src/main/java/mx/kenzie/server/enchantment/EnchantmentBuilderImplementation.java
+index 0ada7d9ad50e8e1ddba7d06c69256351fae00003..1d1b52966b6ca3b1a078a1e823688410428e356d 100644
+--- a/src/main/java/mx/kenzie/server/enchantment/EnchantmentBuilderImplementation.java
++++ b/src/main/java/mx/kenzie/server/enchantment/EnchantmentBuilderImplementation.java
+@@ -1,11 +1,15 @@
+ package mx.kenzie.server.enchantment;
+ 
++import com.google.common.collect.HashMultimap;
++import com.google.common.collect.Multimap;
+ import mx.kenzie.wellspring.enchantment.EnchantmentBuilder;
+ import mx.kenzie.wellspring.enchantment.Rarity;
+ import mx.kenzie.wellspring.enchantment.Target;
+ import net.md_5.bungee.chat.ComponentSerializer;
+ import net.minecraft.server.*;
+ import org.bukkit.NamespacedKey;
++import org.bukkit.attribute.Attribute;
++import org.bukkit.attribute.AttributeModifier;
+ import org.bukkit.craftbukkit.enchantments.CraftEnchantment;
+ import org.bukkit.craftbukkit.inventory.CraftItemStack;
+ import org.bukkit.enchantments.Enchantment;
+@@ -13,12 +17,25 @@ import org.bukkit.entity.EntityCategory;
+ import org.bukkit.entity.LivingEntity;
+ import org.bukkit.event.entity.EntityDamageEvent;
+ 
++import java.nio.charset.StandardCharsets;
++import java.util.Map;
++import java.util.UUID;
++
+ public class EnchantmentBuilderImplementation extends EnchantmentBuilder {
+ 
++    protected Multimap<Attribute, AttributeModifier> attributes = HashMultimap.create();
++
+     public EnchantmentBuilderImplementation(NamespacedKey key, String name) {
+         super(key, name);
+     }
+ 
++    @Override
++    public EnchantmentBuilder addAttribute(Attribute attribute, double value, AttributeModifier.Operation operation) {
++        AttributeModifier modifier = new AttributeModifier(UUID.nameUUIDFromBytes(key.toString().getBytes(StandardCharsets.UTF_8)), key.toString(), value, operation);
++        attributes.put(attribute, modifier);
++        return this;
++    }
++
+     @Override
+     public org.bukkit.enchantments.Enchantment create() {
+ 
+@@ -163,11 +180,29 @@ public class EnchantmentBuilderImplementation extends EnchantmentBuilder {
+             EnumItemSlot.convert(effectiveSlots));
+ 
+         net.minecraft.server.Enchantment ench = IRegistry.a(IRegistry.ENCHANTMENT, key.toString(), enchantment);
++        if (!attributes.isEmpty()) for (Map.Entry<Attribute, AttributeModifier> entry : attributes.entries()) {
++            AttributeBase base = IRegistry.ATTRIBUTE.get(MinecraftKey.a(entry.getKey().getKey().toString()));
++            if (base == null) continue;
++            AttributeModifier modifier = entry.getValue();
++            ench.addAttribute(base, new net.minecraft.server.AttributeModifier(modifier.getUniqueId(), modifier.getName(), modifier.getAmount(), convert(modifier.getOperation())));
++        }
+         Enchantment wrapper = new CraftEnchantment(ench);
+         Enchantment.registerCustomEnchantment(wrapper);
+         return wrapper;
+     }
+ 
++    private net.minecraft.server.AttributeModifier.Operation convert(AttributeModifier.Operation operation) {
++        switch (operation) {
++            case ADD_NUMBER:
++                return net.minecraft.server.AttributeModifier.Operation.ADDITION;
++            case MULTIPLY_SCALAR_1:
++                return net.minecraft.server.AttributeModifier.Operation.MULTIPLY_TOTAL;
++            case ADD_SCALAR:
++                return net.minecraft.server.AttributeModifier.Operation.MULTIPLY_BASE;
++        }
++        return net.minecraft.server.AttributeModifier.Operation.ADDITION;
++    }
++
+     private EnchantmentSlotType convert(Target target) {
+         if (target == null) return EnchantmentSlotType.WEAPON;
+         switch (target) {
