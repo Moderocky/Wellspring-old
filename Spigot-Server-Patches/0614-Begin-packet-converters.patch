@@ -1,0 +1,32 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Mon, 28 Sep 2020 20:45:04 +0100
+Subject: [PATCH] Begin packet converters.
+
+
+diff --git a/src/main/java/mx/kenzie/server/packet/PacketFactoryImpl.java b/src/main/java/mx/kenzie/server/packet/PacketFactoryImpl.java
+index ac331f8d486d377c95c560f3b85e808739a12a17..c4255eabf8e04006c49dc8abf036180359440b69 100644
+--- a/src/main/java/mx/kenzie/server/packet/PacketFactoryImpl.java
++++ b/src/main/java/mx/kenzie/server/packet/PacketFactoryImpl.java
+@@ -1,5 +1,6 @@
+ package mx.kenzie.server.packet;
+ 
++import mx.kenzie.wellspring.conversion.Converter;
+ import mx.kenzie.wellspring.packet.PacketFactory;
+ import mx.kenzie.wellspring.packet.PacketType;
+ import net.minecraft.server.*;
+@@ -172,6 +173,14 @@ public class PacketFactoryImpl extends PacketFactory {
+         }
+     }
+ 
++    @SuppressWarnings("all")
++    public PacketFactoryImpl() {
++        converters: {
++            registerConverter(type -> IRegistry.ENTITY_TYPE.get(MinecraftKey.a(type.getKey().toString())), EntityType.class, EntityTypes.class);
++            registerConverter(type -> EntityType.fromName(IRegistry.ENTITY_TYPE.getKey(type).getKey()), EntityTypes.class, EntityType.class);
++        }
++    }
++
+     @Override
+     public mx.kenzie.wellspring.packet.Packet loginOutCustomPayload() {
+         return new PacketLoginInCustomPayload();
