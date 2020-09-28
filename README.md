@@ -46,6 +46,7 @@ Current additional features:
    * Persist over restarts.
    * Allow for customisable behaviour.
    * Work properly with the default enchantment system.
+   * Enchantments can have attribute modifiers. (Wellspring-only!)
  * Custom [attributes](https://github.com/Moderocky/Wellspring/blob/master/guides/attributes.md) can now be registered by plugins.
    * Conversion of attributes from an enum to a field to allow for custom attribute types to work properly with Bukkit.
    * Attributes can be created and added to entities, items, potion effects, and other things.
