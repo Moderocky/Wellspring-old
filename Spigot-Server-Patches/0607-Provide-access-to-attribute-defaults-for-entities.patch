@@ -1,0 +1,233 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Sun, 27 Sep 2020 12:49:54 +0100
+Subject: [PATCH] Provide access to attribute defaults for entities.
+
+
+diff --git a/src/main/java/mx/kenzie/server/CraftBridge.java b/src/main/java/mx/kenzie/server/CraftBridge.java
+index ae8d0f0d48de1c1da50321aa4955165833af3ebe..bd13a8f9d150874aeced961cf75ff1d00b2b5b51 100644
+--- a/src/main/java/mx/kenzie/server/CraftBridge.java
++++ b/src/main/java/mx/kenzie/server/CraftBridge.java
+@@ -1,16 +1,17 @@
+ package mx.kenzie.server;
+ 
+ import mx.kenzie.wellspring.Wellspring;
+-import net.minecraft.server.EnchantmentManager;
+-import net.minecraft.server.IRegistry;
+-import net.minecraft.server.ItemStack;
+-import net.minecraft.server.MinecraftKey;
++import net.minecraft.server.*;
++import org.bukkit.NamespacedKey;
++import org.bukkit.attribute.Attribute;
+ import org.bukkit.craftbukkit.entity.CraftEntity;
+ import org.bukkit.craftbukkit.entity.CraftLivingEntity;
+ import org.bukkit.enchantments.Enchantment;
+ import org.bukkit.entity.EntityType;
+ 
++import java.util.HashMap;
+ import java.util.Iterator;
++import java.util.Map;
+ 
+ public class CraftBridge extends Wellspring.Bridge {
+ 
+@@ -29,6 +30,66 @@ public class CraftBridge extends Wellspring.Bridge {
+         return IRegistry.ENTITY_TYPE.a(IRegistry.ENTITY_TYPE.get(new MinecraftKey(entityKey)));
+     }
+ 
++    @Override
++    public Map<Attribute, Double> getBaseValues(EntityType type) {
++        if (!type.isAlive()) return new HashMap<>();
++        AttributeProvider provider = getProvider(type);
++        return provider.getAndConvertMap();
++    }
++
++    @Override
++    public void setBaseValues(EntityType type, Map<Attribute, Double> attributes) {
++        if (!type.isAlive()) return;
++        for (Map.Entry<Attribute, Double> entry : attributes.entrySet()) {
++            setBaseValue(type, entry.getKey(), entry.getValue());
++        }
++    }
++
++    @Override
++    public double getBaseValue(EntityType type, Attribute attribute) {
++        if (!type.isAlive()) return 0.0;
++        return getBaseValues(type).get(attribute);
++    }
++
++    @Override
++    public void setBaseValue(EntityType type, Attribute attribute, double value) {
++        if (!type.isAlive()) return;
++        AttributeProvider provider = getProvider(type);
++        NamespacedKey key = attribute.getKey();
++        AttributeBase base = IRegistry.ATTRIBUTE.get(new MinecraftKey(key.toString()));
++        if (base == null) return;
++        AttributeModifiable modifiable = new AttributeModifiable(base, (var1x) -> {
++        });
++        modifiable.setValue(value);
++        provider.getMap().put(base, modifiable);
++    }
++
++    @Override
++    public void removeBase(EntityType type, Attribute attribute) {
++        if (!type.isAlive()) return;
++        AttributeProvider provider = getProvider(type);
++        NamespacedKey key = attribute.getKey();
++        AttributeBase base = IRegistry.ATTRIBUTE.get(new MinecraftKey(key.toString()));
++        if (base == null) return;
++        provider.getMap().remove(base);
++    }
++
++    @SuppressWarnings("unchecked")
++    public AttributeProvider getProvider(EntityType type) {
++        if (!type.isAlive()) return null;
++        EntityTypes<? extends EntityLiving> types = ((EntityTypes<? extends EntityLiving>) convertType(type));
++        AttributeProvider provider = AttributeDefaults.getDefault(types);
++        if (provider == null) {
++            provider = new AttributeProvider.Builder().a();
++            AttributeDefaults.getAttributeDefaults().put(types, provider);
++        }
++        return provider;
++    }
++
++    public EntityTypes<?> convertType(EntityType type) {
++        return IRegistry.ENTITY_TYPE.get(new MinecraftKey(type.getKey().toString()));
++    }
++
+     public int getMaxPresentLevel(Enchantment enchantment, CraftEntity entity) {
+         if (enchantment == null) return 0;
+         if (!(entity instanceof CraftLivingEntity)) return 0;
+@@ -49,4 +110,6 @@ public class CraftBridge extends Wellspring.Bridge {
+         return i;
+     }
+ 
++
++
+ }
+diff --git a/src/main/java/net/minecraft/server/AttributeProvider.java b/src/main/java/net/minecraft/server/AttributeProvider.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..0e34f624a345293498607c31a53ab2972aefaa07
+--- /dev/null
++++ b/src/main/java/net/minecraft/server/AttributeProvider.java
+@@ -0,0 +1,121 @@
++package net.minecraft.server;
++
++import com.google.common.collect.ImmutableMap;
++import com.google.common.collect.Maps;
++import org.bukkit.NamespacedKey;
++import org.bukkit.attribute.Attribute;
++
++import java.util.HashMap;
++import java.util.Map;
++import java.util.UUID;
++import java.util.function.Consumer;
++import javax.annotation.Nullable;
++
++public class AttributeProvider {
++    private final Map<AttributeBase, AttributeModifiable> a;
++
++    public AttributeProvider(Map<AttributeBase, AttributeModifiable> var0) {
++        this.a = ImmutableMap.copyOf(var0);
++    }
++
++    // Kenzie start - make map public
++    public Map<AttributeBase, AttributeModifiable> getMap() {
++        return a;
++    }
++
++    public Map<Attribute, Double> getAndConvertMap() {
++        Map<Attribute, Double> map = new HashMap<>();
++        for (Map.Entry<AttributeBase, AttributeModifiable> entry : getMap().entrySet()) {
++            MinecraftKey key = IRegistry.ATTRIBUTE.getKey(entry.getKey());
++            if (key == null) continue;
++            map.put(new Attribute(new NamespacedKey(key.namespace, key.key)), entry.getValue().getValue());
++        }
++        return map;
++    }
++    // Kenzie end
++
++    private AttributeModifiable d(AttributeBase var0) {
++        AttributeModifiable var1 = (AttributeModifiable)this.a.get(var0);
++        if (var1 == null) {
++            throw new IllegalArgumentException("Can't find attribute " + IRegistry.ATTRIBUTE.getKey(var0));
++        } else {
++            return var1;
++        }
++    }
++
++    public double a(AttributeBase var0) {
++        return this.d(var0).getValue();
++    }
++
++    public double b(AttributeBase var0) {
++        return this.d(var0).getBaseValue();
++    }
++
++    public double a(AttributeBase var0, UUID var1) {
++        AttributeModifier var2 = this.d(var0).a(var1);
++        if (var2 == null) {
++            throw new IllegalArgumentException("Can't find modifier " + var1 + " on attribute " + IRegistry.ATTRIBUTE.getKey(var0));
++        } else {
++            return var2.getAmount();
++        }
++    }
++
++    @Nullable
++    public AttributeModifiable a(Consumer<AttributeModifiable> var0, AttributeBase var1) {
++        AttributeModifiable var2 = (AttributeModifiable)this.a.get(var1);
++        if (var2 == null) {
++            return null;
++        } else {
++            AttributeModifiable var3 = new AttributeModifiable(var1, var0);
++            var3.a(var2);
++            return var3;
++        }
++    }
++
++    public static AttributeProvider.Builder a() {
++        return new AttributeProvider.Builder();
++    }
++
++    public boolean c(AttributeBase var0) {
++        return this.a.containsKey(var0);
++    }
++
++    public boolean b(AttributeBase var0, UUID var1) {
++        AttributeModifiable var2 = (AttributeModifiable)this.a.get(var0);
++        return var2 != null && var2.a(var1) != null;
++    }
++
++    public static class Builder {
++        private final Map<AttributeBase, AttributeModifiable> a = Maps.newHashMap();
++        private boolean b;
++
++        public Builder() {
++        }
++
++        private AttributeModifiable b(AttributeBase var0) {
++            AttributeModifiable var1 = new AttributeModifiable(var0, (var1x) -> {
++                if (this.b) {
++                    throw new UnsupportedOperationException("Tried to change value for default attribute instance: " + IRegistry.ATTRIBUTE.getKey(var0));
++                }
++            });
++            this.a.put(var0, var1);
++            return var1;
++        }
++
++        public AttributeProvider.Builder a(AttributeBase var0) {
++            this.b(var0);
++            return this;
++        }
++
++        public AttributeProvider.Builder a(AttributeBase var0, double var1) {
++            AttributeModifiable var3 = this.b(var0);
++            var3.setValue(var1);
++            return this;
++        }
++
++        public AttributeProvider a() {
++            this.b = true;
++            return new AttributeProvider(this.a);
++        }
++    }
++}
