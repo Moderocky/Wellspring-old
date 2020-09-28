@@ -1,0 +1,19 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Mon, 28 Sep 2020 13:26:23 +0100
+Subject: [PATCH] Missed annotation tests.
+
+
+diff --git a/src/main/java/mx/kenzie/wellspring/enchantment/EnchantmentBuilder.java b/src/main/java/mx/kenzie/wellspring/enchantment/EnchantmentBuilder.java
+index 88afadd8cd31b878b969509ab6f8b7b0c278fff3..7b2ac33e73a3841a0112c1de84a9a4a358396cbb 100644
+--- a/src/main/java/mx/kenzie/wellspring/enchantment/EnchantmentBuilder.java
++++ b/src/main/java/mx/kenzie/wellspring/enchantment/EnchantmentBuilder.java
+@@ -269,7 +269,7 @@ public abstract class EnchantmentBuilder {
+      * @return builder method
+      */
+     public abstract @NotNull
+-    EnchantmentBuilder addAttribute(Attribute attribute, double value, AttributeModifier.Operation operation);
++    EnchantmentBuilder addAttribute(@NotNull Attribute attribute, double value, @NotNull AttributeModifier.Operation operation);
+ 
+     /**
+      * Registers and creates the enchantment.
