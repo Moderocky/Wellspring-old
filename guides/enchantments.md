@@ -4,6 +4,8 @@ Enchantments
 Wellspring includes a system for creating and registering a custom enchantment type that functions properly as a default Minecraft enchantment.
 Note that due to a client limitation, vanilla clients do not display custom enchantments in item lore.
 
+Wellspring also allows for enchantments to have scalable attributes attached, that apply to the holder.
+
 #### Goals of Custom Enchantments
  * To provide an easy and simple way to create new enchantments
  * To make custom enchantments function properly with Minecraft's behaviour
@@ -69,6 +71,7 @@ Enchantments registered under a plugin namespace must use the plugin's key here.
 |Compatible (Func.) |null|Alter compatibility with other enchantments. Works with CanEnchant.|
 |Description |null|The description's language key. Only useful with custom resource/language packs.|
 |NameByLevel (Func.) |Default|Generate the enchantment name based on the level. By default produces (name) (numeral).|
+|Add Attribute |~|Add an attribute modifier to the enchantment. This will only be applied if the enchantment is in a valid slot. Requires EffectiveSlots.|
 |DealDamage (Func.) |null|Set behaviour for when damage is dealt to an entity by something wielding this enchantment. Requires EffectiveSlots.|
 |TakeDamage (Func.) |null|Set behaviour when the wielder takes damage. Requires EffectiveSlots.|
 
@@ -101,4 +104,23 @@ builder.onDealDamage((holder, victim, i) -> { // When the holder deals damage
 Enchantment blob = builder.create();
 // A fully-registered Bukkit enchantment.
 // Store this in a field, or something.
+```
+
+
+```java 
+EnchantmentBuilder builder = EnchantmentBuilder.create(NamespacedKey.minecraft("armor"), "Armor");
+builder.setEffectiveSlots(new EquipmentSlot[] {EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET});
+// Effective only on armour slots
+builder.setTarget(Target.WEARABLE);
+// Can only be applied to wearable items (in table / anvil)
+builder.setRarity(Rarity.VERY_RARE);
+builder.setTreasure(true);
+builder.setMaxLevel(5);
+// Maximum level = 5
+builder.setMaxCost(3);
+builder.setMinCost(1);
+builder.addAttribute(Attribute.GENERIC_ARMOR, 1, AttributeModifier.Operation.ADD_NUMBER);
+// Adds an armor-point per level (level * value = level * 1)
+// This is comparable to a half-point of the armour bar
+Enchantment armor = builder.create();
 ```
