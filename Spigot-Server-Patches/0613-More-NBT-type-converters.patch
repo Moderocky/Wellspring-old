@@ -1,0 +1,32 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Mon, 28 Sep 2020 19:55:37 +0100
+Subject: [PATCH] More NBT type converters.
+
+
+diff --git a/src/main/java/net/minecraft/server/NBTBase.java b/src/main/java/net/minecraft/server/NBTBase.java
+index 7e443fdabd7884065b2b9dff8032d86c188af010..e2451962f8f6c7a00d9b2d743d58e4d5fc48feba 100644
+--- a/src/main/java/net/minecraft/server/NBTBase.java
++++ b/src/main/java/net/minecraft/server/NBTBase.java
+@@ -9,6 +9,7 @@ import net.md_5.bungee.chat.ComponentSerializer;
+ import java.io.DataOutput;
+ import java.io.IOException;
+ import java.lang.reflect.Field;
++import java.util.UUID;
+ 
+ public interface NBTBase extends NBT {
+ 
+@@ -71,7 +72,12 @@ public interface NBTBase extends NBT {
+                 case STRING:
+                     return (T) this.asString();
+                 case INT_ARRAY:
+-                    return (T) ((NBTTagIntArray) this).getInts();
++                    try { // Assume it is int[]
++                        return (T) ((NBTTagIntArray) this).getInts();
++                    } catch (ClassCastException ex) { // Could be UUID - known only from cast
++                        final int[] array = ((NBTTagIntArray) this).getInts();
++                        return (T) new UUID(array[0], array[1]);
++                    }
+                 case BYTE_ARRAY:
+                     return (T) ((NBTTagByteArray) this).getBytes();
+                 case LONG_ARRAY:

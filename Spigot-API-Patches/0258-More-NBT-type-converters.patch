@@ -1,0 +1,148 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Mon, 28 Sep 2020 19:55:29 +0100
+Subject: [PATCH] More NBT type converters.
+
+
+diff --git a/src/main/java/mx/kenzie/wellspring/nbt/NBT.java b/src/main/java/mx/kenzie/wellspring/nbt/NBT.java
+index 71f736b1d7592790aef6f1baa57de1358bcd77a3..9f37ea5f606e007f7b8e1afedd7b1ece62018fb6 100644
+--- a/src/main/java/mx/kenzie/wellspring/nbt/NBT.java
++++ b/src/main/java/mx/kenzie/wellspring/nbt/NBT.java
+@@ -1,10 +1,14 @@
+ package mx.kenzie.wellspring.nbt;
+ 
+ import net.md_5.bungee.api.chat.BaseComponent;
++import net.md_5.bungee.chat.ComponentSerializer;
+ import org.bukkit.Bukkit;
++import org.bukkit.attribute.AttributeModifier;
++import org.bukkit.inventory.ItemStack;
+ import org.jetbrains.annotations.NotNull;
+ 
+ import java.util.Map;
++import java.util.UUID;
+ 
+ /**
+  * This represents an NBT 'base' object, which could be either a map-compound,
+@@ -60,6 +64,11 @@ public interface NBT {
+         if (object instanceof int[]) return convert(object, Type.INT_ARRAY);
+         if (object instanceof long[]) return convert(object, Type.LONG_ARRAY);
+         if (object instanceof String) return convert(object, Type.STRING);
++        if (object instanceof UUID) return Bukkit.getNBTFactory().newBase(((UUID) object));
++        if (object instanceof ItemStack) return NBTCompound.convert(((ItemStack) object));
++        if (object instanceof AttributeModifier) return NBTCompound.convert(((AttributeModifier) object));
++        if (object instanceof BaseComponent) return convert(ComponentSerializer.toString(((BaseComponent) object)), Type.STRING);
++        if (object instanceof BaseComponent[]) return convert(ComponentSerializer.toString(((BaseComponent[]) object)), Type.STRING);
+         if (object instanceof Object[]) return NBTList.create(((Object[]) object));
+         if (object instanceof Iterable) return NBTList.create(((Iterable<?>) object));
+         if (object instanceof Map) return NBTCompound.create(((Map<?, ?>) object));
+diff --git a/src/main/java/mx/kenzie/wellspring/nbt/NBTCompound.java b/src/main/java/mx/kenzie/wellspring/nbt/NBTCompound.java
+index b3a97156eafb35faa58d210396e4131e962e4050..7a65780bb24821a160c5764e1cb53ce63e881792 100644
+--- a/src/main/java/mx/kenzie/wellspring/nbt/NBTCompound.java
++++ b/src/main/java/mx/kenzie/wellspring/nbt/NBTCompound.java
+@@ -1,6 +1,8 @@
+ package mx.kenzie.wellspring.nbt;
+ 
+ import org.bukkit.Bukkit;
++import org.bukkit.attribute.AttributeModifier;
++import org.bukkit.inventory.ItemStack;
+ import org.jetbrains.annotations.NotNull;
+ import org.jetbrains.annotations.Nullable;
+ 
+@@ -56,6 +58,27 @@ public interface NBTCompound extends NBT {
+         return compound;
+     }
+ 
++    /**
++     * This returns the entire itemstack serialised to an NBT compound.
++     * It contains all of the necessary data to re-create the item.
++     * @param itemStack the item
++     * @return The item, as NBT
++     */
++    static @NotNull
++    NBTCompound convert(@NotNull ItemStack itemStack) {
++        return itemStack.getAsCompound();
++    }
++
++    static @NotNull
++    NBTCompound convert(@NotNull AttributeModifier modifier) {
++        NBTCompound compound = NBTCompound.create();
++        compound.setString("Name", modifier.getName());
++        compound.setDouble("Amount", modifier.getAmount());
++        compound.setInt("Operation", modifier.getOperation().ordinal);
++        compound.setUUID("UUID", modifier.getUniqueId());
++        return compound;
++    }
++
+     int size();
+ 
+     boolean isEmpty();
+diff --git a/src/main/java/mx/kenzie/wellspring/nbt/NBTFactory.java b/src/main/java/mx/kenzie/wellspring/nbt/NBTFactory.java
+index 7a36163e35d4533b244d755ff66e5fc4b2188ff3..ba835282ce4942a3904c1c6b8baa8244f5a48175 100644
+--- a/src/main/java/mx/kenzie/wellspring/nbt/NBTFactory.java
++++ b/src/main/java/mx/kenzie/wellspring/nbt/NBTFactory.java
+@@ -4,6 +4,8 @@ import org.bukkit.entity.Entity;
+ import org.bukkit.inventory.ItemStack;
+ import org.jetbrains.annotations.NotNull;
+ 
++import java.util.UUID;
++
+ /**
+  * The NBT factory is provided by the server as a means of managing NBT implementations.
+  * <p>
+@@ -59,6 +61,21 @@ public abstract class NBTFactory {
+     public abstract @NotNull
+     NBT newBase(@NotNull Object object, @NotNull NBT.Type type) throws IllegalArgumentException;
+ 
++    public @NotNull
++    NBT newBase(@NotNull UUID uuid) {
++        long most, least;
++        most = uuid.getMostSignificantBits();
++        least = uuid.getLeastSignificantBits();
++        return newBase(new int[]{(int)(most >> 32), (int)most, (int)(least >> 32), (int)least}, NBT.Type.INT_ARRAY);
++    }
++
++    public @NotNull
++    UUID getAsUUID(@NotNull NBT base) {
++        if (!base.isOfType(NBT.Type.INT_ARRAY)) throw new IllegalArgumentException("Tag must be a valid INT_ARRAY.");
++        final int[] array = base.getAsObject();
++        return new UUID(array[0], array[1]);
++    }
++
+     public @NotNull
+     NBTCompound getNBT(@NotNull NBTHolder holder) {
+         return holder.getNBT();
+diff --git a/src/main/java/org/bukkit/attribute/AttributeModifier.java b/src/main/java/org/bukkit/attribute/AttributeModifier.java
+index 94d4d5e46324b823ace3bf06671d206b9055cb9f..65bdf3ddd25bae0905970343358c4daf013cc480 100644
+--- a/src/main/java/org/bukkit/attribute/AttributeModifier.java
++++ b/src/main/java/org/bukkit/attribute/AttributeModifier.java
+@@ -149,19 +149,25 @@ public class AttributeModifier implements ConfigurationSerializable {
+     /**
+      * Enumerable operation to be applied.
+      */
+-    public enum Operation {
++    public enum Operation { // Kenzie start - ordinals
+ 
+         /**
+          * Adds (or subtracts) the specified amount to the base value.
+          */
+-        ADD_NUMBER,
++        ADD_NUMBER(0),
+         /**
+          * Adds this scalar of amount to the base value.
+          */
+-        ADD_SCALAR,
++        ADD_SCALAR(1),
+         /**
+          * Multiply amount by this value, after adding 1 to it.
+          */
+-        MULTIPLY_SCALAR_1;
+-    }
++        MULTIPLY_SCALAR_1(2);
++
++        public final int ordinal;
++
++        Operation(int ordinal) {
++            this.ordinal = ordinal;
++        }
++    } // Kenzie end
+ }
