@@ -1,0 +1,54 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Mon, 28 Sep 2020 15:11:51 +0100
+Subject: [PATCH] Easy access to attribute values with defaults.
+
+
+diff --git a/src/main/java/org/bukkit/attribute/Attributable.java b/src/main/java/org/bukkit/attribute/Attributable.java
+index 0ed96b5af0e6e93590882e0ad8239221bcc3f688..3cdd56db28d08a9081945500a1513b96e6bdd175 100644
+--- a/src/main/java/org/bukkit/attribute/Attributable.java
++++ b/src/main/java/org/bukkit/attribute/Attributable.java
+@@ -17,4 +17,43 @@ public interface Attributable {
+      */
+     @Nullable
+     AttributeInstance getAttribute(@NotNull Attribute attribute);
++
++    // Kenzie start - easy acquisition and no pointless null-checks
++
++    /**
++     * This allows quick access to the value of an attribute from the instance.
++     * It defaults to 0 if the attribute is not present.
++     * @param attribute the attribute to get
++     * @return the attribute value post-modifiers otherwise 0.0
++     */
++    default double getValue(@NotNull Attribute attribute) {
++        return getValue(attribute, 0.0D);
++    }
++
++    /**
++     * This allows quick access to the value of an attribute from the instance.
++     * @param attribute the attribute to get
++     * @param def the value to return if the attribute is not present
++     * @return the attribute value post-modifiers otherwise def
++     */
++    default double getValue(@NotNull Attribute attribute, double def) {
++        @Nullable AttributeInstance instance;
++        if ((instance = getAttribute(attribute)) != null) {
++            return instance.getValue();
++        }
++        return def;
++    }
++
++    /**
++     * Quickly check whether an attribute is present on this instance.
++     * This is equivalent to null-checking {@link Attributable#getAttribute(Attribute)}
++     * but exists as a QoL method.
++     *
++     * @param attribute the attrubute to check
++     * @return true if present, otherwise false
++     */
++    default boolean hasAttribute(@NotNull Attribute attribute) {
++        return getAttribute(attribute) != null;
++    }
++    // Kenzie end
+ }
