@@ -1,0 +1,183 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Tue, 29 Sep 2020 11:19:16 +0100
+Subject: [PATCH] Inventory storage as NBT.
+
+
+diff --git a/src/main/java/net/minecraft/server/IInventory.java b/src/main/java/net/minecraft/server/IInventory.java
+index 46b88056b852a7f91d32862dea7bd3a7ea4a1226..a3f2c4ebc4dd96689c3a3eebe941e9b23a007c69 100644
+--- a/src/main/java/net/minecraft/server/IInventory.java
++++ b/src/main/java/net/minecraft/server/IInventory.java
+@@ -1,6 +1,10 @@
+ package net.minecraft.server;
+ 
++import java.util.List;
+ import java.util.Set;
++
++import mx.kenzie.wellspring.nbt.NBT;
++import mx.kenzie.wellspring.nbt.NBTList;
+ import org.bukkit.craftbukkit.entity.CraftHumanEntity; // CraftBukkit
+ 
+ public interface IInventory extends Clearable {
+@@ -81,4 +85,34 @@ public interface IInventory extends Clearable {
+ 
+     int MAX_STACK = 64;
+     // CraftBukkit end
++
++    // Kenzie start - NBT
++    default NBTList getAsNBT() {
++        NBTList list = NBTList.create();
++        NBTTagCompound nbttagcompound;
++        int i;
++        List<ItemStack> items = getContents();
++        for (i = 0; i < items.size(); ++i) {
++            if (!items.get(i).isEmpty()) {
++                nbttagcompound = new NBTTagCompound();
++                nbttagcompound.setByte("Slot", (byte) i);
++                items.get(i).save(nbttagcompound);
++                list.add(nbttagcompound);
++            }
++        }
++        return list;
++    }
++
++    default void loadNBT(NBTList list) {
++        for (NBT nbt : list.getAsArray()) {
++            try {
++                NBTTagCompound compound = (NBTTagCompound) nbt;
++                int slot = compound.getByte("Slot");
++                ItemStack itemstack = ItemStack.a(compound);
++                setItem(slot, itemstack);
++            } catch (Throwable ignore) { // Liable to go wrong during mis-matches
++            }
++        }
++    }
++    // Kenzie end
+ }
+diff --git a/src/main/java/net/minecraft/server/InventorySubcontainer.java b/src/main/java/net/minecraft/server/InventorySubcontainer.java
+index db5def8b1d4179a64b28366339a3634af593cd5e..56d8479402274cddffb24a2b2ff9de5b8ec7ab63 100644
+--- a/src/main/java/net/minecraft/server/InventorySubcontainer.java
++++ b/src/main/java/net/minecraft/server/InventorySubcontainer.java
+@@ -6,6 +6,7 @@ import java.util.List;
+ import java.util.stream.Collectors;
+ 
+ // CraftBukkit start
++import mx.kenzie.wellspring.nbt.NBTList;
+ import org.bukkit.Location;
+ import org.bukkit.craftbukkit.entity.CraftHumanEntity;
+ import org.bukkit.entity.HumanEntity;
+@@ -315,4 +316,16 @@ public class InventorySubcontainer implements IInventory, AutoRecipeOutput {
+ 
+         return nbttaglist;
+     }
++
++    // Kenzie start - NBT
++    @Override
++    public mx.kenzie.wellspring.nbt.NBTList getAsNBT() {
++        return g();
++    }
++
++    @Override
++    public void loadNBT(NBTList list) {
++        a((NBTTagList) list);
++    }
++    // Kenzie end
+ }
+diff --git a/src/main/java/net/minecraft/server/PlayerInventory.java b/src/main/java/net/minecraft/server/PlayerInventory.java
+index 3b65711b91c51ac7b4b5b2b0144ffd279fe60eeb..1a326a60f2330b05ac59b08c9196a4e4a0a88f78 100644
+--- a/src/main/java/net/minecraft/server/PlayerInventory.java
++++ b/src/main/java/net/minecraft/server/PlayerInventory.java
+@@ -7,6 +7,8 @@ import java.util.function.Predicate;
+ 
+ // CraftBukkit start
+ import java.util.ArrayList;
++
++import mx.kenzie.wellspring.nbt.NBTList;
+ import org.bukkit.Location;
+ import org.bukkit.craftbukkit.entity.CraftHumanEntity;
+ import org.bukkit.entity.HumanEntity;
+@@ -657,4 +659,16 @@ public class PlayerInventory implements IInventory, INamableTileEntity {
+         }
+ 
+     }
++
++    // Kenzie start - NBT
++    @Override
++    public NBTList getAsNBT() {
++        return a(new NBTTagList());
++    }
++
++    @Override
++    public void loadNBT(NBTList list) {
++        b((NBTTagList) list);
++    }
++    // Kenzie end
+ }
+diff --git a/src/main/java/org/bukkit/craftbukkit/inventory/CraftInventory.java b/src/main/java/org/bukkit/craftbukkit/inventory/CraftInventory.java
+index bba9bddc1c0aacade9b7ad56afb1e630caa078fc..630abc559cc543848601c3d805d9b3986c965c6d 100644
+--- a/src/main/java/org/bukkit/craftbukkit/inventory/CraftInventory.java
++++ b/src/main/java/org/bukkit/craftbukkit/inventory/CraftInventory.java
+@@ -3,22 +3,12 @@ package org.bukkit.craftbukkit.inventory;
+ import java.util.HashMap;
+ import java.util.List;
+ import java.util.ListIterator;
+-import net.minecraft.server.IHopper;
+-import net.minecraft.server.IInventory;
+-import net.minecraft.server.InventoryCrafting;
+-import net.minecraft.server.InventoryEnderChest;
+-import net.minecraft.server.InventoryMerchant;
+-import net.minecraft.server.PlayerInventory;
+-import net.minecraft.server.TileEntityBarrel;
+-import net.minecraft.server.TileEntityBlastFurnace;
+-import net.minecraft.server.TileEntityBrewingStand;
+-import net.minecraft.server.TileEntityDispenser;
+-import net.minecraft.server.TileEntityDropper;
+-import net.minecraft.server.TileEntityFurnace;
+-import net.minecraft.server.TileEntityLectern;
+-import net.minecraft.server.TileEntityShulkerBox;
+-import net.minecraft.server.TileEntitySmoker;
++
++import mx.kenzie.wellspring.nbt.NBTCompound;
++import mx.kenzie.wellspring.nbt.NBTList;
++import net.minecraft.server.*;
+ import org.apache.commons.lang.Validate;
++import org.bukkit.Bukkit;
+ import org.bukkit.Location;
+ import org.bukkit.Material;
+ import org.bukkit.craftbukkit.util.CraftLegacy;
+@@ -557,4 +547,35 @@ public class CraftInventory implements Inventory {
+     public Location getLocation() {
+         return inventory.getLocation();
+     }
++
++    // Kenzie start - handle and NBT
++    public IInventory getHandle() {
++        return inventory;
++    }
++    public NBTList getAsNBT() {
++        return getHandle().getAsNBT();
++    }
++
++    public void loadNBT(NBTList list) {
++        getHandle().loadNBT(list);
++    }
++
++    @Override
++    public NBTCompound getNBT() {
++        NBTCompound compound = NBTCompound.create();
++        compound.set("Inventory", getAsNBT());
++        return compound;
++    }
++
++    @Override
++    public void loadNBT(NBTCompound compound) {
++        try {
++            NBTList list = compound.getList("Inventory");
++            loadNBT(list);
++        } catch (Throwable ex) {
++            Bukkit.getLogger().warning("Inventory " + this.toString() + " experienced an error while loading NBT.");
++        }
++    }
++
++    // Kenzie end
+ }
