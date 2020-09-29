@@ -4,6 +4,8 @@ Wellspring
 A fork of paper with some tweaks to allow for additional content, modification of internal Minecraft features and better access to the Minecraft Registry for plugins.
 No breaking changes should be made to existing features. Wellspring's sole aim is to provide more accessibilty.
 
+Get involved on [Discord](https://discord.gg/gMdgGKM)?
+
 Maven Information
 -----
 Repository information:
