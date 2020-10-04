@@ -1,0 +1,233 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Sun, 4 Oct 2020 21:00:26 +0100
+Subject: [PATCH] Structure API with saving and pasting.
+
+
+diff --git a/src/main/java/mx/kenzie/wellspring/Wellspring.java b/src/main/java/mx/kenzie/wellspring/Wellspring.java
+index aef72c91fc27de3d17de6a05a5b86ee114025a94..34ccec906dc5ceabb0b9f0ec726a0d3c0f33412d 100644
+--- a/src/main/java/mx/kenzie/wellspring/Wellspring.java
++++ b/src/main/java/mx/kenzie/wellspring/Wellspring.java
+@@ -1,13 +1,18 @@
+ package mx.kenzie.wellspring;
+ 
+ import mx.kenzie.wellspring.enchantment.EnchantmentBuilder;
++import mx.kenzie.wellspring.nbt.NBTCompound;
++import mx.kenzie.wellspring.structure.Structure;
++import mx.kenzie.wellspring.structure.StructureInfo;
+ import org.bukkit.Bukkit;
+ import org.bukkit.NamespacedKey;
+ import org.bukkit.Server;
+ import org.bukkit.attribute.Attribute;
+ import org.bukkit.entity.EntityType;
+ import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
+ 
++import java.io.InputStream;
+ import java.util.Map;
+ 
+ /**
+@@ -45,6 +50,21 @@ public interface Wellspring extends Server {
+      */
+     abstract class Bridge {
+ 
++        public abstract @NotNull
++        StructureInfo createStructureInfo();
++
++        public abstract @NotNull
++        Structure createStructure();
++
++        public abstract @NotNull
++        Structure loadStructure(@NotNull NBTCompound compound);
++
++        public abstract @NotNull
++        Structure loadStructure(@NotNull InputStream stream);
++
++        public abstract @Nullable
++        Structure loadStructure(@NotNull NamespacedKey key);
++
+         public abstract float getWidth(@NotNull EntityType type);
+ 
+         public abstract float getHeight(@NotNull EntityType type);
+diff --git a/src/main/java/mx/kenzie/wellspring/structure/Structure.java b/src/main/java/mx/kenzie/wellspring/structure/Structure.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..bd7b7321ddca9762d621f8e26b90e995aa236520
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/structure/Structure.java
+@@ -0,0 +1,121 @@
++package mx.kenzie.wellspring.structure;
++
++import mx.kenzie.wellspring.Wellspring;
++import mx.kenzie.wellspring.nbt.NBTCompound;
++import mx.kenzie.wellspring.nbt.NBTHolder;
++import mx.kenzie.wellspring.nbt.NBTList;
++import org.bukkit.Location;
++import org.bukkit.NamespacedKey;
++import org.bukkit.block.structure.Mirror;
++import org.bukkit.block.structure.StructureRotation;
++import org.bukkit.util.BoundingBox;
++import org.bukkit.util.Vector;
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
++
++import java.io.File;
++import java.io.FileInputStream;
++import java.io.FileNotFoundException;
++import java.io.InputStream;
++
++/**
++ * A loaded structure (template) which can be pasted,
++ * populated and saved.
++ *
++ * This does not reference a particular physical structure
++ * or type of structure, but instead a (pre-)clonal template
++ * that can be pasted or saved to a file.
++ *
++ * For copying/saving block strata to the structure,
++ * see {@link Structure#populate(Location, Vector)}
++ *
++ * For pasting/applying the structure to a position,
++ * see {@link Structure#paste(Location, StructureInfo)}
++ */
++public interface Structure extends NBTHolder {
++
++    static @NotNull Structure create() {
++        return Wellspring.bridge().createStructure();
++    }
++
++    static @NotNull Structure loadFrom(@NotNull File file) throws RuntimeException {
++        try {
++            return loadFrom(new FileInputStream(file));
++        } catch (FileNotFoundException ex) {
++            throw new RuntimeException(ex);
++        }
++    }
++
++    static @Nullable
++    Structure loadFrom(@NotNull NamespacedKey resource) throws RuntimeException {
++        return Wellspring.bridge().loadStructure(resource);
++    }
++
++    static @NotNull Structure loadFrom(@NotNull InputStream stream) {
++        return Wellspring.bridge().loadStructure(stream);
++    }
++
++    static @NotNull Structure loadFrom(@NotNull NBTCompound compound) {
++        return Wellspring.bridge().loadStructure(compound);
++    }
++
++    void populate(@NotNull Location target, @NotNull Vector size);
++
++    void populate(@NotNull Location target, @NotNull Vector size, boolean ignoreEntities);
++
++    void populate(@NotNull Location target, @NotNull Vector size, boolean ignoreEntities, boolean ignoreVoids);
++
++    @NotNull
++    Vector getSize(@NotNull StructureRotation rotation);
++
++    boolean paste(@NotNull Location location, @NotNull StructureInfo info);
++
++    default @NotNull
++    BoundingBox getBounds(@NotNull Location target, @NotNull Location pivot, @NotNull StructureRotation rotation, @NotNull Mirror mirror) {
++        return getBounds(target.toVector(), pivot.toVector(), rotation, mirror);
++    }
++
++    @NotNull
++    BoundingBox getBounds(@NotNull Vector target, @NotNull Vector pivot, @NotNull StructureRotation rotation, @NotNull Mirror mirror);
++
++    default @NotNull
++    BoundingBox getBounds(@NotNull Location target, @NotNull StructureInfo data) {
++        return getBounds(target.toVector(), data);
++    }
++
++    @NotNull
++    BoundingBox getBounds(@NotNull Vector target, @NotNull StructureInfo data);
++
++    @NotNull
++    String getAuthor();
++
++    void setAuthor(@NotNull String author);
++
++    default @NotNull
++    NBTCompound save() {
++        return save(NBTCompound.create());
++    }
++
++    @NotNull
++    NBTCompound save(@NotNull NBTCompound compound);
++
++    void load(@NotNull NBTCompound compound);
++
++    void saveTo(@NotNull File file);
++
++    void saveAs(@NotNull NamespacedKey resource);
++
++    default @NotNull
++    @Override
++    NBTCompound getNBT() {
++        return save();
++    }
++
++    @Override
++    default void loadNBT(@NotNull NBTCompound compound) {
++        load(compound);
++    }
++
++    void loadPalette(@NotNull NBTList a, @NotNull NBTList b);
++
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/structure/StructureInfo.java b/src/main/java/mx/kenzie/wellspring/structure/StructureInfo.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..7aefc5edd3753b79152e488fb81873b8f0b2afb9
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/structure/StructureInfo.java
+@@ -0,0 +1,49 @@
++package mx.kenzie.wellspring.structure;
++
++import mx.kenzie.wellspring.Wellspring;
++import org.bukkit.Location;
++import org.bukkit.block.structure.Mirror;
++import org.bukkit.block.structure.StructureRotation;
++import org.bukkit.util.Vector;
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
++
++import java.util.Random;
++
++public interface StructureInfo {
++
++    @NotNull
++    static StructureInfo create() {
++        return Wellspring.bridge().createStructureInfo();
++    }
++
++    @NotNull StructureInfo setMirror(@NotNull Mirror mirror);
++
++    @NotNull StructureInfo setRotation(@NotNull StructureRotation rotation);
++
++    @NotNull StructureInfo keepLiquids(boolean keep);
++
++    @NotNull StructureInfo ignoreEntities(@NotNull boolean ignore);
++
++    @NotNull StructureInfo setSeed(@Nullable Random random);
++
++    default @NotNull StructureInfo setPivot(@NotNull Vector pivot) {
++        return setPivot(pivot.getBlockX(), pivot.getBlockY(), pivot.getBlockZ());
++    }
++
++    @NotNull StructureInfo setPivot(int x, int y, int z);
++
++    default @NotNull StructureInfo setSeed(long seed) {
++        return setSeed(new Random(seed));
++    }
++
++    boolean isKeepLiquids();
++
++    boolean isIgnoreEntities();
++
++    @NotNull Vector getPivot();
++
++    @Nullable
++    Random getSeed();
++
++}

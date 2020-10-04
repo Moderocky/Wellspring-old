@@ -1,0 +1,555 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Sun, 4 Oct 2020 21:00:33 +0100
+Subject: [PATCH] Structure API with saving and pasting.
+
+
+diff --git a/src/main/java/mx/kenzie/server/CraftBridge.java b/src/main/java/mx/kenzie/server/CraftBridge.java
+index bd13a8f9d150874aeced961cf75ff1d00b2b5b51..124db5f4e1a1cf7e2738c07294c66a8b70c39392 100644
+--- a/src/main/java/mx/kenzie/server/CraftBridge.java
++++ b/src/main/java/mx/kenzie/server/CraftBridge.java
+@@ -1,6 +1,9 @@
+ package mx.kenzie.server;
+ 
+ import mx.kenzie.wellspring.Wellspring;
++import mx.kenzie.wellspring.nbt.NBTCompound;
++import mx.kenzie.wellspring.structure.Structure;
++import mx.kenzie.wellspring.structure.StructureInfo;
+ import net.minecraft.server.*;
+ import org.bukkit.NamespacedKey;
+ import org.bukkit.attribute.Attribute;
+@@ -9,12 +12,46 @@ import org.bukkit.craftbukkit.entity.CraftLivingEntity;
+ import org.bukkit.enchantments.Enchantment;
+ import org.bukkit.entity.EntityType;
+ 
++import java.io.InputStream;
+ import java.util.HashMap;
+ import java.util.Iterator;
+ import java.util.Map;
+ 
+ public class CraftBridge extends Wellspring.Bridge {
+ 
++    @Override
++    public StructureInfo createStructureInfo() {
++        return new DefinedStructureInfo();
++    }
++
++    @Override
++    public Structure createStructure() {
++        return new DefinedStructure();
++    }
++
++    @Override
++    public Structure loadStructure(NBTCompound compound) {
++        DefinedStructure structure = new DefinedStructure();
++        structure.load(compound);
++        return structure;
++    }
++
++    @Override
++    public Structure loadStructure(InputStream stream) {
++        try {
++            DefinedStructure structure = new DefinedStructure();
++            structure.load(NBTCompressedStreamTools.a(stream));
++            return structure;
++        } catch (Throwable ex) {
++            throw new RuntimeException(ex);
++        }
++    }
++
++    @Override
++    public Structure loadStructure(NamespacedKey key) {
++        return MinecraftServer.getServer().getDefinedStructureManager().b(MinecraftKey.a(key.toString()));
++    }
++
+     @Override
+     public float getWidth(EntityType type) {
+         return IRegistry.ENTITY_TYPE.get(new MinecraftKey(type.getKey().toString())).j();
+diff --git a/src/main/java/mx/kenzie/server/structure/Structure.java b/src/main/java/mx/kenzie/server/structure/Structure.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..18450b649f46babfb1f44e34b8504cc93b74cc7f
+--- /dev/null
++++ b/src/main/java/mx/kenzie/server/structure/Structure.java
+@@ -0,0 +1,45 @@
++package mx.kenzie.server.structure;
++
++import net.minecraft.server.EnumBlockMirror;
++import net.minecraft.server.EnumBlockRotation;
++import net.minecraft.server.StructureBoundingBox;
++import org.bukkit.block.structure.Mirror;
++import org.bukkit.block.structure.StructureRotation;
++
++public abstract class Structure implements mx.kenzie.wellspring.structure.Structure {
++
++    public Structure() {
++
++    }
++
++    void blob() {
++    }
++
++    public static EnumBlockRotation convert(StructureRotation rotation) {
++        switch (rotation) {
++            case NONE:
++                return EnumBlockRotation.NONE;
++            case CLOCKWISE_90:
++                return EnumBlockRotation.CLOCKWISE_90;
++            case CLOCKWISE_180:
++                return EnumBlockRotation.CLOCKWISE_180;
++            case COUNTERCLOCKWISE_90:
++                return EnumBlockRotation.COUNTERCLOCKWISE_90;
++        }
++        return EnumBlockRotation.NONE;
++    }
++
++    public static EnumBlockMirror convert(Mirror mirror) {
++        switch (mirror) {
++            case NONE:
++                return EnumBlockMirror.NONE;
++            case FRONT_BACK:
++                return EnumBlockMirror.FRONT_BACK;
++            case LEFT_RIGHT:
++                return EnumBlockMirror.LEFT_RIGHT;
++        }
++        return EnumBlockMirror.NONE;
++    }
++
++
++}
+diff --git a/src/main/java/net/minecraft/server/DefinedStructure.java b/src/main/java/net/minecraft/server/DefinedStructure.java
+index 8974d7944f159b9346680c639daf0f8c06767cfe..179b09887128f1c3f4f59e0fbcf317145671dfca 100644
+--- a/src/main/java/net/minecraft/server/DefinedStructure.java
++++ b/src/main/java/net/minecraft/server/DefinedStructure.java
+@@ -3,6 +3,22 @@ package net.minecraft.server;
+ import com.google.common.collect.Lists;
+ import com.google.common.collect.Maps;
+ import com.mojang.datafixers.util.Pair;
++import mx.kenzie.server.structure.Structure;
++import mx.kenzie.wellspring.nbt.NBTCompound;
++import mx.kenzie.wellspring.nbt.NBTList;
++import mx.kenzie.wellspring.structure.StructureInfo;
++import org.bukkit.Location;
++import org.bukkit.NamespacedKey;
++import org.bukkit.block.structure.Mirror;
++import org.bukkit.block.structure.StructureRotation;
++import org.bukkit.craftbukkit.CraftWorld;
++import org.bukkit.util.BoundingBox;
++import org.bukkit.util.Vector;
++
++import java.io.*;
++import java.nio.file.Files;
++import java.nio.file.LinkOption;
++import java.nio.file.Path;
+ import java.util.Collections;
+ import java.util.Comparator;
+ import java.util.Iterator;
+@@ -13,7 +29,9 @@ import java.util.Random;
+ import java.util.stream.Collectors;
+ import javax.annotation.Nullable;
+ 
+-public class DefinedStructure {
++import static net.minecraft.server.Blocks.STRUCTURE_VOID;
++
++public class DefinedStructure extends Structure {
+ 
+     private final List<DefinedStructure.a> a = Lists.newArrayList();
+     private final List<DefinedStructure.EntityInfo> b = Lists.newArrayList();
+@@ -884,4 +902,131 @@ public class DefinedStructure {
+             this.b.a(iblockdata, i);
+         }
+     }
++
++    // Kenzie start
++
++    @Override
++    public Vector getSize(StructureRotation rotation) {
++        final BlockPosition position = a(Structure.convert(rotation));
++        final int x, y ,z;
++        x = position.getX();
++        y = position.getY();
++        z = position.getZ();
++        return new Vector(x, y, z);
++    }
++
++    @Override
++    public BoundingBox getBounds(Location location, Location pivot, StructureRotation rotation, Mirror mirror) {
++        return getBounds(location.toVector(), pivot.toVector(), rotation, mirror);
++    }
++
++    @Override
++    public BoundingBox getBounds(Vector location, Vector pivot, StructureRotation rotation, Mirror mirror) {
++        BlockPosition centre, rot;
++        centre = new BlockPosition(location.getBlockX(), location.getBlockY(), location.getBlockZ());
++        rot = new BlockPosition(pivot.getBlockX(), pivot.getBlockY(), pivot.getBlockZ());
++        StructureBoundingBox box = a(centre, convert(rotation), rot, convert(mirror));
++        return new BoundingBox(box.a, box.b, box.c, box.d, box.e, box.f);
++    }
++
++    @Override
++    public BoundingBox getBounds(Vector target, StructureInfo data) {
++        StructureBoundingBox box =  b(((DefinedStructureInfo) data), new BlockPosition(target.getBlockX(), target.getBlockY(), target.getBlockZ()));
++        return new BoundingBox(box.a, box.b, box.c, box.d, box.e, box.f);
++    }
++
++    @Override
++    public String getAuthor() {
++        return b();
++    }
++
++    @Override
++    public void setAuthor(String author) {
++        a(author);
++    }
++
++    @Override
++    public NBTCompound save() {
++        return a(new NBTTagCompound());
++    }
++
++    @Override
++    public NBTCompound save(NBTCompound compound) {
++        return a(((NBTTagCompound) compound));
++    }
++
++    @Override
++    public void load(NBTCompound compound) {
++        b(((NBTTagCompound) compound));
++    }
++
++    @Override
++    public void loadPalette(NBTList a, NBTList b) {
++        a(((NBTTagList) a), ((NBTTagList) b));
++    }
++
++    @Override
++    public void populate(Location location, Vector size) {
++        populate(location, size, true, true);
++    }
++
++    @Override
++    public void populate(Location location, Vector size, boolean entities) {
++        populate(location, size, entities, true);
++    }
++
++    @Override
++    public void populate(Location location, Vector size, boolean entities, boolean voids) {
++        WorldServer world = ((CraftWorld) location.getWorld()).getHandle();
++        BlockPosition centre = new BlockPosition(location.getBlockX(), location.getBlockY(), location.getBlockZ());
++        BlockPosition bounds = new BlockPosition(size.getBlockX(), size.getBlockY(), size.getBlockZ());
++        a(world, centre, bounds, entities, voids ? null : STRUCTURE_VOID);
++    }
++
++    @Override
++    public boolean paste(Location location, StructureInfo data) {
++        WorldServer world = ((CraftWorld) location.getWorld()).getHandle();
++        BlockPosition centre = new BlockPosition(location.getBlockX(), location.getBlockY(), location.getBlockZ());
++        DefinedStructureInfo info = ((DefinedStructureInfo) data);
++        info.k();
++        return a(world, centre, centre, info, info.getSeed() != null ? info.getSeed() : world.random, 2);
++    }
++
++    @Override
++    public void saveTo(File file) {
++        if (!file.exists()) throw new IllegalArgumentException("File must exist!");
++        try {
++            FileOutputStream fileoutputstream = new FileOutputStream(file);
++            Throwable throwable = null;
++            try {
++                NBTCompressedStreamTools.a(((NBTTagCompound) getNBT()), fileoutputstream);
++            } catch (Throwable throwable1) {
++                throwable = throwable1;
++                throw throwable1;
++            } finally {
++                if (throwable != null) {
++                    try {
++                        fileoutputstream.close();
++                    } catch (Throwable throwable2) {
++                        throwable.addSuppressed(throwable2);
++                    }
++                } else {
++                    fileoutputstream.close();
++                }
++
++            }
++        } catch (Throwable ex) {
++            throw new RuntimeException(ex);
++        }
++    }
++
++    @Override
++    public void saveAs(NamespacedKey resource) {
++        MinecraftKey key = MinecraftKey.a(resource.toString());
++        DefinedStructureManager manager = MinecraftServer.getServer().getDefinedStructureManager();
++        manager.getMap().put(key, this);
++        manager.c(key);
++    }
++
++    // Kenzie end
+ }
+diff --git a/src/main/java/net/minecraft/server/DefinedStructureInfo.java b/src/main/java/net/minecraft/server/DefinedStructureInfo.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..c3ac8cc7bdf3f9eb4f6deb7e7cac71f020f75286
+--- /dev/null
++++ b/src/main/java/net/minecraft/server/DefinedStructureInfo.java
+@@ -0,0 +1,248 @@
++package net.minecraft.server;
++
++import com.google.common.collect.Lists;
++import java.util.List;
++import java.util.Random;
++import javax.annotation.Nullable;
++
++import mx.kenzie.server.structure.Structure;
++import mx.kenzie.wellspring.structure.StructureInfo;
++import net.minecraft.server.DefinedStructure.a;
++import org.bukkit.block.structure.Mirror;
++import org.bukkit.block.structure.StructureRotation;
++import org.bukkit.util.Vector;
++
++public class DefinedStructureInfo implements StructureInfo {
++    private EnumBlockMirror a;
++    private EnumBlockRotation b;
++    private BlockPosition c;
++    private boolean d;
++    @Nullable
++    private ChunkCoordIntPair e;
++    @Nullable
++    private StructureBoundingBox f;
++    private boolean g;
++    @Nullable
++    private Random h;
++    @Nullable
++    private int i;
++    private final List<DefinedStructureProcessor> j;
++    private boolean k;
++    private boolean l;
++
++    public DefinedStructureInfo() {
++        this.a = EnumBlockMirror.NONE;
++        this.b = EnumBlockRotation.NONE;
++        this.c = BlockPosition.ZERO;
++        this.g = true;
++        this.j = Lists.newArrayList();
++    }
++
++    public DefinedStructureInfo a() {
++        DefinedStructureInfo var0 = new DefinedStructureInfo();
++        var0.a = this.a;
++        var0.b = this.b;
++        var0.c = this.c;
++        var0.d = this.d;
++        var0.e = this.e;
++        var0.f = this.f;
++        var0.g = this.g;
++        var0.h = this.h;
++        var0.i = this.i;
++        var0.j.addAll(this.j);
++        var0.k = this.k;
++        var0.l = this.l;
++        return var0;
++    }
++
++    public DefinedStructureInfo a(EnumBlockMirror var0) {
++        this.a = var0;
++        return this;
++    }
++
++    public DefinedStructureInfo a(EnumBlockRotation var0) {
++        this.b = var0;
++        return this;
++    }
++
++    public DefinedStructureInfo a(BlockPosition var0) {
++        this.c = var0;
++        return this;
++    }
++
++    public DefinedStructureInfo a(boolean var0) {
++        this.d = var0;
++        return this;
++    }
++
++    public DefinedStructureInfo a(ChunkCoordIntPair var0) {
++        this.e = var0;
++        return this;
++    }
++
++    public DefinedStructureInfo a(StructureBoundingBox var0) {
++        this.f = var0;
++        return this;
++    }
++
++    public DefinedStructureInfo a(@Nullable Random var0) {
++        this.h = var0;
++        return this;
++    }
++
++    public DefinedStructureInfo c(boolean var0) {
++        this.k = var0;
++        return this;
++    }
++
++    public DefinedStructureInfo b() {
++        this.j.clear();
++        return this;
++    }
++
++    public DefinedStructureInfo a(DefinedStructureProcessor var0) {
++        this.j.add(var0);
++        return this;
++    }
++
++    public DefinedStructureInfo b(DefinedStructureProcessor var0) {
++        this.j.remove(var0);
++        return this;
++    }
++
++    public EnumBlockMirror c() {
++        return this.a;
++    }
++
++    public EnumBlockRotation d() {
++        return this.b;
++    }
++
++    public BlockPosition e() {
++        return this.c;
++    }
++
++    public Random b(@Nullable BlockPosition var0) {
++        if (this.h != null) {
++            return this.h;
++        } else {
++            return var0 == null ? new Random(SystemUtils.getMonotonicMillis()) : new Random(MathHelper.a(var0));
++        }
++    }
++
++    public boolean g() {
++        return this.d;
++    }
++
++    @Nullable
++    public StructureBoundingBox h() {
++        if (this.f == null && this.e != null) {
++            this.k();
++        }
++
++        return this.f;
++    }
++
++    public boolean i() {
++        return this.k;
++    }
++
++    public List<DefinedStructureProcessor> j() {
++        return this.j;
++    }
++
++    void k() {
++        if (this.e != null) {
++            this.f = this.b(this.e);
++        }
++
++    }
++
++    public boolean l() {
++        return this.g;
++    }
++
++    public a a(List<a> var0, @Nullable BlockPosition var1) {
++        int var2 = var0.size();
++        if (var2 == 0) {
++            throw new IllegalStateException("No palettes");
++        } else {
++            return (a)var0.get(this.b(var1).nextInt(var2));
++        }
++    }
++
++    @Nullable
++    private StructureBoundingBox b(@Nullable ChunkCoordIntPair var0) {
++        if (var0 == null) {
++            return this.f;
++        } else {
++            int var1 = var0.x * 16;
++            int var2 = var0.z * 16;
++            return new StructureBoundingBox(var1, 0, var2, var1 + 16 - 1, 255, var2 + 16 - 1);
++        }
++    }
++
++    public DefinedStructureInfo d(boolean var0) {
++        this.l = var0;
++        return this;
++    }
++
++    public boolean m() {
++        return this.l;
++    }
++
++    // Kenzie start
++
++    @Override
++    public StructureInfo setMirror(Mirror mirror) {
++        return a(Structure.convert(mirror));
++    }
++
++    @Override
++    public StructureInfo setRotation(StructureRotation rotation) {
++        return a(Structure.convert(rotation));
++    }
++
++    @Override
++    public StructureInfo keepLiquids(boolean keep) {
++        g = keep;
++        return this;
++    }
++
++    @Override
++    public StructureInfo ignoreEntities(boolean ignore) {
++        return a(ignore);
++    }
++
++    @Override
++    public StructureInfo setSeed(Random random) {
++        return a(random);
++    }
++
++    @Override
++    public StructureInfo setPivot(int x, int y, int z) {
++        return a(new BlockPosition(x, y, z));
++    }
++
++    @Override
++    public boolean isKeepLiquids() {
++        return false;
++    }
++
++    @Override
++    public boolean isIgnoreEntities() {
++        return false;
++    }
++
++    @Override
++    public Vector getPivot() {
++        return new Vector(c.getX(), c.getY(), c.getZ());
++    }
++
++    @Override
++    public Random getSeed() {
++        return h;
++    }
++
++    // Kenzie end
++}
+diff --git a/src/main/java/net/minecraft/server/DefinedStructureManager.java b/src/main/java/net/minecraft/server/DefinedStructureManager.java
+index 595789d2ba8571f8375a17cabd26a06040523849..b919e4c010bb8c20406a6c924d389ff1d5cf200c 100644
+--- a/src/main/java/net/minecraft/server/DefinedStructureManager.java
++++ b/src/main/java/net/minecraft/server/DefinedStructureManager.java
+@@ -19,7 +19,7 @@ import org.apache.logging.log4j.Logger;
+ public class DefinedStructureManager {
+ 
+     private static final Logger LOGGER = LogManager.getLogger();
+-    private final Map<MinecraftKey, DefinedStructure> b = Maps.newConcurrentMap(); // SPIGOT-5287
++    private final Map<MinecraftKey, DefinedStructure> b = Maps.newConcurrentMap(); public Map<MinecraftKey, DefinedStructure> getMap() { return b; } // Kenzie - deobfuscation // SPIGOT-5287
+     private final DataFixer c;
+     private IResourceManager d;
+     private final java.nio.file.Path e;
