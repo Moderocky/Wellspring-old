@@ -1,0 +1,94 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Sun, 4 Oct 2020 13:11:07 +0100
+Subject: [PATCH] Network clients and status packets.
+
+
+diff --git a/src/main/java/com/destroystokyo/paper/network/PaperNetworkClient.java b/src/main/java/com/destroystokyo/paper/network/PaperNetworkClient.java
+index 5caca6439d2135e34880d501397fe2ea197d7249..1fbe2cfeb8c5a6eda85ea38e71963eb590cfd94c 100644
+--- a/src/main/java/com/destroystokyo/paper/network/PaperNetworkClient.java
++++ b/src/main/java/com/destroystokyo/paper/network/PaperNetworkClient.java
+@@ -47,4 +47,5 @@ public class PaperNetworkClient implements NetworkClient {
+         return InetSocketAddress.createUnresolved(host.substring(0, len), port);
+     }
+ 
++    public NetworkManager getNetworkManager() { return networkManager; } // Kenzie - packets! :)
+ }
+diff --git a/src/main/java/mx/kenzie/server/packet/PacketFactoryImpl.java b/src/main/java/mx/kenzie/server/packet/PacketFactoryImpl.java
+index c4255eabf8e04006c49dc8abf036180359440b69..141c2ad5b634a282b7092dae50661f17d95ff401 100644
+--- a/src/main/java/mx/kenzie/server/packet/PacketFactoryImpl.java
++++ b/src/main/java/mx/kenzie/server/packet/PacketFactoryImpl.java
+@@ -1,8 +1,12 @@
+ package mx.kenzie.server.packet;
+ 
++import com.destroystokyo.paper.network.NetworkClient;
++import com.destroystokyo.paper.network.PaperNetworkClient;
+ import mx.kenzie.wellspring.conversion.Converter;
+ import mx.kenzie.wellspring.packet.PacketFactory;
+ import mx.kenzie.wellspring.packet.PacketType;
++import net.md_5.bungee.api.chat.BaseComponent;
++import net.md_5.bungee.chat.ComponentSerializer;
+ import net.minecraft.server.*;
+ import org.bukkit.Location;
+ import org.bukkit.NamespacedKey;
+@@ -31,6 +35,8 @@ public class PacketFactoryImpl extends PacketFactory {
+     static {
+         incoming:
+         {
++            Incoming.STATUS_PING = new Incoming(PacketStatusInPing.class, PacketStatusInPing::new);
++            Incoming.STATUS_START = new Incoming(PacketStatusInStart.class, PacketStatusInStart::new);
+             Incoming.LOGIN_CUSTOM_PAYLOAD = new Incoming(PacketLoginInCustomPayload.class, PacketLoginInCustomPayload::new);
+             Incoming.ABILITIES = new Incoming(PacketPlayInAbilities.class, PacketPlayInAbilities::new);
+             Incoming.ADVANCEMENTS = new Incoming(PacketPlayInAdvancements.class, PacketPlayInAdvancements::new);
+@@ -79,6 +85,8 @@ public class PacketFactoryImpl extends PacketFactory {
+         }
+         outgoing:
+         {
++            Outgoing.STATUS_PONG = new Outgoing(PacketStatusOutPong.class, PacketStatusOutPong::new);
++            Outgoing.STATUS_SERVER_INFO = new Outgoing(PacketStatusOutServerInfo.class, PacketStatusOutServerInfo::new);
+             Outgoing.LOGIN_CUSTOM_PAYLOAD = new Outgoing(PacketLoginOutCustomPayload.class, PacketLoginOutCustomPayload::new);
+             Outgoing.ABILITIES = new Outgoing(PacketPlayOutAbilities.class, PacketPlayOutAbilities::new);
+             Outgoing.ADVANCEMENTS = new Outgoing(PacketPlayOutAdvancements.class, PacketPlayOutAdvancements::new);
+@@ -181,6 +189,22 @@ public class PacketFactoryImpl extends PacketFactory {
+         }
+     }
+ 
++    @Override
++    public mx.kenzie.wellspring.packet.Packet statusOutPong(long ms) {
++        return new PacketStatusOutPong(ms);
++    }
++
++    @Override
++    public mx.kenzie.wellspring.packet.Packet statusOutOutServerInfo(BaseComponent[] motd, int online, int maxPlayers, String version, int protocol, String icon) {
++        ServerPing ping = new ServerPing();
++        IChatMutableComponent component = IChatBaseComponent.ChatSerializer.a(ComponentSerializer.toString(motd));
++        ping.setMOTD(component);
++        ping.setPlayerSample(new ServerPing.ServerPingPlayerSample(maxPlayers, online));
++        ping.setServerInfo(new ServerPing.ServerData(version, protocol));
++        if (icon != null) ping.setFavicon(icon);
++        return new PacketStatusOutServerInfo(ping);
++    }
++
+     @Override
+     public mx.kenzie.wellspring.packet.Packet loginOutCustomPayload() {
+         return new PacketLoginInCustomPayload();
+@@ -303,10 +327,15 @@ public class PacketFactoryImpl extends PacketFactory {
+     }
+ 
+     @Override
+-    public void send(mx.kenzie.wellspring.packet.Packet packet, Player... recipients) throws IllegalArgumentException {
+-        for (Player recipient : recipients) {
+-            CraftPlayer player = ((CraftPlayer) recipient);
+-            player.getHandle().playerConnection.networkManager.sendPacket((net.minecraft.server.Packet<?>) packet);
++    public void send(mx.kenzie.wellspring.packet.Packet packet, NetworkClient... recipients) throws IllegalArgumentException {
++        for (NetworkClient recipient : recipients) {
++            if (recipient instanceof CraftPlayer) {
++                CraftPlayer player = ((CraftPlayer) recipient);
++                player.getHandle().playerConnection.networkManager.sendPacket((net.minecraft.server.Packet<?>) packet);
++            } else if (recipient instanceof PaperNetworkClient) {
++                PaperNetworkClient client = (PaperNetworkClient) recipient;
++                client.getNetworkManager().sendPacket((net.minecraft.server.Packet<?>) packet);
++            }
+         }
+     }
+ }

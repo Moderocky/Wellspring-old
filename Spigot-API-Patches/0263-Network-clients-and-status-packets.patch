@@ -1,0 +1,122 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Sun, 4 Oct 2020 13:10:56 +0100
+Subject: [PATCH] Network clients and status packets.
+
+
+diff --git a/src/main/java/com/destroystokyo/paper/network/NetworkClient.java b/src/main/java/com/destroystokyo/paper/network/NetworkClient.java
+index 7b2af1bd72dfbcf4e962a982940fc49b851aa04f..a3758cc0d897139c7b89391a6647c42d3093c963 100644
+--- a/src/main/java/com/destroystokyo/paper/network/NetworkClient.java
++++ b/src/main/java/com/destroystokyo/paper/network/NetworkClient.java
+@@ -2,6 +2,7 @@ package com.destroystokyo.paper.network;
+ 
+ import java.net.InetSocketAddress;
+ 
++import mx.kenzie.wellspring.packet.Packet;
+ import org.jetbrains.annotations.NotNull;
+ import org.jetbrains.annotations.Nullable;
+ 
+@@ -38,4 +39,19 @@ public interface NetworkClient {
+     @Nullable
+     InetSocketAddress getVirtualHost();
+ 
++    // Kenzie start - packets
++    /**
++     * Sends the specified packet to the network connection.
++     * Please note that only outgoing packets will work
++     * properly.
++     *
++     * This may be used from other threads, but the packet
++     * will be sent out with the next tick.
++     * @param packet the packet to be sent
++     */
++    default void sendPacket(@NotNull Packet packet) {
++        packet.send(this);
++    }
++    // Kenzie end
++
+ }
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/Packet.java b/src/main/java/mx/kenzie/wellspring/packet/Packet.java
+index 68f321ef42e95369e3f025f30cc4127f7a1787f3..b52f2aec8ea54bd262f08e588457ba71e8e60196 100644
+--- a/src/main/java/mx/kenzie/wellspring/packet/Packet.java
++++ b/src/main/java/mx/kenzie/wellspring/packet/Packet.java
+@@ -1,5 +1,6 @@
+ package mx.kenzie.wellspring.packet;
+ 
++import com.destroystokyo.paper.network.NetworkClient;
+ import org.bukkit.Bukkit;
+ import org.bukkit.entity.Player;
+ import org.jetbrains.annotations.NotNull;
+@@ -21,7 +22,7 @@ public interface Packet {
+         return PacketType.of(this);
+     }
+ 
+-    default void send(@NotNull Player... recipients) {
++    default void send(@NotNull NetworkClient... recipients) {
+         Bukkit.getPacketFactory().send(this, recipients);
+     }
+ 
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java b/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java
+index c00b015a400f29fe71dfc5101c31d16dd28f435f..fdeebda4824c12f803adec33a52cd3d47c412109 100644
+--- a/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java
++++ b/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java
+@@ -1,7 +1,9 @@
+ package mx.kenzie.wellspring.packet;
+ 
++import com.destroystokyo.paper.network.NetworkClient;
+ import mx.kenzie.wellspring.conversion.BiConverter;
+ import mx.kenzie.wellspring.conversion.Converter;
++import net.md_5.bungee.api.chat.BaseComponent;
+ import org.bukkit.Location;
+ import org.bukkit.NamespacedKey;
+ import org.bukkit.advancement.Advancement;
+@@ -11,6 +13,7 @@ import org.bukkit.entity.Entity;
+ import org.bukkit.entity.EntityType;
+ import org.bukkit.entity.Player;
+ import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
+ 
+ import java.util.*;
+ 
+@@ -49,6 +52,10 @@ public abstract class PacketFactory {
+     public abstract @NotNull
+     Packet createFrom(@NotNull PacketType type, @NotNull Object... fieldInputs) throws IllegalArgumentException;
+ 
++    public abstract @NotNull Packet statusOutPong(long ms);
++
++    public abstract @NotNull Packet statusOutOutServerInfo(@NotNull BaseComponent[] motd, int online, int maxPlayers, @NotNull String version, int protocol, @Nullable String icon);
++
+     public abstract @NotNull
+     Packet loginOutCustomPayload();
+ 
+@@ -85,7 +92,7 @@ public abstract class PacketFactory {
+     public abstract @NotNull
+     Packet playOutSpawnLivingEntity(@NotNull EntityType type, @NotNull Location location, int id, @NotNull UUID uuid, float yaw, float pitch, float headRotation);
+ 
+-    public abstract void send(@NotNull Packet packet, @NotNull Player... recipients) throws IllegalArgumentException;
++    public abstract void send(@NotNull Packet packet, @NotNull NetworkClient... recipients) throws IllegalArgumentException;
+ 
+ 
+     protected static class ConversionEntry<X, Y> {
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/PacketType.java b/src/main/java/mx/kenzie/wellspring/packet/PacketType.java
+index 925c66adbc3098e331b235e806cf5cf5b4b87339..9e0968cf23527336adf6a876d9cd70a668eca375 100644
+--- a/src/main/java/mx/kenzie/wellspring/packet/PacketType.java
++++ b/src/main/java/mx/kenzie/wellspring/packet/PacketType.java
+@@ -90,6 +90,8 @@ public class PacketType {
+     }
+ 
+     public static class Incoming extends PacketType {
++        public static PacketType STATUS_PING;
++        public static PacketType STATUS_START;
+         public static PacketType LOGIN_CUSTOM_PAYLOAD;
+         public static PacketType ABILITIES;
+         public static PacketType ADVANCEMENTS;
+@@ -146,6 +148,8 @@ public class PacketType {
+     }
+ 
+     public static class Outgoing extends PacketType {
++        public static PacketType STATUS_PONG;
++        public static PacketType STATUS_SERVER_INFO;
+         public static PacketType LOGIN_CUSTOM_PAYLOAD;
+         public static PacketType ABILITIES;
+         public static PacketType ADVANCEMENTS;
