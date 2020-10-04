@@ -1,0 +1,60 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Sun, 4 Oct 2020 13:19:42 +0100
+Subject: [PATCH] Automatic annotation generation test.
+
+
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java b/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java
+index fdeebda4824c12f803adec33a52cd3d47c412109..2b8cd89c44044a747f494ed8b5282065461d367e 100644
+--- a/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java
++++ b/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java
+@@ -26,14 +26,15 @@ import java.util.*;
+  */
+ public abstract class PacketFactory {
+ 
++    @NotNull
+     protected HashMap<Class<?>, ConversionEntry<?, ?>> converters = new HashMap<>();
+ 
+-    public <X, Y> void registerConverter(@NotNull Converter<X, Y> converter, Class<X> from, Class<Y> to) {
++    public <X, Y> void registerConverter(@NotNull Converter<X, Y> converter, @NotNull Class<X> from, @NotNull Class<Y> to) {
+         ConversionEntry<X, Y> entry = new ConversionEntry<>(converter, from, to);
+         converters.put(from, entry);
+     }
+ 
+-    public <X, Y> void registerConverter(@NotNull BiConverter<X, Y> converter, Class<X> from, Class<Y> to) {
++    public <X, Y> void registerConverter(@NotNull BiConverter<X, Y> converter, @NotNull Class<X> from, @NotNull Class<Y> to) {
+         registerConverter((Converter<X, Y>) converter, from, to);
+         registerConverter(converter.reverse(), to, from);
+     }
+@@ -96,24 +97,30 @@ public abstract class PacketFactory {
+ 
+ 
+     protected static class ConversionEntry<X, Y> {
++        @NotNull
+         public final Converter<X, Y> converter;
++        @NotNull
+         public final Class<X> from;
++        @NotNull
+         public final Class<Y> to;
+ 
+-        public ConversionEntry(Converter<X, Y> converter, Class<X> from, Class<Y> to) {
++        public ConversionEntry(@NotNull Converter<X, Y> converter, @NotNull Class<X> from, @NotNull Class<Y> to) {
+             this.converter = converter;
+             this.from = from;
+             this.to = to;
+         }
+ 
++        @NotNull
+         public Converter<X, Y> getConverter() {
+             return converter;
+         }
+ 
++        @NotNull
+         public Class<X> getFrom() {
+             return from;
+         }
+ 
++        @NotNull
+         public Class<Y> getTo() {
+             return to;
+         }

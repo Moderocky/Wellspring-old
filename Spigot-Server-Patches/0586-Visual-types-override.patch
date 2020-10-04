@@ -5,7 +5,7 @@ Subject: [PATCH] Visual types override
 
 
 diff --git a/src/main/java/net/minecraft/server/Entity.java b/src/main/java/net/minecraft/server/Entity.java
-index 913ff1f5eb00fe51ca438ef5cb12ad455529ab94..5f0612b90329361dbea720057e2518fd80c07c58 100644
+index 6e7bc469803048f53ef46d3a51a1ad21dfb24afb..ac4476f5ea88240adae87dc467b7846e33ca0e8f 100644
 --- a/src/main/java/net/minecraft/server/Entity.java
 +++ b/src/main/java/net/minecraft/server/Entity.java
 @@ -294,6 +294,10 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke

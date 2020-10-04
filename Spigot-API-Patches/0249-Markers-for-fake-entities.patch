@@ -17,12 +17,12 @@ index 5da925e7438d3cd52cb88816fc552f8ae22d8a6f..9542b6c637ef23d9017d3a1d96686ad8
                      <failOnError>false</failOnError>
                      <links>
 diff --git a/src/main/java/org/bukkit/entity/Entity.java b/src/main/java/org/bukkit/entity/Entity.java
-index 1e02242b47f38c90d925b3084a7d284696234475..755153e9b63d5a402ffc2742daa405772aff22c6 100644
+index 20fb0cb358ba71e7ec9535851ba6dbfa78e7a449..d0d3d7f35e0b7f258e0fe85e8dc7ebd68434ab52 100644
 --- a/src/main/java/org/bukkit/entity/Entity.java
 +++ b/src/main/java/org/bukkit/entity/Entity.java
-@@ -694,4 +694,16 @@ public interface Entity extends Metadatable, CommandSender, Nameable, Persistent
+@@ -699,4 +699,16 @@ public interface Entity extends Metadatable, CommandSender, Nameable, Persistent
       */
-     public boolean isInLava();
+     public boolean isTicking();
      // Paper end
 +
 +    // Kenzie start

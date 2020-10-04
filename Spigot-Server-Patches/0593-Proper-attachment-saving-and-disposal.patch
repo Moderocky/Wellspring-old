@@ -5,7 +5,7 @@ Subject: [PATCH] Proper attachment saving and disposal.
 
 
 diff --git a/src/main/java/net/minecraft/server/Entity.java b/src/main/java/net/minecraft/server/Entity.java
-index 5f0612b90329361dbea720057e2518fd80c07c58..238783a95e845f1e054cf89812ab027319e97328 100644
+index ac4476f5ea88240adae87dc467b7846e33ca0e8f..bfcf155153cf7662a7bb3d90855fd8baa4f4742e 100644
 --- a/src/main/java/net/minecraft/server/Entity.java
 +++ b/src/main/java/net/minecraft/server/Entity.java
 @@ -337,6 +337,8 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke

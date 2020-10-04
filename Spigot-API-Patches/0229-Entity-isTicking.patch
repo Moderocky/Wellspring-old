@@ -5,10 +5,10 @@ Subject: [PATCH] Entity#isTicking
 
 
 diff --git a/src/main/java/org/bukkit/entity/Entity.java b/src/main/java/org/bukkit/entity/Entity.java
-index cb9ef706eeb994f1948708ad5e8689550ea56df7..9bae4704b306b1d04534072690355983856c7801 100644
+index 1e02242b47f38c90d925b3084a7d284696234475..20fb0cb358ba71e7ec9535851ba6dbfa78e7a449 100644
 --- a/src/main/java/org/bukkit/entity/Entity.java
 +++ b/src/main/java/org/bukkit/entity/Entity.java
-@@ -690,5 +690,10 @@ public interface Entity extends Metadatable, CommandSender, Nameable, Persistent
+@@ -693,5 +693,10 @@ public interface Entity extends Metadatable, CommandSender, Nameable, Persistent
       * Check if entity is in lava
       */
      public boolean isInLava();

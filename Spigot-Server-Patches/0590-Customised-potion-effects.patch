@@ -428,7 +428,7 @@ index d8abc15b0b43dd385d6a2bf6d3f34532e50c749b..d6c605d5c324c790d63b400ef1015599
      public Bridge getBridge() {
          return bridge;
 diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
-index 62bafe99f25412caa4df86acd1a0bb4f7172b2b5..d9319f59555cd78471fe22059ddddc922c54f7fd 100644
+index f82716b0697053f09a6bc7468ca7dfdbd1c108a0..34d9db7fd60986340d40bb51f1d54584b1332aa9 100644
 --- a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
 +++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
 @@ -155,7 +155,7 @@ import org.bukkit.block.BlockFace;

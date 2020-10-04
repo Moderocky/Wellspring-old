@@ -53,7 +53,7 @@ index a6aa74900e11dbdd39e7f00737075237eb77a7d4..ae8d0f0d48de1c1da50321aa49551658
 +
  }
 diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
-index 9c4bd1059e341b268f62d1587ff0bbc959688221..d7aac431a0d3b73772eca506998ee911456d67c9 100644
+index b458d696073948880229d97db35fc996cfa5cc90..8d456ff5601392021ab4e39d4310cea27a47da57 100644
 --- a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
 +++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
 @@ -7,6 +7,7 @@ import java.util.List;

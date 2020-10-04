@@ -652,7 +652,7 @@ index 8c337989d0aae05143ea7a9ff3ae9bac22e4f27c..25ddfd88cfc6ac80d1e45e0aa3b34ab7
      public static <T extends Attachable> void registerAttachment(@NotNull Plugin plugin, @NotNull Function<? extends T, Attachment<?>> creatorFunction, @NotNull Class<T> target) {
          server.registerAttachment(plugin, creatorFunction, target);
 diff --git a/src/main/java/org/bukkit/UnsafeValues.java b/src/main/java/org/bukkit/UnsafeValues.java
-index ac43afbf6230a481ab8cffbb3bc91b716316c00d..879686334c9eda12034d0f1f20e566da4cf385bb 100644
+index 931ffa38faab86445a5d63364a47cb653ca3d4ed..ad3647d49f99ce35e45599b6b9df1d4b5967274f 100644
 --- a/src/main/java/org/bukkit/UnsafeValues.java
 +++ b/src/main/java/org/bukkit/UnsafeValues.java
 @@ -80,6 +80,7 @@ public interface UnsafeValues {
