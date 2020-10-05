@@ -1,0 +1,365 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Mon, 5 Oct 2020 11:55:55 +0100
+Subject: [PATCH] Document and clean up structures.
+
+
+diff --git a/src/main/java/mx/kenzie/wellspring/structure/Structure.java b/src/main/java/mx/kenzie/wellspring/structure/Structure.java
+index bd7b7321ddca9762d621f8e26b90e995aa236520..545e1810343f29e5febfee8b5a815244eaeb141f 100644
+--- a/src/main/java/mx/kenzie/wellspring/structure/Structure.java
++++ b/src/main/java/mx/kenzie/wellspring/structure/Structure.java
+@@ -34,10 +34,24 @@ import java.io.InputStream;
+  */
+ public interface Structure extends NBTHolder {
+ 
++    /**
++     * Creates a new empty structure template. This is effectively a
++     * storage 'clipboard' for a structure that can be copied to/pasted from.
++     *
++     * It holds no data about locations or rotations or positions.
++     *
++     * @return a new structure
++     */
+     static @NotNull Structure create() {
+         return Wellspring.bridge().createStructure();
+     }
+ 
++    /**
++     * Loads a structure from the given file.
++     * @param file the file to load from - must exist!
++     * @return the loaded/populated structure
++     * @throws RuntimeException if the file does not exist / is not valid NBT
++     */
+     static @NotNull Structure loadFrom(@NotNull File file) throws RuntimeException {
+         try {
+             return loadFrom(new FileInputStream(file));
+@@ -46,76 +60,272 @@ public interface Structure extends NBTHolder {
+         }
+     }
+ 
++    /**
++     * Loads a structure from the given world resource.
++     * This is the same storage technique as structure blocks use - meaning
++     * you can access structures saved by a structure block.
++     * It will save it within the server's root world's resources.
++     *
++     * @param resource the key (path) for your structure
++     * @return the structure, if one exists, otherwise null
++     * @throws RuntimeException if something goes wrong during loading
++     */
+     static @Nullable
+     Structure loadFrom(@NotNull NamespacedKey resource) throws RuntimeException {
+         return Wellspring.bridge().loadStructure(resource);
+     }
+ 
++    /**
++     * Loads a structure from the given stream. This could be a
++     * file stream, an input stream from a packaged resource,
++     * a download stream from an external URL or anything else.
++     * @param stream the stream to load from
++     * @return the loaded/populated structure
++     */
+     static @NotNull Structure loadFrom(@NotNull InputStream stream) {
+         return Wellspring.bridge().loadStructure(stream);
+     }
+ 
++    /**
++     * Loads a structure from the given NBT compound. This allows you
++     * to store structures in your own way using their NBT.
++     * This is functionally equivalent to creating an empty structure
++     * and then loading the NBT into it.
++     * @param compound the nbt to load from
++     * @return the structure
++     */
+     static @NotNull Structure loadFrom(@NotNull NBTCompound compound) {
+         return Wellspring.bridge().loadStructure(compound);
+     }
+ 
++    /**
++     * This effectively copies the given area to the structure.
++     * By default this will include entities and ignore structure voids.
++     * @param target the corner location (min x/y/z)
++     * @param size the size, in blocks, of the structure (positive and non-zero)
++     */
+     void populate(@NotNull Location target, @NotNull Vector size);
+ 
+-    void populate(@NotNull Location target, @NotNull Vector size, boolean ignoreEntities);
++    /**
++     * This effectively copies the given area to the structure.
++     * By default this will ignore structure voids.
++     * @param target the corner location (min x/y/z)
++     * @param size the size, in blocks, of the structure (positive and non-zero)
++     * @param includeEntities whether to include entities whose feet-locations
++     *                       fall within the bounds
++     */
++    void populate(@NotNull Location target, @NotNull Vector size, boolean includeEntities);
+ 
+-    void populate(@NotNull Location target, @NotNull Vector size, boolean ignoreEntities, boolean ignoreVoids);
++    /**
++     * This effectively copies the given area to the structure.
++     * Structure voids are used to preserve blocks at the pasting
++     * location, such as keeping existing terrain when pasting in a
++     * village house.
++     *
++     * If you want the structure voids to be saved verbatim, then set
++     * the option to false.
++     * @param target the corner location (min x/y/z)
++     * @param size the size, in blocks, of the structure (positive and non-zero)
++     * @param includeEntities whether to include entities whose feet-locations
++     *                       fall within the bounds
++     * @param ignoreVoids whether to ignore structure voids that are saved,
++     *                    which will keep the existing block when pasting the
++     *                    structure.
++     */
++    void populate(@NotNull Location target, @NotNull Vector size, boolean includeEntities, boolean ignoreVoids);
+ 
++    /**
++     * This will return the (positive) size of the structure at the
++     * given rotation.
++     * For example, a 3x4x5 structure rotated 90° would be 5x4x3.
++     *
++     * @param rotation the rotation
++     * @return the spatial dimensions at this rotation
++     */
+     @NotNull
+     Vector getSize(@NotNull StructureRotation rotation);
+ 
++    /**
++     * Pastes the structure at the given location. You can use the
++     * {@link StructureInfo} to provide special data such as the pivot point,
++     * rotation and mirroring.
++     *
++     * Note: Bukkit gets upset if a structure is pasted over existing
++     * tile entities - you may wish to clear the bounds first.
++     *
++     * The structure must be populated before pasting.
++     *
++     * @param location the location to paste at
++     * @param info the special settings
++     * @return true if successful, false if failed
++     */
+     boolean paste(@NotNull Location location, @NotNull StructureInfo info);
+ 
++    /**
++     * Pastes the structure at the given location. This will paste it
++     * in the original orientation and from the corner.
++     *
++     * Note: Bukkit gets upset if a structure is pasted over existing
++     * tile entities - you may wish to clear the bounds first.
++     *
++     * The structure must be populated before pasting.
++     *
++     * @param location the location to paste at
++     * @return true if successful, false if failed
++     */
++    default boolean paste(@NotNull Location location) {
++        return paste(location, StructureInfo.create());
++    }
++
++    /**
++     * Returns a bounding box of the area the structure will occupy if pasted
++     * using this data.
++     * Note: Minecraft's internal bounding boxes function slightly differently from
++     * Bukkit's. Please test first to make sure you understand how to interpret
++     * the result of this calculation.
++     *
++     * @param target the target location
++     * @param pivot the given pivot
++     * @param rotation the given rotation
++     * @param mirror the given reflection
++     * @return the provisional bounds
++     */
+     default @NotNull
+     BoundingBox getBounds(@NotNull Location target, @NotNull Location pivot, @NotNull StructureRotation rotation, @NotNull Mirror mirror) {
+         return getBounds(target.toVector(), pivot.toVector(), rotation, mirror);
+     }
+ 
++    /**
++     * Returns a bounding box of the area the structure will occupy if pasted
++     * using this data.
++     * Note: Minecraft's internal bounding boxes function slightly differently from
++     * Bukkit's. Please test first to make sure you understand how to interpret
++     * the result of this calculation.
++     *
++     * @param target the target location
++     * @param pivot the given pivot
++     * @param rotation the given rotation
++     * @param mirror the given reflection
++     * @return the provisional bounds
++     */
+     @NotNull
+     BoundingBox getBounds(@NotNull Vector target, @NotNull Vector pivot, @NotNull StructureRotation rotation, @NotNull Mirror mirror);
+ 
++    /**
++     * Returns a bounding box of the area the structure will occupy if pasted
++     * using this data.
++     * Note: Minecraft's internal bounding boxes function slightly differently from
++     * Bukkit's. Please test first to make sure you understand how to interpret
++     * the result of this calculation.
++     *
++     * @param target the target location
++     * @param data the structure data
++     * @return the provisional bounds
++     */
+     default @NotNull
+     BoundingBox getBounds(@NotNull Location target, @NotNull StructureInfo data) {
+         return getBounds(target.toVector(), data);
+     }
+ 
++    /**
++     * Returns a bounding box of the area the structure will occupy if pasted
++     * using this data.
++     * Note: Minecraft's internal bounding boxes function slightly differently from
++     * Bukkit's. Please test first to make sure you understand how to interpret
++     * the result of this calculation.
++     *
++     * @param target the target location
++     * @param data the structure data
++     * @return the provisional bounds
++     */
+     @NotNull
+     BoundingBox getBounds(@NotNull Vector target, @NotNull StructureInfo data);
+ 
+-    @NotNull
++    /**
++     * Used to give this structure an 'author' when saving to a file.
++     * This is a simple piece of metadata you can attribute.
++     *
++     * @return the author
++     */
++    @Nullable
+     String getAuthor();
+ 
+-    void setAuthor(@NotNull String author);
++    /**
++     * Used to give this structure an 'author' when saving to a file.
++     * This is a simple piece of metadata you can attribute.
++     * @param author the author
++     */
++    void setAuthor(@Nullable String author);
+ 
++    /**
++     * Saves this structure to an NBT compound.
++     * @return the new NBT compound
++     */
+     default @NotNull
+     NBTCompound save() {
+         return save(NBTCompound.create());
+     }
+ 
++    /**
++     * Saves this structure to an NBT compound.
++     * @param compound the compound to be saved to
++     * @return the compound
++     */
+     @NotNull
+     NBTCompound save(@NotNull NBTCompound compound);
+ 
++    /**
++     * Populates the structure from the given NBT compound.
++     * This is effectively the same as using {@link Structure#loadFrom(NBTCompound)}.
++     * @param compound the valid compound to load from
++     */
+     void load(@NotNull NBTCompound compound);
+ 
++    /**
++     * Saves this structure to the given file. The file must
++     * already exist and be accessible.
++     *
++     * The structure will be saved as compressed NBT.
++     *
++     * @param file the file to save to
++     */
+     void saveTo(@NotNull File file);
+ 
++    /**
++     * Saves the file to the root world's resources, similar to
++     * how a structure block saves structures.
++     * @param resource the resource key to use
++     */
+     void saveAs(@NotNull NamespacedKey resource);
+ 
++    /**
++     * Effectively the same as {@link Structure#save()}
++     * @return the compound
++     */
+     default @NotNull
+     @Override
+     NBTCompound getNBT() {
+         return save();
+     }
+ 
++    /**
++     * Effectively the same as {@link Structure#load(NBTCompound)}
++     */
+     @Override
+     default void loadNBT(@NotNull NBTCompound compound) {
+         load(compound);
+     }
+ 
++    /**
++     * This is an unsafe method!
++     * This is for modifying a structure's blockinfo/entity palette,
++     * and currently has no API implementation.
++     * This will almost certainly require NMS to use effectively
++     * and should not be used unless absolutely necessary.
++     * @param a blockinfo palette (?)
++     * @param b entity palette (?)
++     */
++    @Deprecated
+     void loadPalette(@NotNull NBTList a, @NotNull NBTList b);
+ 
+ }
+diff --git a/src/main/java/mx/kenzie/wellspring/structure/StructureInfo.java b/src/main/java/mx/kenzie/wellspring/structure/StructureInfo.java
+index 7aefc5edd3753b79152e488fb81873b8f0b2afb9..be0678ca9d71e4f96aaefb71ce8fa28a0b70a544 100644
+--- a/src/main/java/mx/kenzie/wellspring/structure/StructureInfo.java
++++ b/src/main/java/mx/kenzie/wellspring/structure/StructureInfo.java
+@@ -10,8 +10,21 @@ import org.jetbrains.annotations.Nullable;
+ 
+ import java.util.Random;
+ 
++/**
++ * The situational data of a structure.
++ * This includes things like mirroring, depreciation seed,
++ * rotation and rotational pivot, as well as individual settings
++ * for liquids and entities.
++ *
++ * This data would typically be provided by the structure block.
++ *
++ */
+ public interface StructureInfo {
+ 
++    /**
++     * Creates a blank info with the default settings.
++     * @return the new info
++     */
+     @NotNull
+     static StructureInfo create() {
+         return Wellspring.bridge().createStructureInfo();
+diff --git a/src/main/java/org/bukkit/block/Structure.java b/src/main/java/org/bukkit/block/Structure.java
+index bce0947d39e2ded312c1c3cd6e77d4e0764ef6b4..99a949c1bc54f87aca22e46b353cc2d5d933cafe 100644
+--- a/src/main/java/org/bukkit/block/Structure.java
++++ b/src/main/java/org/bukkit/block/Structure.java
+@@ -1,5 +1,6 @@
+ package org.bukkit.block;
+ 
++import mx.kenzie.wellspring.structure.StructureInfo;
+ import org.bukkit.block.structure.Mirror;
+ import org.bukkit.block.structure.StructureRotation;
+ import org.bukkit.block.structure.UsageMode;
+@@ -240,4 +241,15 @@ public interface Structure extends TileState {
+      */
+     @NotNull
+     String getMetadata();
++
++    // Kenzie start
++    default @NotNull StructureInfo getInfo() {
++        StructureInfo info = StructureInfo.create();
++        info.setSeed(getSeed());
++        info.setRotation(getRotation());
++        info.setMirror(getMirror());
++        info.ignoreEntities(isIgnoreEntities());
++        return info;
++    }
++    // Kenzie end
+ }
