@@ -1,0 +1,101 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Mon, 5 Oct 2020 16:04:34 +0100
+Subject: [PATCH] Tile entities and tile attachments.
+
+
+diff --git a/src/main/java/mx/kenzie/wellspring/tile/TileEntity.java b/src/main/java/mx/kenzie/wellspring/tile/TileEntity.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..44e4208692dabf3553eb478f31d490aa785cc562
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/tile/TileEntity.java
+@@ -0,0 +1,37 @@
++package mx.kenzie.wellspring.tile;
++
++import mx.kenzie.wellspring.nbt.NBTHolder;
++import org.bukkit.Location;
++import org.bukkit.attachment.Attachable;
++import org.bukkit.block.TileState;
++import org.jetbrains.annotations.NotNull;
++
++/**
++ * Represents an actual, unchanging tile entity within the
++ * world.
++ * Unlike Bukkit's *amazing* TileState system, this references the true
++ * object and is unique.
++ *
++ * Note: it is unwise to store this except as a weak reference - it
++ * can interfere with the disposal of destroyed tile entities.
++ *
++ * Instead, consider storing the location or the block itself and
++ * retrieving the tile entity when required.
++ */
++public interface TileEntity extends NBTHolder, Attachable {
++
++    /**
++     * Provides a snapshot tile state of this tile entity.
++     * @return the snapshot
++     */
++    @NotNull
++    TileState getState();
++
++    /**
++     * Provides the actual location of this tile entity.
++     * @return the location
++     */
++    @NotNull
++    Location getLocation();
++
++}
+diff --git a/src/main/java/org/bukkit/Color.java b/src/main/java/org/bukkit/Color.java
+index deae003b7e9a96bbf1c0167d3e1d864e61b07f82..b194b9b23261abd080509cacf81b039f233eb819 100644
+--- a/src/main/java/org/bukkit/Color.java
++++ b/src/main/java/org/bukkit/Color.java
+@@ -163,6 +163,18 @@ public final class Color implements ConfigurationSerializable {
+         return fromBGR(bgr >> 16 & BIT_MASK, bgr >> 8 & BIT_MASK, bgr >> 0 & BIT_MASK);
+     }
+ 
++    // Kenzie start - colour conversion
++    /**
++     * Convert a proper Java colour to Bukkit's type.
++     * @param color the colour to convert
++     * @return the Bukkit colour
++     */
++    public static @NotNull
++    Color from(@NotNull java.awt.Color color) {
++        return new Color(color.getRed(), color.getGreen(), color.getBlue());
++    }
++    // Kenzie end
++
+     private Color(int red, int green, int blue) {
+         Validate.isTrue(red >= 0 && red <= BIT_MASK, "Red is not between 0-255: ", red);
+         Validate.isTrue(green >= 0 && green <= BIT_MASK, "Green is not between 0-255: ", green);
+diff --git a/src/main/java/org/bukkit/block/TileState.java b/src/main/java/org/bukkit/block/TileState.java
+index 3b10fcc13893403b29f0260b8605144679e89b82..7c514d1de9358a2eaa262fcb1c95a881264061ec 100644
+--- a/src/main/java/org/bukkit/block/TileState.java
++++ b/src/main/java/org/bukkit/block/TileState.java
+@@ -1,5 +1,8 @@
+ package org.bukkit.block;
+ 
++import mx.kenzie.wellspring.nbt.NBTHolder;
++import mx.kenzie.wellspring.tile.TileEntity;
++import org.bukkit.attachment.Attachable;
+ import org.bukkit.persistence.PersistentDataContainer;
+ import org.bukkit.persistence.PersistentDataHolder;
+ import org.jetbrains.annotations.NotNull;
+@@ -15,7 +18,7 @@ import org.jetbrains.annotations.NotNull;
+  * After modifying the data provided by a TileState, {@link #update()} needs to
+  * be called to store the data.
+  */
+-public interface TileState extends BlockState, PersistentDataHolder {
++public interface TileState extends BlockState, PersistentDataHolder, NBTHolder { // Kenzie
+ 
+     /**
+      * Returns a custom tag container capable of storing tags on the object.
+@@ -36,4 +39,6 @@ public interface TileState extends BlockState, PersistentDataHolder {
+     @NotNull
+     @Override
+     PersistentDataContainer getPersistentDataContainer();
++
++    @NotNull TileEntity getTileEntity(); // Kenzie
+ }

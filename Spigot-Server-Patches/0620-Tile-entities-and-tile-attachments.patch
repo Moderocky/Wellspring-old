@@ -1,0 +1,154 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Mon, 5 Oct 2020 16:04:41 +0100
+Subject: [PATCH] Tile entities and tile attachments.
+
+
+diff --git a/src/main/java/net/minecraft/server/TileEntity.java b/src/main/java/net/minecraft/server/TileEntity.java
+index d32540c88bb902e9c191142a2b75a05b63218e52..3735dcf2e9c1b85502e444829a704248fa1f15c2 100644
+--- a/src/main/java/net/minecraft/server/TileEntity.java
++++ b/src/main/java/net/minecraft/server/TileEntity.java
+@@ -1,10 +1,20 @@
+ package net.minecraft.server;
+ 
+ import javax.annotation.Nullable;
++
++import mx.kenzie.server.attachment.AttachmentHolder;
++import mx.kenzie.wellspring.nbt.NBTCompound;
++import mx.kenzie.wellspring.nbt.NBTHolder;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+ import org.apache.logging.log4j.util.Supplier;
+ // CraftBukkit start
++import org.bukkit.Bukkit;
++import org.bukkit.Location;
++import org.bukkit.attachment.Attachable;
++import org.bukkit.attachment.Attachment;
++import org.bukkit.block.TileState;
++import org.bukkit.craftbukkit.CraftServer;
+ import org.bukkit.craftbukkit.persistence.CraftPersistentDataContainer;
+ import org.bukkit.craftbukkit.persistence.CraftPersistentDataTypeRegistry;
+ import org.bukkit.inventory.InventoryHolder;
+@@ -12,7 +22,7 @@ import org.bukkit.inventory.InventoryHolder;
+ import co.aikar.timings.MinecraftTimings; // Paper
+ import co.aikar.timings.Timing; // Paper
+ 
+-public abstract class TileEntity implements KeyedObject { // Paper
++public abstract class TileEntity implements KeyedObject, mx.kenzie.wellspring.tile.TileEntity { // Kenzie // Paper
+ 
+     public Timing tickTimer = MinecraftTimings.getTileEntityTimings(this); // Paper
+     // CraftBukkit start - data containers
+@@ -29,11 +39,56 @@ public abstract class TileEntity implements KeyedObject { // Paper
+     @Nullable
+     private IBlockData c;
+     private boolean g;
++    public final AttachmentHolder attachments; // Kenzie
++
++    // Kenzie start - attachments and NBT
++    @Override
++    @SuppressWarnings("unchecked")
++    public <T extends Attachment<?>> T getAttachment(Class<T> attachmentClass) {
++        T attachment = (T) attachments.getByClass(attachmentClass); // This cast is fine
++        if (attachment == null) {
++            throw new NullPointerException("No attachment for this class has been registered.");
++        }
++        return attachment;
++    }
++
++    @Override
++    public <T extends Attachment<?>> boolean hasAttachment(Class<T> attachmentClass) {
++        return attachments.containsByClass(attachmentClass);
++    }
++
++    @Override
++    public NBTCompound getNBT() {
++        return this.save(new NBTTagCompound());
++    }
++
++    @Override
++    public void loadNBT(NBTCompound compound) {
++        this.load(this.getBlock(), ((NBTTagCompound) compound));
++    }
++
++    @Override
++    public TileState getState() {
++        return ((TileState) getLocation().getBlock().getState());
++    }
++
++    @Override
++    public Location getLocation() {
++        return new Location(world.getWorld(), position.getX(), position.getY(), position.getZ());
++    }
++
++    // Kenzie end
+ 
+     public TileEntity(TileEntityTypes<?> tileentitytypes) {
+         this.position = BlockPosition.ZERO;
+         this.tileType = tileentitytypes;
+         persistentDataContainer = new CraftPersistentDataContainer(DATA_TYPE_REGISTRY); // Paper - always init
++
++        // Kenzie start - attachments
++        this.attachments = new AttachmentHolder(this);
++        ((CraftServer) Bukkit.getServer()).attachmentFactory.addAttachments(this, attachments);
++        ((CraftServer) Bukkit.getServer()).attachmentFactory.registerAttachmentHolder(attachments);
++        // Kenzie end
+     }
+ 
+     // Paper start
+@@ -90,6 +145,7 @@ public abstract class TileEntity implements KeyedObject { // Paper
+             this.persistentDataContainer.putAll(persistentDataTag);
+         }
+         // CraftBukkit end
++        attachments.load(nbttagcompound); // Kenzie - mark as data loaded in case of changes
+     }
+ 
+     public NBTTagCompound save(NBTTagCompound nbttagcompound) {
+@@ -111,6 +167,7 @@ public abstract class TileEntity implements KeyedObject { // Paper
+                 nbttagcompound.set("PublicBukkitValues", this.persistentDataContainer.toTagCompound());
+             }
+             // CraftBukkit end
++            attachments.request(nbttagcompound); // Kenzie - mark as data requested in case of changes
+             return nbttagcompound;
+         }
+     }
+diff --git a/src/main/java/org/bukkit/craftbukkit/block/CraftBlockEntityState.java b/src/main/java/org/bukkit/craftbukkit/block/CraftBlockEntityState.java
+index dc0e6e49e9eb5004e53d24304bce095bcef8f4c2..cc06cc459f494d3e4d28d74237b0afbe0fb011f6 100644
+--- a/src/main/java/org/bukkit/craftbukkit/block/CraftBlockEntityState.java
++++ b/src/main/java/org/bukkit/craftbukkit/block/CraftBlockEntityState.java
+@@ -1,12 +1,17 @@
+ package org.bukkit.craftbukkit.block;
+ 
+ import com.google.common.base.Preconditions;
++import mx.kenzie.server.attachment.AttachmentHolder;
++import mx.kenzie.wellspring.nbt.NBTCompound;
+ import net.minecraft.server.BlockPosition;
+ import net.minecraft.server.NBTTagCompound;
+ import net.minecraft.server.TileEntity;
++import org.bukkit.Bukkit;
+ import org.bukkit.Material;
++import org.bukkit.attachment.Attachment;
+ import org.bukkit.block.Block;
+ import org.bukkit.block.TileState;
++import org.bukkit.craftbukkit.CraftServer;
+ import org.bukkit.craftbukkit.CraftWorld;
+ import org.bukkit.persistence.PersistentDataContainer;
+ 
+@@ -16,6 +21,18 @@ public class CraftBlockEntityState<T extends TileEntity> extends CraftBlockState
+     private final T tileEntity;
+     private final T snapshot;
+ 
++    // Kenzie start - attachments and NBT
++    @Override
++    public NBTCompound getNBT() {
++        return tileEntity.getNBT();
++    }
++
++    @Override
++    public void loadNBT(NBTCompound compound) {
++        tileEntity.loadNBT(compound);
++    }
++    // Kenzie end
++
+     public CraftBlockEntityState(Block block, Class<T> tileEntityClass) {
+         super(block);
+ 
