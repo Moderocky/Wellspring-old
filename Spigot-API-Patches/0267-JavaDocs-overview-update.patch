@@ -1,0 +1,54 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Mon, 5 Oct 2020 12:53:57 +0100
+Subject: [PATCH] JavaDocs overview update.
+
+
+diff --git a/src/main/javadoc/overview.html b/src/main/javadoc/overview.html
+index b477a2259bbaec88bd3b60debd3a98cfcbebff74..9702b4b2f728882147ca94fe1c416d3954b397f2 100644
+--- a/src/main/javadoc/overview.html
++++ b/src/main/javadoc/overview.html
+@@ -1,5 +1,29 @@
+ <body>
+-    <p>Bukkit, the plugin development framework.</p>
++    <p>Wellspring is designed to give content creators direct access
++        to edit and add to the Minecraft registry
++        - the 'wellspring' of the game's content.</p>
++
++    <p>
++        This includes using internal features that are not accessible
++        in upstream server platforms (such as Spigot and Paper)
++        as well as allowing plugins to modify normally-constant values
++        at runtime to better control their environment.
++    </p>
++
++    <h3>Goals of Wellspring:</h3>
++    <ul>
++        <li>To provide new accessibility and options for plugins</li>
++        <li>To remove the need for reflection and version-dependent code</li>
++        <li>To allow access to Minecraft features that Bukkit overlooks</li>
++        <li>To provide new features and potential for plugins</li>
++    </ul>
++
++    <h3>Non-Goals of Wellspring:</h3>
++    <ul>
++        <li>This is not for altering or changing the vanilla game</li>
++        <li>This is not for patching vanilla bugs - that is Mojang's job</li>
++        <li>This is not for 'speeding up' the server or improving performance</li>
++    </ul>
+ 
+     <p>
+     The documentation is for developing plugins and is split into the
+@@ -32,4 +56,12 @@
+     Bukkit (eg those beginning with Simple) are not API. You should access them
+     via their interfaces instead.</li>
+     </ul>
++
++    <p><i>
++        &copy; Copyright 2020, Wellspring maintainers.
++
++        Wellspring is in no way affiliated with or connected
++        to any of Paper, Spigot, Bukkit Minecraft or Mojang.
++
++        "Minecraft" is a trademark of Mojang Synergies AB.</i></p>
+ </body>

@@ -1,0 +1,27 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Mon, 5 Oct 2020 13:13:03 +0100
+Subject: [PATCH] Fix javadocs search module links.
+
+
+diff --git a/pom.xml b/pom.xml
+index 9542b6c637ef23d9017d3a1d96686ad8d7550fa7..d705017a765daee9490278259acdaedd92454a67 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -250,6 +250,16 @@
+                         <link>https://javadoc.io/doc/org.jetbrains/annotations-java5/19.0.0/</link>
+                         <link>https://javadoc.io/doc/net.md-5/bungeecord-chat/1.16-R0.3/</link>
+                     </links>
++                    <bottom>
++                        <![CDATA[
++                            <script>
++                            if (typeof useModuleDirectories !== 'undefined') {
++                              useModuleDirectories = false;
++                            }
++                            </script>
++                        ]]>
++                    </bottom>
++                    <additionalJOption>--allow-script-in-comments</additionalJOption>
+                 </configuration>
+             </plugin>
+         </plugins>
