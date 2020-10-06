@@ -1,0 +1,29 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Tue, 6 Oct 2020 10:43:36 +0100
+Subject: [PATCH] Tile entity types and type safety.
+
+
+diff --git a/src/main/java/net/minecraft/server/TileEntity.java b/src/main/java/net/minecraft/server/TileEntity.java
+index d5ec2587403acfd714159df937766b94b83cdf47..387be075dff7833316df9d209523180fcb484866 100644
+--- a/src/main/java/net/minecraft/server/TileEntity.java
++++ b/src/main/java/net/minecraft/server/TileEntity.java
+@@ -5,6 +5,7 @@ import javax.annotation.Nullable;
+ import mx.kenzie.server.attachment.AttachmentHolder;
+ import mx.kenzie.wellspring.nbt.NBTCompound;
+ import mx.kenzie.wellspring.nbt.NBTHolder;
++import mx.kenzie.wellspring.tile.TileType;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+ import org.apache.logging.log4j.util.Supplier;
+@@ -77,6 +78,10 @@ public abstract class TileEntity implements KeyedObject, mx.kenzie.wellspring.ti
+         return new Location(world.getWorld(), position.getX(), position.getY(), position.getZ());
+     }
+ 
++    @Override
++    public TileType getType() {
++        return TileType.get(getMinecraftKey() != null ? getMinecraftKey().key : "unknown");
++    }
+     // Kenzie end
+ 
+     public TileEntity(TileEntityTypes<?> tileentitytypes) {

@@ -1,0 +1,24 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Mon, 5 Oct 2020 16:15:23 +0100
+Subject: [PATCH] Dodge test with proxy cast failure.
+
+
+diff --git a/src/main/java/net/minecraft/server/TileEntity.java b/src/main/java/net/minecraft/server/TileEntity.java
+index 3735dcf2e9c1b85502e444829a704248fa1f15c2..d5ec2587403acfd714159df937766b94b83cdf47 100644
+--- a/src/main/java/net/minecraft/server/TileEntity.java
++++ b/src/main/java/net/minecraft/server/TileEntity.java
+@@ -86,8 +86,11 @@ public abstract class TileEntity implements KeyedObject, mx.kenzie.wellspring.ti
+ 
+         // Kenzie start - attachments
+         this.attachments = new AttachmentHolder(this);
+-        ((CraftServer) Bukkit.getServer()).attachmentFactory.addAttachments(this, attachments);
+-        ((CraftServer) Bukkit.getServer()).attachmentFactory.registerAttachmentHolder(attachments);
++        if (Bukkit.getServer() instanceof CraftServer) { // this allows the ItemMetaState test to pass
++            CraftServer server = ((CraftServer) Bukkit.getServer());
++            server.attachmentFactory.addAttachments(this, attachments);
++            server.attachmentFactory.registerAttachmentHolder(attachments);
++        }
+         // Kenzie end
+     }
+ 
