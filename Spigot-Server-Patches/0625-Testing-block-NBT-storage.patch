@@ -1,0 +1,213 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Thu, 8 Oct 2020 20:10:00 +0100
+Subject: [PATCH] Testing block NBT storage.
+
+
+diff --git a/src/main/java/net/minecraft/server/Chunk.java b/src/main/java/net/minecraft/server/Chunk.java
+index 299d7d7a55532930e2d4340a6cfe77a5fd8a0a0c..85a9ef6d2ee06a9f85af47e4669044bf82a3975b 100644
+--- a/src/main/java/net/minecraft/server/Chunk.java
++++ b/src/main/java/net/minecraft/server/Chunk.java
+@@ -7,23 +7,23 @@ import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+ import it.unimi.dsi.fastutil.longs.LongSet;
+ import it.unimi.dsi.fastutil.shorts.ShortList;
+ import it.unimi.dsi.fastutil.shorts.ShortListIterator;
+-import java.util.Collection;
+-import java.util.Collections;
+-import java.util.Iterator;
+-import java.util.List;
+-import java.util.Map;
++
++import java.util.*;
+ import java.util.Map.Entry;
+-import java.util.Set;
+ import java.util.function.Consumer;
+ import java.util.function.Predicate;
+ import java.util.function.Supplier;
+ import java.util.stream.Stream;
+ import java.util.stream.StreamSupport;
+ import javax.annotation.Nullable;
++
++import mx.kenzie.wellspring.nbt.BlockNBTStorage;
++import mx.kenzie.wellspring.nbt.NBTCompound;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
++import org.bukkit.util.Vector;
+ 
+-public class Chunk implements IChunkAccess {
++public class Chunk implements IChunkAccess, BlockNBTStorage { // Kenzie
+ 
+     private static final Logger LOGGER = LogManager.getLogger();
+     @Nullable
+@@ -57,6 +57,30 @@ public class Chunk implements IChunkAccess {
+         this(world, chunkcoordintpair, biomestorage, ChunkConverter.a, TickListEmpty.b(), TickListEmpty.b(), 0L, (ChunkSection[]) null, (Consumer) null);
+     }
+ 
++    // Kenzie start - block NBT
++    @Override
++    public NBTCompound getNBT(org.bukkit.util.Vector position) {
++        final BlockPosition pos = new BlockPosition(position.getBlockX(), position.getBlockY(), position.getBlockZ());
++        final ChunkSection section = getSection(pos);
++        return section.getNBT(pos);
++    }
++
++    @Override
++    public void clearNBT(Vector position) {
++        final BlockPosition pos = new BlockPosition(position.getBlockX(), position.getBlockY(), position.getBlockZ());
++        getSection(pos).clearNBT(pos);
++    }
++
++    public ChunkSection getSection(BlockPosition position) { // Utility
++        final int y = position.getY();
++        final ChunkSection section = sections[y >> 4];
++        if (section == this.a() || section == null) {
++            return (sections[y >> 4] = new ChunkSection(y >> 4 << 4, this, this.world, false));
++        }
++        return section;
++    }
++    // Kenzie end
++
+     // Paper start
+     public final co.aikar.util.Counter<String> entityCounts = new co.aikar.util.Counter<>();
+     public final co.aikar.util.Counter<String> tileEntityCounts = new co.aikar.util.Counter<>();
+diff --git a/src/main/java/net/minecraft/server/ChunkRegionLoader.java b/src/main/java/net/minecraft/server/ChunkRegionLoader.java
+index a0353da423b13ce9be48a0ed194c0182808800d2..5d41318fb83cd90970cb889e19413c54f557b1cb 100644
+--- a/src/main/java/net/minecraft/server/ChunkRegionLoader.java
++++ b/src/main/java/net/minecraft/server/ChunkRegionLoader.java
+@@ -115,6 +115,22 @@ public class ChunkRegionLoader {
+                 tasksToExecuteOnMain.add(() -> { // Paper - delay this task since we're executing off-main
+                     villageplace.a(chunkcoordintpair, chunksection);
+                 }); // Paper - delay this task since we're executing off-main
++
++                // Kenzie start - block NBT
++                if (nbttagcompound2.hasKey("BlockNBT")) {
++                    try {
++                        NBTTagList blockNBT = (NBTTagList) nbttagcompound2.getList("BlockNBT");
++                        for (NBTBase base : blockNBT) { // Exception will exit this block
++                            NBTTagCompound entry = ((NBTTagCompound) base);
++                            BlockPosition position = new BlockPosition(entry.getInt("x"), entry.getInt("y"), entry.getInt("z"));
++                            NBTTagCompound data = entry.getCompound("data");
++                            if (data == null || data.isEmpty()) continue;
++                            chunksection.blockNBT.put(position, data);
++                        }
++                    } catch (Throwable ignore) { // Numerous possibilities for upgrade-errors
++                    }
++                }
++                // Kenzie end
+             }
+ 
+             if (flag) {
+@@ -428,6 +444,26 @@ public class ChunkRegionLoader {
+                 nbttagcompound2.setByte("Y", (byte) (i & 255));
+                 if (chunksection != Chunk.a) {
+                     chunksection.getBlocks().a(nbttagcompound2, "Palette", "BlockStates");
++                    // Kenzie start - block NBT
++                    if (!chunksection.blockNBT.isEmpty()) {
++                        NBTTagList blockNBT = new NBTTagList();
++                        try {
++                            for (Entry<BlockPosition, NBTTagCompound> entry : chunksection.blockNBT.entrySet()) {
++                                if (entry.getValue() == null || entry.getValue().isEmpty() || entry.getKey() == null)
++                                    continue;
++                                BlockPosition position = entry.getKey();
++                                NBTTagCompound data = new NBTTagCompound();
++                                data.setInt("x", position.getX());
++                                data.setInt("y", position.getY());
++                                data.setInt("z", position.getZ());
++                                data.set("data", entry.getValue());
++                                blockNBT.add(data);
++                            }
++                        } catch (Throwable ignore) { // To account for plugins storing data badly
++                        }
++                        nbttagcompound2.set("BlockNBT", blockNBT);
++                    }
++                    // Kenzie end
+                 }
+ 
+                 if (nibblearray != null && !nibblearray.c()) {
+diff --git a/src/main/java/net/minecraft/server/ChunkSection.java b/src/main/java/net/minecraft/server/ChunkSection.java
+index e52df8096e399c84ff8a2637fdd65ea57d9001d0..dfa84f11c24e163b7b4005165c83deddacb356e5 100644
+--- a/src/main/java/net/minecraft/server/ChunkSection.java
++++ b/src/main/java/net/minecraft/server/ChunkSection.java
+@@ -1,10 +1,17 @@
+ package net.minecraft.server;
+ 
++import java.util.HashMap;
++import java.util.HashSet;
++import java.util.Map;
+ import java.util.function.Predicate;
+ import com.destroystokyo.paper.antixray.ChunkPacketInfo; // Paper - Anti-Xray - Add chunk packet info
++import mx.kenzie.wellspring.nbt.BlockNBTStorage;
++import mx.kenzie.wellspring.nbt.NBTCompound;
++import org.bukkit.util.Vector;
++
+ import javax.annotation.Nullable;
+ 
+-public class ChunkSection {
++public class ChunkSection implements BlockNBTStorage { // Kenzie
+ 
+     public static final DataPalette<IBlockData> GLOBAL_PALETTE = new DataPaletteGlobal<>(Block.REGISTRY_ID, Blocks.AIR.getBlockData());
+     final int yPos; // Paper - private -> package-private
+@@ -15,6 +22,36 @@ public class ChunkSection {
+ 
+     final com.destroystokyo.paper.util.maplist.IBlockDataList tickingList = new com.destroystokyo.paper.util.maplist.IBlockDataList(); // Paper
+ 
++    // Kenzie start - block NBT
++    public final Map<BlockPosition, NBTTagCompound> blockNBT = new HashMap<>();
++
++    public void setNBT(BlockPosition position, NBTTagCompound compound) {
++        if (position != null) blockNBT.put(position, compound);
++    }
++
++    public NBTTagCompound getNBT(BlockPosition position) {
++        return blockNBT.getOrDefault(position, new NBTTagCompound());
++    }
++
++    public void clearNBT(BlockPosition position) {
++        blockNBT.remove(position);
++    }
++
++    public void clearNBT() {
++        blockNBT.clear();
++    }
++
++    @Override
++    public NBTCompound getNBT(Vector position) {
++        return getNBT(new BlockPosition(position.getBlockX(), position.getBlockY(), position.getBlockZ()));
++    }
++
++    @Override
++    public void clearNBT(Vector position) {
++        clearNBT(new BlockPosition(position.getBlockX(), position.getBlockY(), position.getBlockZ()));
++    }
++    // Kenzie end
++
+     // Paper start - Anti-Xray - Add parameters
+     @Deprecated public ChunkSection(int i) { this(i, null, null, true); } // Notice for updates: Please make sure this constructor isn't used anywhere
+     public ChunkSection(int i, IChunkAccess chunk, World world, boolean initializeBlocks) {
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
+index a83402124c3af148409b23a23c646e4b6e7ceba2..df031067721070e54d649d5cf8874dbd44837c6c 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
+@@ -2588,6 +2588,22 @@ public class CraftWorld implements World {
+         getHandle().worldDataServer.setCustomBossEvents(((NBTTagCompound) compound));
+     }
+ 
++    @Override
++    public NBTCompound getNBT(Vector position) {
++        final int x = position.getBlockX(), z = position.getBlockZ();
++        net.minecraft.server.Chunk chunk = world.getChunkProvider().getChunkAtIfLoadedImmediately(x, z);
++        if (chunk == null) chunk = this.world.getChunkProvider().getChunkAt(x, z, true);
++        return chunk.getNBT(position);
++    }
++
++    @Override
++    public void clearNBT(Vector position) {
++        final int x = position.getBlockX(), z = position.getBlockZ();
++        net.minecraft.server.Chunk chunk = world.getChunkProvider().getChunkAtIfLoadedImmediately(x, z);
++        if (chunk == null) chunk = this.world.getChunkProvider().getChunkAt(x, z, true);
++        chunk.clearNBT(position);
++    }
++
+     // Kenzie end
+     // Spigot end
+ }
