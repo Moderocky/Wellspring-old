@@ -873,7 +873,7 @@ index 2f5d7eff76be38cc483a97e3c78213b1fa67baaa..00000000000000000000000000000000
 -    boolean isAlive();
 -}
 diff --git a/src/main/java/org/bukkit/entity/Entity.java b/src/main/java/org/bukkit/entity/Entity.java
-index d0d3d7f35e0b7f258e0fe85e8dc7ebd68434ab52..2da7edbffeca4a042effc809986cfe4e56edbbae 100644
+index fe2a1e514ddbf97d790ba3d810eb48ea03cbd323..453c0ebd78033acc2ac33fc8ddb90334c08698e2 100644
 --- a/src/main/java/org/bukkit/entity/Entity.java
 +++ b/src/main/java/org/bukkit/entity/Entity.java
 @@ -4,6 +4,7 @@ import java.util.List;
