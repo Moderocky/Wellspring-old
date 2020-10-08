@@ -1,0 +1,70 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Wed, 7 Oct 2020 14:14:09 +0100
+Subject: [PATCH] Testing class-wide handlers.
+
+
+diff --git a/src/main/java/org/bukkit/event/EventHandler.java b/src/main/java/org/bukkit/event/EventHandler.java
+index cc06f480b788b19d4799ba0dcf53b3640059f023..d4a43f2972587ac3c4c79e3ee6c8b8c98bb237e0 100644
+--- a/src/main/java/org/bukkit/event/EventHandler.java
++++ b/src/main/java/org/bukkit/event/EventHandler.java
+@@ -1,15 +1,13 @@
+ package org.bukkit.event;
+ 
+-import java.lang.annotation.ElementType;
+-import java.lang.annotation.Retention;
+-import java.lang.annotation.RetentionPolicy;
+-import java.lang.annotation.Target;
++import java.lang.annotation.*;
+ 
+ /**
+  * An annotation to mark methods as being event handler methods
+  */
+-@Target(ElementType.METHOD)
++@Target({ElementType.METHOD, ElementType.TYPE}) // Kenzie - class-wide event listeners
+ @Retention(RetentionPolicy.RUNTIME)
++@Inherited // Kenzie - class-wide event listeners
+ public @interface EventHandler {
+ 
+     /**
+diff --git a/src/main/java/org/bukkit/plugin/java/JavaPluginLoader.java b/src/main/java/org/bukkit/plugin/java/JavaPluginLoader.java
+index 384edf9890dfbd1cddfdcac4db1ebe9a4d761f78..db6d79c30b43a0262cfda433f4f5b4d94e5f62bb 100644
+--- a/src/main/java/org/bukkit/plugin/java/JavaPluginLoader.java
++++ b/src/main/java/org/bukkit/plugin/java/JavaPluginLoader.java
+@@ -6,12 +6,7 @@ import java.io.IOException;
+ import java.io.InputStream;
+ import java.lang.reflect.InvocationTargetException;
+ import java.lang.reflect.Method;
+-import java.util.Arrays;
+-import java.util.HashMap;
+-import java.util.HashSet;
+-import java.util.List;
+-import java.util.Map;
+-import java.util.Set;
++import java.util.*;
+ import java.util.concurrent.ConcurrentHashMap;
+ import java.util.concurrent.CopyOnWriteArrayList;
+ import java.util.jar.JarEntry;
+@@ -289,19 +284,15 @@ public final class JavaPluginLoader implements PluginLoader {
+             Method[] publicMethods = listener.getClass().getMethods();
+             Method[] privateMethods = listener.getClass().getDeclaredMethods();
+             methods = new HashSet<Method>(publicMethods.length + privateMethods.length, 1.0f);
+-            for (Method method : publicMethods) {
+-                methods.add(method);
+-            }
+-            for (Method method : privateMethods) {
+-                methods.add(method);
+-            }
++            Collections.addAll(methods, publicMethods);
++            Collections.addAll(methods, privateMethods);
+         } catch (NoClassDefFoundError e) {
+             plugin.getLogger().severe("Plugin " + plugin.getDescription().getFullName() + " has failed to register events for " + listener.getClass() + " because " + e.getMessage() + " does not exist.");
+             return ret;
+         }
+ 
+         for (final Method method : methods) {
+-            final EventHandler eh = method.getAnnotation(EventHandler.class);
++            final EventHandler eh = method.getAnnotation(EventHandler.class) != null ? method.getAnnotation(EventHandler.class) : listener.getClass().getAnnotation(EventHandler.class); // Kenzie - class-wide handlers
+             if (eh == null) continue;
+             // Do not register bridge or synthetic methods to avoid event duplication
+             // Fixes SPIGOT-893
