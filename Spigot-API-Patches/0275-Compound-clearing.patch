@@ -1,0 +1,19 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Thu, 8 Oct 2020 19:14:28 +0100
+Subject: [PATCH] Compound clearing.
+
+
+diff --git a/src/main/java/mx/kenzie/wellspring/nbt/NBTCompound.java b/src/main/java/mx/kenzie/wellspring/nbt/NBTCompound.java
+index 7a65780bb24821a160c5764e1cb53ce63e881792..6bdbeec7651c8b106491b41a6c59daabfc2d9b83 100644
+--- a/src/main/java/mx/kenzie/wellspring/nbt/NBTCompound.java
++++ b/src/main/java/mx/kenzie/wellspring/nbt/NBTCompound.java
+@@ -174,6 +174,8 @@ public interface NBTCompound extends NBT {
+ 
+     void remove(@NotNull String key);
+ 
++    void clear();
++
+     @NotNull
+     NBTCompound clone();
+ 

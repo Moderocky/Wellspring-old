@@ -1,0 +1,22 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Thu, 8 Oct 2020 19:14:50 +0100
+Subject: [PATCH] Compound clearing.
+
+
+diff --git a/src/main/java/net/minecraft/server/NBTTagCompound.java b/src/main/java/net/minecraft/server/NBTTagCompound.java
+index ab0ad23edc5bc2847ba19cd4f3aae2b58933a86d..65b144364357c5d4e0587f153ffff62415e61893 100644
+--- a/src/main/java/net/minecraft/server/NBTTagCompound.java
++++ b/src/main/java/net/minecraft/server/NBTTagCompound.java
+@@ -605,6 +605,11 @@ public class NBTTagCompound implements NBTBase, NBTCompound { // Kenzie - whole
+         }
+     }
+ 
++    @Override
++    public void clear() { // Kenzie
++        map.clear();
++    }
++
+     @Override
+     public Map<String, NBT> getAsMap() {
+         return new HashMap<>(h());
