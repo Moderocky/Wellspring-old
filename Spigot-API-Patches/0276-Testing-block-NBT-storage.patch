@@ -1,0 +1,123 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Thu, 8 Oct 2020 20:08:46 +0100
+Subject: [PATCH] Testing block NBT storage.
+
+
+diff --git a/src/main/java/mx/kenzie/wellspring/nbt/BlockNBTStorage.java b/src/main/java/mx/kenzie/wellspring/nbt/BlockNBTStorage.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..870ea93917c6cfbb12f57da8772c7342d8dbae38
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/nbt/BlockNBTStorage.java
+@@ -0,0 +1,28 @@
++package mx.kenzie.wellspring.nbt;
++
++import org.bukkit.block.Block;
++import org.bukkit.util.Vector;
++import org.jetbrains.annotations.NotNull;
++
++/**
++ * Represents something that stores block NBT.
++ * For use purposes, this is only worlds.
++ *
++ * Please note - storing excessive amounts of block NBT
++ * will increase the size of your world files and consume RAM while.
++ */
++public interface BlockNBTStorage {
++
++    default @NotNull NBTCompound getNBT(Block block) {
++        return getNBT(new Vector(block.getX(), block.getY(), block.getZ()));
++    }
++
++    default @NotNull NBTCompound getNBT(int x, int y, int z) {
++        return getNBT(new Vector(x, y, z));
++    }
++
++    @NotNull NBTCompound getNBT(@NotNull Vector position);
++
++    void clearNBT(@NotNull Vector position);
++
++}
+diff --git a/src/main/java/org/bukkit/World.java b/src/main/java/org/bukkit/World.java
+index 5c3e19d018fdf57fa1d43d8f044ea84e937a8bb8..e800b7c422842667ad751d2c470cc9b196ee3ec8 100644
+--- a/src/main/java/org/bukkit/World.java
++++ b/src/main/java/org/bukkit/World.java
+@@ -2,6 +2,7 @@ package org.bukkit;
+ 
+ import java.io.File;
+ 
++import mx.kenzie.wellspring.nbt.BlockNBTStorage;
+ import mx.kenzie.wellspring.nbt.NBTCompound;
+ import mx.kenzie.wellspring.nbt.NBTHolder;
+ import org.bukkit.attachment.Attachable;
+@@ -46,7 +47,7 @@ import org.jetbrains.annotations.Nullable;
+ /**
+  * Represents a world, which may contain entities, chunks and blocks
+  */
+-public interface World extends PluginMessageRecipient, Metadatable, Attachable { // Kenzie
++public interface World extends PluginMessageRecipient, Metadatable, Attachable, BlockNBTStorage { // Kenzie
+ 
+     // Paper start
+     /**
+diff --git a/src/main/java/org/bukkit/block/Block.java b/src/main/java/org/bukkit/block/Block.java
+index 7616c5601adee3cbe0e5f722646a2458b535ab77..e71b038a40d5b107f24bb95ffb7951aa5f27e1fb 100644
+--- a/src/main/java/org/bukkit/block/Block.java
++++ b/src/main/java/org/bukkit/block/Block.java
+@@ -2,6 +2,8 @@ package org.bukkit.block;
+ 
+ import java.util.Collection;
+ 
++import mx.kenzie.wellspring.nbt.NBTCompound;
++import mx.kenzie.wellspring.nbt.NBTHolder;
+ import org.bukkit.Chunk;
+ import org.bukkit.FluidCollisionMode;
+ import org.bukkit.Location;
+@@ -30,7 +32,7 @@ import org.jetbrains.annotations.Nullable;
+  * (i.e. lighting and power) may not be able to be safely accessed during world
+  * generation when used in cases like BlockPhysicsEvent!!!!
+  */
+-public interface Block extends Metadatable {
++public interface Block extends Metadatable, NBTHolder { // Kenzie
+ 
+     /**
+      * Gets the metadata for this block
+@@ -582,4 +584,39 @@ public interface Block extends Metadatable {
+     @NotNull
+     String getTranslationKey();
+     // Paper end
++
++    // Kenzie start - block nbt
++
++    /**
++     * Allows NBT to be stored directly on a block. This is
++     * saved internally within the ChunkSection's storage.
++     *
++     * Note: unlike other cases, this is not a copy of the
++     * NBT. It is backed by the actual copy in memory.
++     * Edits to this compound are already stored, you do not
++     * need to load or merge it.
++     *
++     * Please note - storing excessive amounts of block NBT
++     * will increase the size of your world files and consume RAM while.
++     * @return the block's NBT, creating one if absent
++     */
++    default @NotNull
++    @Override
++    NBTCompound getNBT() {
++        return this.getWorld().getNBT(this);
++    }
++
++    @Override
++    default void mergeNBT(@NotNull NBTCompound compound) {
++        this.getNBT().merge(compound);
++    }
++
++    @Override
++    default void loadNBT(@NotNull NBTCompound compound) {
++        final NBTCompound nbt = this.getNBT();
++        nbt.clear();
++        nbt.merge(compound);
++    }
++
++    // Kenzie end
+ }

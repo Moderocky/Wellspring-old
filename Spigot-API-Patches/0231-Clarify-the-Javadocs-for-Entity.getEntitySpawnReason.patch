@@ -5,10 +5,10 @@ Subject: [PATCH] Clarify the Javadocs for Entity.getEntitySpawnReason()
 
 
 diff --git a/src/main/java/org/bukkit/entity/Entity.java b/src/main/java/org/bukkit/entity/Entity.java
-index 9bae4704b306b1d04534072690355983856c7801..4d1970bec04c5a3cf01d214f583efb0e1d08380d 100644
+index 20fb0cb358ba71e7ec9535851ba6dbfa78e7a449..2335b299db0156fa583c33ff8a00eed87a98b553 100644
 --- a/src/main/java/org/bukkit/entity/Entity.java
 +++ b/src/main/java/org/bukkit/entity/Entity.java
-@@ -651,7 +651,7 @@ public interface Entity extends Metadatable, CommandSender, Nameable, Persistent
+@@ -654,7 +654,7 @@ public interface Entity extends Metadatable, CommandSender, Nameable, Persistent
      Chunk getChunk();
  
      /**

@@ -774,7 +774,7 @@ index 0000000000000000000000000000000000000000..09b8c03a9e8f658bf08e7ded10c291e7
 +
 +}
 diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
-index 6ceb2d50c59b63a337364605f8a5280d905f2662..62bafe99f25412caa4df86acd1a0bb4f7172b2b5 100644
+index 6f59f8d4541451573eb50a1a3190788c51490502..f82716b0697053f09a6bc7468ca7dfdbd1c108a0 100644
 --- a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
 +++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
 @@ -6,6 +6,8 @@ import com.google.common.collect.Lists;

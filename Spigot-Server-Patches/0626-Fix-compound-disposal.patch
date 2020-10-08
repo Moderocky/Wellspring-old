@@ -1,0 +1,20 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Thu, 8 Oct 2020 20:28:11 +0100
+Subject: [PATCH] Fix compound disposal.
+
+
+diff --git a/src/main/java/net/minecraft/server/ChunkSection.java b/src/main/java/net/minecraft/server/ChunkSection.java
+index dfa84f11c24e163b7b4005165c83deddacb356e5..920100af0bed958b7068125cdbf5a6ec9177c490 100644
+--- a/src/main/java/net/minecraft/server/ChunkSection.java
++++ b/src/main/java/net/minecraft/server/ChunkSection.java
+@@ -30,7 +30,8 @@ public class ChunkSection implements BlockNBTStorage { // Kenzie
+     }
+ 
+     public NBTTagCompound getNBT(BlockPosition position) {
+-        return blockNBT.getOrDefault(position, new NBTTagCompound());
++        blockNBT.putIfAbsent(position, new NBTTagCompound());
++        return blockNBT.get(position);
+     }
+ 
+     public void clearNBT(BlockPosition position) {
