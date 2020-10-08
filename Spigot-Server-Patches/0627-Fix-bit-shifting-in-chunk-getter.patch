@@ -1,0 +1,28 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Thu, 8 Oct 2020 20:42:32 +0100
+Subject: [PATCH] Fix bit-shifting in chunk getter.
+
+
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
+index df031067721070e54d649d5cf8874dbd44837c6c..bc8e2d9b35e9eed5f48e3f1412c499df653dd29c 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
+@@ -2590,7 +2590,7 @@ public class CraftWorld implements World {
+ 
+     @Override
+     public NBTCompound getNBT(Vector position) {
+-        final int x = position.getBlockX(), z = position.getBlockZ();
++        final int x = position.getBlockX() >> 4, z = position.getBlockZ() >> 4;
+         net.minecraft.server.Chunk chunk = world.getChunkProvider().getChunkAtIfLoadedImmediately(x, z);
+         if (chunk == null) chunk = this.world.getChunkProvider().getChunkAt(x, z, true);
+         return chunk.getNBT(position);
+@@ -2598,7 +2598,7 @@ public class CraftWorld implements World {
+ 
+     @Override
+     public void clearNBT(Vector position) {
+-        final int x = position.getBlockX(), z = position.getBlockZ();
++        final int x = position.getBlockX() >> 4, z = position.getBlockZ() >> 4;
+         net.minecraft.server.Chunk chunk = world.getChunkProvider().getChunkAtIfLoadedImmediately(x, z);
+         if (chunk == null) chunk = this.world.getChunkProvider().getChunkAt(x, z, true);
+         chunk.clearNBT(position);
