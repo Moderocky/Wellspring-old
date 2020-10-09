@@ -1,0 +1,301 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Fri, 9 Oct 2020 15:15:44 +0100
+Subject: [PATCH] Structure boundaries, positions and finder.
+
+
+diff --git a/src/main/java/mx/kenzie/wellspring/Wellspring.java b/src/main/java/mx/kenzie/wellspring/Wellspring.java
+index 34ccec906dc5ceabb0b9f0ec726a0d3c0f33412d..1a16a0f876a46a02f19d45b95bee3307df5158e6 100644
+--- a/src/main/java/mx/kenzie/wellspring/Wellspring.java
++++ b/src/main/java/mx/kenzie/wellspring/Wellspring.java
+@@ -2,9 +2,9 @@ package mx.kenzie.wellspring;
+ 
+ import mx.kenzie.wellspring.enchantment.EnchantmentBuilder;
+ import mx.kenzie.wellspring.nbt.NBTCompound;
+-import mx.kenzie.wellspring.structure.Structure;
+-import mx.kenzie.wellspring.structure.StructureInfo;
++import mx.kenzie.wellspring.structure.*;
+ import org.bukkit.Bukkit;
++import org.bukkit.Location;
+ import org.bukkit.NamespacedKey;
+ import org.bukkit.Server;
+ import org.bukkit.attribute.Attribute;
+@@ -50,6 +50,14 @@ public interface Wellspring extends Server {
+      */
+     abstract class Bridge {
+ 
++        public abstract boolean isStructurePresent(@NotNull WorldStructureType structure, @NotNull Location location);
++
++        public abstract @NotNull
++        WorldStructure getStructure(@NotNull WorldStructureType structure, @NotNull Location location);
++
++        public abstract @Nullable
++        WorldStructurePart getStructurePart(@NotNull WorldStructureType structure, @NotNull Location location);
++
+         public abstract @NotNull
+         StructureInfo createStructureInfo();
+ 
+diff --git a/src/main/java/mx/kenzie/wellspring/structure/DecorationType.java b/src/main/java/mx/kenzie/wellspring/structure/DecorationType.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..4246e75768230d3f8a7e342b56eb75287a92eccd
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/structure/DecorationType.java
+@@ -0,0 +1,7 @@
++package mx.kenzie.wellspring.structure;
++
++public enum DecorationType {
++    SURFACE,
++    UNDERGROUND,
++    STRONGHOLD
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/structure/WorldStructure.java b/src/main/java/mx/kenzie/wellspring/structure/WorldStructure.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..250539ac24a59ed93cc2d2a8d34c64de82e13331
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/structure/WorldStructure.java
+@@ -0,0 +1,61 @@
++package mx.kenzie.wellspring.structure;
++
++import org.bukkit.Keyed;
++import org.bukkit.NamespacedKey;
++import org.bukkit.util.BoundingBox;
++import org.jetbrains.annotations.NotNull;
++
++import java.util.List;
++
++/**
++ * Represents a structure in the world, such as
++ * a mineshaft or a pillager outpost.
++ *
++ * These structures have a defined bounding box which
++ * can impact what entities spawn in the area among
++ * other things.
++ *
++ * Entering the bounds may also provide achievements
++ * (see stronghold/fortress.)
++ *
++ * @author Moderocky
++ */
++public interface WorldStructure extends Keyed {
++
++    /**
++     * Provides the bounds for the entire structure.
++     * Please note that some structures use the bounds of internal
++     * pieces for actual calculations.
++     * @return the bounds
++     */
++    @NotNull
++    BoundingBox getBoundingBox();
++
++    /**
++     * Provides the parts of the structure.
++     *
++     * All structures are divided into parts, though some may have
++     * only one "core" part.
++     * @return the parts of this structure
++     */
++    @NotNull
++    List<WorldStructurePart> getParts();
++
++    /**
++     * Provides the ID for this structure type.
++     *
++     * @return the id
++     */
++    @NotNull
++    @Override
++    NamespacedKey getKey();
++
++    /**
++     * @return the type of this structure
++     */
++    default @NotNull
++    WorldStructureType getType() {
++        return WorldStructureType.from(getKey());
++    }
++
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/structure/WorldStructurePart.java b/src/main/java/mx/kenzie/wellspring/structure/WorldStructurePart.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..ebdf3edc8fa3c0bd65465b6d20867b2cab53b8d7
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/structure/WorldStructurePart.java
+@@ -0,0 +1,37 @@
++package mx.kenzie.wellspring.structure;
++
++import org.bukkit.Keyed;
++import org.bukkit.NamespacedKey;
++import org.bukkit.util.BoundingBox;
++import org.jetbrains.annotations.NotNull;
++
++/**
++ * Represents a tangible segment of a structure.
++ * For small structures, the entire structure may be defined
++ * as one part (such as jungle temples.)
++ *
++ * Structures such as fortresses and strongholds are made
++ * from myriad and varied parts.
++ */
++public interface WorldStructurePart extends Keyed {
++
++    /**
++     * Provides the bounds for this part of the structure.
++     * @return the bounds
++     */
++    @NotNull
++    BoundingBox getBoundingBox();
++
++    /**
++     * Provides the ID for this part.
++     *
++     * This will be fairly useless without a knowledge of
++     * which ID corresponds to which part of what structure.
++     *
++     * @return the id
++     */
++    @NotNull
++    @Override
++    NamespacedKey getKey();
++
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/structure/WorldStructureType.java b/src/main/java/mx/kenzie/wellspring/structure/WorldStructureType.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..60c9b6328256a7b6720fafa76c7b0cd5606f3ac4
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/structure/WorldStructureType.java
+@@ -0,0 +1,92 @@
++package mx.kenzie.wellspring.structure;
++
++import mx.kenzie.wellspring.Wellspring;
++import org.bukkit.Location;
++import org.bukkit.NamespacedKey;
++import org.jetbrains.annotations.NotNull;
++
++import java.util.HashMap;
++import java.util.Locale;
++import java.util.Map;
++
++import static mx.kenzie.wellspring.structure.DecorationType.SURFACE;
++import static mx.kenzie.wellspring.structure.DecorationType.UNDERGROUND;
++
++public final class WorldStructureType {
++    private static final Map<NamespacedKey, WorldStructureType> STRUCTURE_MAP = new HashMap<>();
++    public static final WorldStructureType PILLAGER_OUTPOST = define("Pillager_Outpost", SURFACE);
++    public static final WorldStructureType MINESHAFT = define("Mineshaft", UNDERGROUND);
++    public static final WorldStructureType MANSION = define("Mansion", SURFACE);
++    public static final WorldStructureType JUNGLE_PYRAMID = define("Jungle_Pyramid", SURFACE);
++    public static final WorldStructureType DESERT_PYRAMID = define("Desert_Pyramid", SURFACE);
++    public static final WorldStructureType IGLOO = define("Igloo", SURFACE);
++    public static final WorldStructureType RUINED_PORTAL = define("Ruined_Portal", SURFACE);
++    public static final WorldStructureType SHIPWRECK = define("Shipwreck", SURFACE);
++    public static final WorldStructureType SWAMP_HUT = define("Swamp_Hut", SURFACE);
++    public static final WorldStructureType STRONGHOLD = define("Stronghold", DecorationType.STRONGHOLD);
++    public static final WorldStructureType MONUMENT = define("Monument", SURFACE);
++    public static final WorldStructureType OCEAN_RUIN = define("Ocean_Ruin", SURFACE);
++    public static final WorldStructureType FORTRESS = define("Fortress", UNDERGROUND);
++    public static final WorldStructureType ENDCITY = define("EndCity", SURFACE);
++    public static final WorldStructureType BURIED_TREASURE = define("Buried_Treasure", UNDERGROUND);
++    public static final WorldStructureType VILLAGE = define("Village", SURFACE);
++    public static final WorldStructureType NETHER_FOSSIL = define("Nether_Fossil", UNDERGROUND);
++    public static final WorldStructureType BASTION_REMNANT = define("Bastion_Remnant", SURFACE);
++
++    private final @NotNull
++    NamespacedKey key;
++    private final @NotNull
++    DecorationType type;
++
++    private WorldStructureType(@NotNull NamespacedKey key, @NotNull DecorationType type) {
++        this.key = key;
++        this.type = type;
++    }
++
++    @NotNull
++    public final NamespacedKey getKey() {
++        return key;
++    }
++
++    @NotNull
++    public DecorationType getType() {
++        return type;
++    }
++
++    public boolean isPresent(@NotNull Location location) {
++        return Wellspring.bridge().isStructurePresent(this, location);
++    }
++
++    public @NotNull
++    WorldStructure get(@NotNull Location location) {
++        return Wellspring.bridge().getStructure(this, location);
++    }
++
++    public @NotNull
++    WorldStructurePart getPart(@NotNull Location location) {
++        return Wellspring.bridge().getStructurePart(this, location);
++    }
++
++    public static @NotNull
++    WorldStructureType from(@NotNull NamespacedKey key) {
++        return STRUCTURE_MAP.get(key);
++    }
++
++    private static @NotNull
++    WorldStructureType define(final @NotNull String id, @NotNull DecorationType type) {
++        final @NotNull NamespacedKey key = NamespacedKey.minecraft(id.toLowerCase(Locale.ENGLISH));
++        final @NotNull WorldStructureType structure;
++        STRUCTURE_MAP.put(key, structure = new WorldStructureType(key, type));
++        return structure;
++    }
++
++    public static @NotNull
++    WorldStructureType define(final @NotNull NamespacedKey key, @NotNull DecorationType type) {
++        if (key.isMinecraft() && STRUCTURE_MAP.containsKey(key))
++            throw new IllegalArgumentException("Minecraft structure definitions cannot be overridden!");
++        final @NotNull WorldStructureType structure;
++        STRUCTURE_MAP.put(key, structure = new WorldStructureType(key, type));
++        return structure;
++    }
++
++}
+diff --git a/src/main/java/org/bukkit/NamespacedKey.java b/src/main/java/org/bukkit/NamespacedKey.java
+index 620a962df6d871c7a3b7728030a05ade772135c2..35742db7b26bdc39a13a814c94e838fcb1471839 100644
+--- a/src/main/java/org/bukkit/NamespacedKey.java
++++ b/src/main/java/org/bukkit/NamespacedKey.java
+@@ -141,4 +141,38 @@ public final class NamespacedKey implements com.destroystokyo.paper.Namespaced {
+     public static NamespacedKey minecraft(@NotNull String key) {
+         return new NamespacedKey(MINECRAFT, key);
+     }
++
++    // Kenzie start - namespace checker
++    /**
++     * @return whether the key uses the Minecraft namespace
++     */
++    public boolean isMinecraft() {
++        return key.equals(MINECRAFT);
++    }
++
++    /**
++     * @return whether the key uses the Bukkit namespace
++     */
++    public boolean isBukkit() {
++        return key.equals(BUKKIT);
++    }
++
++    /**
++     * Used for fast internal conversion of MinecraftKeys to NamespacedKeys.
++     * Should generally not be used by plugins.
++     *
++     * @param string the string, in the format "namespace:key"
++     * @return the new key
++     * @deprecated should never be used by plugins, for internal use only!!
++     */
++    public static @NotNull @Deprecated
++    NamespacedKey createFrom(@NotNull String string) {
++        if (string.contains(":")) {
++            String[] parts = string.split(":");
++            return new NamespacedKey(parts[0], parts[1]);
++        } else {
++            return NamespacedKey.minecraft(string);
++        }
++    }
++    // Kenzie end
+ }

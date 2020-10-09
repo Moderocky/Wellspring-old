@@ -1,0 +1,755 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Fri, 9 Oct 2020 15:15:50 +0100
+Subject: [PATCH] Structure boundaries, positions and finder.
+
+
+diff --git a/src/main/java/mx/kenzie/server/CraftBridge.java b/src/main/java/mx/kenzie/server/CraftBridge.java
+index 124db5f4e1a1cf7e2738c07294c66a8b70c39392..caa4d73bc7914bd4b5ed1a731771077462eb0d12 100644
+--- a/src/main/java/mx/kenzie/server/CraftBridge.java
++++ b/src/main/java/mx/kenzie/server/CraftBridge.java
+@@ -2,11 +2,12 @@ package mx.kenzie.server;
+ 
+ import mx.kenzie.wellspring.Wellspring;
+ import mx.kenzie.wellspring.nbt.NBTCompound;
+-import mx.kenzie.wellspring.structure.Structure;
+-import mx.kenzie.wellspring.structure.StructureInfo;
++import mx.kenzie.wellspring.structure.*;
+ import net.minecraft.server.*;
++import org.bukkit.Location;
+ import org.bukkit.NamespacedKey;
+ import org.bukkit.attribute.Attribute;
++import org.bukkit.craftbukkit.CraftWorld;
+ import org.bukkit.craftbukkit.entity.CraftEntity;
+ import org.bukkit.craftbukkit.entity.CraftLivingEntity;
+ import org.bukkit.enchantments.Enchantment;
+@@ -19,6 +20,36 @@ import java.util.Map;
+ 
+ public class CraftBridge extends Wellspring.Bridge {
+ 
++    @Override
++    public boolean isStructurePresent(WorldStructureType structure, Location location) {
++        WorldStructure str = getStructure(structure, location);
++        return str != null && str != StructureStart.a;
++    }
++
++    @Override
++    public WorldStructure getStructure(WorldStructureType structure, Location location) {
++        final WorldServer world = ((CraftWorld) location.getWorld()).getHandle();
++        final BlockPosition position = new BlockPosition(location.getBlockX(), location.getBlockY(), location.getBlockZ());
++        return world.getStructureManager().a(position, false, IRegistry.STRUCTURE_FEATURE.get(MinecraftKey.a(structure.getKey().toString())));
++    }
++
++    @Override
++    public WorldStructurePart getStructurePart(WorldStructureType structure, Location location) {
++        final WorldServer world = ((CraftWorld) location.getWorld()).getHandle();
++        final BlockPosition position = new BlockPosition(location.getBlockX(), location.getBlockY(), location.getBlockZ());
++        final StructureGenerator<?> generator = IRegistry.STRUCTURE_FEATURE.get(MinecraftKey.a(structure.getKey().toString()));
++        for (StructureStart<?> structurestart : world.getStructureManager().getFeatureStarts(SectionPosition.a(position), generator)) {
++            if (structurestart.c().b(position)) {
++                for (StructurePiece structurepiece : structurestart.d()) {
++                    if (structurepiece.g().b(position)) {
++                        return structurepiece;
++                    }
++                }
++            }
++        }
++        return null;
++    }
++
+     @Override
+     public StructureInfo createStructureInfo() {
+         return new DefinedStructureInfo();
+diff --git a/src/main/java/net/minecraft/server/StructurePiece.java b/src/main/java/net/minecraft/server/StructurePiece.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..32ae5e59e0446d57ad5f2593fc52ec29d4425765
+--- /dev/null
++++ b/src/main/java/net/minecraft/server/StructurePiece.java
+@@ -0,0 +1,488 @@
++package net.minecraft.server;
++
++import com.google.common.collect.ImmutableSet;
++import java.util.Iterator;
++import java.util.List;
++import java.util.Random;
++import java.util.Set;
++import javax.annotation.Nullable;
++
++import mx.kenzie.wellspring.structure.WorldStructurePart;
++import net.minecraft.server.BlockPosition.MutableBlockPosition;
++import net.minecraft.server.EnumDirection.EnumDirectionLimit;
++import net.minecraft.server.HeightMap.Type;
++import org.bukkit.NamespacedKey;
++import org.bukkit.util.BoundingBox;
++
++public abstract class StructurePiece implements WorldStructurePart { // Kenzie
++    protected static final IBlockData m;
++    protected StructureBoundingBox n;
++    @Nullable
++    private EnumDirection a;
++    private EnumBlockMirror b;
++    private EnumBlockRotation c;
++    protected int o;
++    private final WorldGenFeatureStructurePieceType d;
++    private static final Set<Block> e;
++
++    // Kenzie start - structure parts
++    @Override
++    public BoundingBox getBoundingBox() {
++        return new BoundingBox(n.a, n.b, n.c, n.d, n.e, n.f);
++    }
++
++    @Override
++    public NamespacedKey getKey() {
++        return NamespacedKey.createFrom(IRegistry.STRUCTURE_PIECE.getKey(d).toString());
++    }
++    // Kenzie end
++
++    protected StructurePiece(WorldGenFeatureStructurePieceType var0, int var1) {
++        this.d = var0;
++        this.o = var1;
++    }
++
++    public StructurePiece(WorldGenFeatureStructurePieceType var0, NBTTagCompound var1) {
++        this(var0, var1.getInt("GD"));
++        if (var1.hasKey("BB")) {
++            this.n = new StructureBoundingBox(var1.getIntArray("BB"));
++        }
++
++        int var2 = var1.getInt("O");
++        this.a(var2 == -1 ? null : EnumDirection.fromType2(var2));
++    }
++
++    public final NBTTagCompound f() {
++        NBTTagCompound var0 = new NBTTagCompound();
++        var0.setString("id", IRegistry.STRUCTURE_PIECE.getKey(this.k()).toString());
++        var0.set("BB", this.n.h());
++        EnumDirection var1 = this.i();
++        var0.setInt("O", var1 == null ? -1 : var1.get2DRotationValue());
++        var0.setInt("GD", this.o);
++        this.a(var0);
++        return var0;
++    }
++
++    protected abstract void a(NBTTagCompound var1);
++
++    public void a(StructurePiece var0, List<StructurePiece> var1, Random var2) {
++    }
++
++    public abstract boolean a(GeneratorAccessSeed var1, StructureManager var2, ChunkGenerator var3, Random var4, StructureBoundingBox var5, ChunkCoordIntPair var6, BlockPosition var7);
++
++    public StructureBoundingBox g() {
++        return this.n;
++    }
++
++    public int h() {
++        return this.o;
++    }
++
++    public boolean a(ChunkCoordIntPair var0, int var1) {
++        int var2 = var0.x << 4;
++        int var3 = var0.z << 4;
++        return this.n.a(var2 - var1, var3 - var1, var2 + 15 + var1, var3 + 15 + var1);
++    }
++
++    public static StructurePiece a(List<StructurePiece> var0, StructureBoundingBox var1) {
++        Iterator var2 = var0.iterator();
++
++        StructurePiece var3;
++        do {
++            if (!var2.hasNext()) {
++                return null;
++            }
++
++            var3 = (StructurePiece)var2.next();
++        } while(var3.g() == null || !var3.g().b(var1));
++
++        return var3;
++    }
++
++    protected boolean a(IBlockAccess var0, StructureBoundingBox var1) {
++        int var2 = Math.max(this.n.a - 1, var1.a);
++        int var3 = Math.max(this.n.b - 1, var1.b);
++        int var4 = Math.max(this.n.c - 1, var1.c);
++        int var5 = Math.min(this.n.d + 1, var1.d);
++        int var6 = Math.min(this.n.e + 1, var1.e);
++        int var7 = Math.min(this.n.f + 1, var1.f);
++        MutableBlockPosition var8 = new MutableBlockPosition();
++
++        int var9;
++        int var10;
++        for(var9 = var2; var9 <= var5; ++var9) {
++            for(var10 = var4; var10 <= var7; ++var10) {
++                if (var0.getType(var8.d(var9, var3, var10)).getMaterial().isLiquid()) {
++                    return true;
++                }
++
++                if (var0.getType(var8.d(var9, var6, var10)).getMaterial().isLiquid()) {
++                    return true;
++                }
++            }
++        }
++
++        for(var9 = var2; var9 <= var5; ++var9) {
++            for(var10 = var3; var10 <= var6; ++var10) {
++                if (var0.getType(var8.d(var9, var10, var4)).getMaterial().isLiquid()) {
++                    return true;
++                }
++
++                if (var0.getType(var8.d(var9, var10, var7)).getMaterial().isLiquid()) {
++                    return true;
++                }
++            }
++        }
++
++        for(var9 = var4; var9 <= var7; ++var9) {
++            for(var10 = var3; var10 <= var6; ++var10) {
++                if (var0.getType(var8.d(var2, var10, var9)).getMaterial().isLiquid()) {
++                    return true;
++                }
++
++                if (var0.getType(var8.d(var5, var10, var9)).getMaterial().isLiquid()) {
++                    return true;
++                }
++            }
++        }
++
++        return false;
++    }
++
++    protected int a(int var0, int var1) {
++        EnumDirection var2 = this.i();
++        if (var2 == null) {
++            return var0;
++        } else {
++            switch(var2) {
++                case NORTH:
++                case SOUTH:
++                    return this.n.a + var0;
++                case WEST:
++                    return this.n.d - var1;
++                case EAST:
++                    return this.n.a + var1;
++                default:
++                    return var0;
++            }
++        }
++    }
++
++    protected int d(int var0) {
++        return this.i() == null ? var0 : var0 + this.n.b;
++    }
++
++    protected int b(int var0, int var1) {
++        EnumDirection var2 = this.i();
++        if (var2 == null) {
++            return var1;
++        } else {
++            switch(var2) {
++                case NORTH:
++                    return this.n.f - var1;
++                case SOUTH:
++                    return this.n.c + var1;
++                case WEST:
++                case EAST:
++                    return this.n.c + var0;
++                default:
++                    return var1;
++            }
++        }
++    }
++
++    protected void a(GeneratorAccessSeed var0, IBlockData var1, int var2, int var3, int var4, StructureBoundingBox var5) {
++        BlockPosition var6 = new BlockPosition(this.a(var2, var4), this.d(var3), this.b(var2, var4));
++        if (var5.b(var6)) {
++            if (this.b != EnumBlockMirror.NONE) {
++                var1 = var1.a(this.b);
++            }
++
++            if (this.c != EnumBlockRotation.NONE) {
++                var1 = var1.a(this.c);
++            }
++
++            var0.setTypeAndData(var6, var1, 2);
++            Fluid var7 = var0.getFluid(var6);
++            if (!var7.isEmpty()) {
++                var0.getFluidTickList().a(var6, var7.getType(), 0);
++            }
++
++            if (e.contains(var1.getBlock())) {
++                var0.z(var6).e(var6);
++            }
++
++        }
++    }
++
++    protected IBlockData a(IBlockAccess var0, int var1, int var2, int var3, StructureBoundingBox var4) {
++        int var5 = this.a(var1, var3);
++        int var6 = this.d(var2);
++        int var7 = this.b(var1, var3);
++        BlockPosition var8 = new BlockPosition(var5, var6, var7);
++        return !var4.b(var8) ? Blocks.AIR.getBlockData() : var0.getType(var8);
++    }
++
++    protected boolean a(IWorldReader var0, int var1, int var2, int var3, StructureBoundingBox var4) {
++        int var5 = this.a(var1, var3);
++        int var6 = this.d(var2 + 1);
++        int var7 = this.b(var1, var3);
++        BlockPosition var8 = new BlockPosition(var5, var6, var7);
++        if (!var4.b(var8)) {
++            return false;
++        } else {
++            return var6 < var0.a(Type.OCEAN_FLOOR_WG, var5, var7);
++        }
++    }
++
++    protected void b(GeneratorAccessSeed var0, StructureBoundingBox var1, int var2, int var3, int var4, int var5, int var6, int var7) {
++        for(int var8 = var3; var8 <= var6; ++var8) {
++            for(int var9 = var2; var9 <= var5; ++var9) {
++                for(int var10 = var4; var10 <= var7; ++var10) {
++                    this.a(var0, Blocks.AIR.getBlockData(), var9, var8, var10, var1);
++                }
++            }
++        }
++
++    }
++
++    protected void a(GeneratorAccessSeed var0, StructureBoundingBox var1, int var2, int var3, int var4, int var5, int var6, int var7, IBlockData var8, IBlockData var9, boolean var10) {
++        for(int var11 = var3; var11 <= var6; ++var11) {
++            for(int var12 = var2; var12 <= var5; ++var12) {
++                for(int var13 = var4; var13 <= var7; ++var13) {
++                    if (!var10 || !this.a((IBlockAccess)var0, var12, var11, var13, var1).isAir()) {
++                        if (var11 != var3 && var11 != var6 && var12 != var2 && var12 != var5 && var13 != var4 && var13 != var7) {
++                            this.a(var0, var9, var12, var11, var13, var1);
++                        } else {
++                            this.a(var0, var8, var12, var11, var13, var1);
++                        }
++                    }
++                }
++            }
++        }
++
++    }
++
++    protected void a(GeneratorAccessSeed var0, StructureBoundingBox var1, int var2, int var3, int var4, int var5, int var6, int var7, boolean var8, Random var9, StructurePiece.StructurePieceBlockSelector var10) {
++        for(int var11 = var3; var11 <= var6; ++var11) {
++            for(int var12 = var2; var12 <= var5; ++var12) {
++                for(int var13 = var4; var13 <= var7; ++var13) {
++                    if (!var8 || !this.a((IBlockAccess)var0, var12, var11, var13, var1).isAir()) {
++                        var10.a(var9, var12, var11, var13, var11 == var3 || var11 == var6 || var12 == var2 || var12 == var5 || var13 == var4 || var13 == var7);
++                        this.a(var0, var10.a(), var12, var11, var13, var1);
++                    }
++                }
++            }
++        }
++
++    }
++
++    protected void a(GeneratorAccessSeed var0, StructureBoundingBox var1, Random var2, float var3, int var4, int var5, int var6, int var7, int var8, int var9, IBlockData var10, IBlockData var11, boolean var12, boolean var13) {
++        for(int var14 = var5; var14 <= var8; ++var14) {
++            for(int var15 = var4; var15 <= var7; ++var15) {
++                for(int var16 = var6; var16 <= var9; ++var16) {
++                    if (var2.nextFloat() <= var3 && (!var12 || !this.a((IBlockAccess)var0, var15, var14, var16, var1).isAir()) && (!var13 || this.a((IWorldReader)var0, var15, var14, var16, var1))) {
++                        if (var14 != var5 && var14 != var8 && var15 != var4 && var15 != var7 && var16 != var6 && var16 != var9) {
++                            this.a(var0, var11, var15, var14, var16, var1);
++                        } else {
++                            this.a(var0, var10, var15, var14, var16, var1);
++                        }
++                    }
++                }
++            }
++        }
++
++    }
++
++    protected void a(GeneratorAccessSeed var0, StructureBoundingBox var1, Random var2, float var3, int var4, int var5, int var6, IBlockData var7) {
++        if (var2.nextFloat() < var3) {
++            this.a(var0, var7, var4, var5, var6, var1);
++        }
++
++    }
++
++    protected void a(GeneratorAccessSeed var0, StructureBoundingBox var1, int var2, int var3, int var4, int var5, int var6, int var7, IBlockData var8, boolean var9) {
++        float var10 = (float)(var5 - var2 + 1);
++        float var11 = (float)(var6 - var3 + 1);
++        float var12 = (float)(var7 - var4 + 1);
++        float var13 = (float)var2 + var10 / 2.0F;
++        float var14 = (float)var4 + var12 / 2.0F;
++
++        for(int var15 = var3; var15 <= var6; ++var15) {
++            float var16 = (float)(var15 - var3) / var11;
++
++            for(int var17 = var2; var17 <= var5; ++var17) {
++                float var18 = ((float)var17 - var13) / (var10 * 0.5F);
++
++                for(int var19 = var4; var19 <= var7; ++var19) {
++                    float var20 = ((float)var19 - var14) / (var12 * 0.5F);
++                    if (!var9 || !this.a((IBlockAccess)var0, var17, var15, var19, var1).isAir()) {
++                        float var21 = var18 * var18 + var16 * var16 + var20 * var20;
++                        if (var21 <= 1.05F) {
++                            this.a(var0, var8, var17, var15, var19, var1);
++                        }
++                    }
++                }
++            }
++        }
++
++    }
++
++    protected void b(GeneratorAccessSeed var0, IBlockData var1, int var2, int var3, int var4, StructureBoundingBox var5) {
++        int var6 = this.a(var2, var4);
++        int var7 = this.d(var3);
++        int var8 = this.b(var2, var4);
++        if (var5.b(new BlockPosition(var6, var7, var8))) {
++            while((var0.isEmpty(new BlockPosition(var6, var7, var8)) || var0.getType(new BlockPosition(var6, var7, var8)).getMaterial().isLiquid()) && var7 > 1) {
++                var0.setTypeAndData(new BlockPosition(var6, var7, var8), var1, 2);
++                --var7;
++            }
++
++        }
++    }
++
++    protected boolean a(GeneratorAccessSeed var0, StructureBoundingBox var1, Random var2, int var3, int var4, int var5, MinecraftKey var6) {
++        BlockPosition var7 = new BlockPosition(this.a(var3, var5), this.d(var4), this.b(var3, var5));
++        return this.a(var0, var1, var2, var7, var6, (IBlockData)null);
++    }
++
++    public static IBlockData a(IBlockAccess var0, BlockPosition var1, IBlockData var2) {
++        EnumDirection var3 = null;
++
++        for (EnumDirection var5 : EnumDirectionLimit.HORIZONTAL) { // Kenzie - decompile error
++            BlockPosition var6 = var1.shift(var5);
++            IBlockData var7 = var0.getType(var6);
++            if (var7.a(Blocks.CHEST)) {
++                return var2;
++            }
++
++            if (var7.i(var0, var6)) {
++                if (var3 != null) {
++                    var3 = null;
++                    break;
++                }
++
++                var3 = var5;
++            }
++        }
++
++        if (var3 != null) {
++            return (IBlockData)var2.set(BlockFacingHorizontal.FACING, var3.opposite());
++        } else {
++            EnumDirection var4 = (EnumDirection)var2.get(BlockFacingHorizontal.FACING);
++            BlockPosition var5 = var1.shift(var4);
++            if (var0.getType(var5).i(var0, var5)) {
++                var4 = var4.opposite();
++                var5 = var1.shift(var4);
++            }
++
++            if (var0.getType(var5).i(var0, var5)) {
++                var4 = var4.g();
++                var5 = var1.shift(var4);
++            }
++
++            if (var0.getType(var5).i(var0, var5)) {
++                var4 = var4.opposite();
++                var1.shift(var4);
++            }
++
++            return (IBlockData)var2.set(BlockFacingHorizontal.FACING, var4);
++        }
++    }
++
++    protected boolean a(WorldAccess var0, StructureBoundingBox var1, Random var2, BlockPosition var3, MinecraftKey var4, @Nullable IBlockData var5) {
++        if (var1.b(var3) && !var0.getType(var3).a(Blocks.CHEST)) {
++            if (var5 == null) {
++                var5 = a((IBlockAccess)var0, (BlockPosition)var3, (IBlockData)Blocks.CHEST.getBlockData());
++            }
++
++            var0.setTypeAndData(var3, var5, 2);
++            TileEntity var6 = var0.getTileEntity(var3);
++            if (var6 instanceof TileEntityChest) {
++                ((TileEntityChest)var6).setLootTable(var4, var2.nextLong());
++            }
++
++            return true;
++        } else {
++            return false;
++        }
++    }
++
++    protected boolean a(GeneratorAccessSeed var0, StructureBoundingBox var1, Random var2, int var3, int var4, int var5, EnumDirection var6, MinecraftKey var7) {
++        BlockPosition var8 = new BlockPosition(this.a(var3, var5), this.d(var4), this.b(var3, var5));
++        if (var1.b(var8) && !var0.getType(var8).a(Blocks.DISPENSER)) {
++            this.a(var0, (IBlockData)Blocks.DISPENSER.getBlockData().set(BlockDispenser.FACING, var6), var3, var4, var5, var1);
++            TileEntity var9 = var0.getTileEntity(var8);
++            if (var9 instanceof TileEntityDispenser) {
++                ((TileEntityDispenser)var9).setLootTable(var7, var2.nextLong());
++            }
++
++            return true;
++        } else {
++            return false;
++        }
++    }
++
++    public void a(int var0, int var1, int var2) {
++        this.n.a(var0, var1, var2);
++    }
++
++    @Nullable
++    public EnumDirection i() {
++        return this.a;
++    }
++
++    public void a(@Nullable EnumDirection var0) {
++        this.a = var0;
++        if (var0 == null) {
++            this.c = EnumBlockRotation.NONE;
++            this.b = EnumBlockMirror.NONE;
++        } else {
++            switch(var0) {
++                case SOUTH:
++                    this.b = EnumBlockMirror.LEFT_RIGHT;
++                    this.c = EnumBlockRotation.NONE;
++                    break;
++                case WEST:
++                    this.b = EnumBlockMirror.LEFT_RIGHT;
++                    this.c = EnumBlockRotation.CLOCKWISE_90;
++                    break;
++                case EAST:
++                    this.b = EnumBlockMirror.NONE;
++                    this.c = EnumBlockRotation.CLOCKWISE_90;
++                    break;
++                default:
++                    this.b = EnumBlockMirror.NONE;
++                    this.c = EnumBlockRotation.NONE;
++            }
++        }
++
++    }
++
++    public EnumBlockRotation ap_() {
++        return this.c;
++    }
++
++    public WorldGenFeatureStructurePieceType k() {
++        return this.d;
++    }
++
++    static {
++        m = Blocks.CAVE_AIR.getBlockData();
++        e = ImmutableSet.<Block>builder().add(Blocks.NETHER_BRICK_FENCE).add(Blocks.TORCH).add(Blocks.WALL_TORCH).add(Blocks.OAK_FENCE).add(Blocks.SPRUCE_FENCE).add(Blocks.DARK_OAK_FENCE).add(Blocks.ACACIA_FENCE).add(Blocks.BIRCH_FENCE).add(Blocks.JUNGLE_FENCE).add(Blocks.LADDER).add(Blocks.IRON_BARS).build(); // Kenzie - decompile error
++    }
++
++    public abstract static class StructurePieceBlockSelector {
++        protected IBlockData a;
++
++        protected StructurePieceBlockSelector() {
++            this.a = Blocks.AIR.getBlockData();
++        }
++
++        public abstract void a(Random var1, int var2, int var3, int var4, boolean var5);
++
++        public IBlockData a() {
++            return this.a;
++        }
++    }
++}
+diff --git a/src/main/java/net/minecraft/server/StructureStart.java b/src/main/java/net/minecraft/server/StructureStart.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..e3ddcf9fc41da4969d017ec9548a25dd5647aaa2
+--- /dev/null
++++ b/src/main/java/net/minecraft/server/StructureStart.java
+@@ -0,0 +1,193 @@
++package net.minecraft.server;
++
++import com.google.common.collect.Lists;
++import mx.kenzie.wellspring.structure.WorldStructure;
++import mx.kenzie.wellspring.structure.WorldStructurePart;
++import org.bukkit.NamespacedKey;
++import org.bukkit.util.BoundingBox;
++
++import java.util.ArrayList;
++import java.util.Iterator;
++import java.util.List;
++import java.util.Random;
++
++public abstract class StructureStart<C extends WorldGenFeatureConfiguration> implements WorldStructure { // Kenzie
++    public static final StructureStart<?> a;
++    private final StructureGenerator<C> e;
++    protected final List<StructurePiece> b = Lists.newArrayList();
++    protected StructureBoundingBox c;
++    private final int f;
++    private final int g;
++    private int h;
++    protected final SeededRandom d;
++
++    // Kenzie start - structure parts
++    @Override
++    public BoundingBox getBoundingBox() {
++        return new BoundingBox(c.a, c.b, c.c, c.d, c.e, c.f);
++    }
++
++    @Override
++    public List<WorldStructurePart> getParts() {
++        return new ArrayList<>(b); // Don't back with original copy
++    }
++
++    @Override
++    public NamespacedKey getKey() {
++        return NamespacedKey.createFrom(IRegistry.STRUCTURE_FEATURE.getKey(e).toString());
++    }
++    // Kenzie end
++
++    public StructureStart(StructureGenerator<C> var0, int var1, int var2, StructureBoundingBox var3, int var4, long var5) {
++        this.e = var0;
++        this.f = var1;
++        this.g = var2;
++        this.h = var4;
++        this.d = new SeededRandom();
++        this.d.c(var5, var1, var2);
++        this.c = var3;
++    }
++
++    public abstract void a(IRegistryCustom var1, ChunkGenerator var2, DefinedStructureManager var3, int var4, int var5, BiomeBase var6, C var7);
++
++    public StructureBoundingBox c() {
++        return this.c;
++    }
++
++    public List<StructurePiece> d() {
++        return this.b;
++    }
++
++    public void a(GeneratorAccessSeed var0, StructureManager var1, ChunkGenerator var2, Random var3, StructureBoundingBox var4, ChunkCoordIntPair var5) {
++        synchronized(this.b) {
++            if (!this.b.isEmpty()) {
++                StructureBoundingBox var7 = ((StructurePiece)this.b.get(0)).n;
++                BaseBlockPosition var8 = var7.g();
++                BlockPosition var9 = new BlockPosition(var8.getX(), var7.b, var8.getZ());
++                Iterator var10 = this.b.iterator();
++
++                while(var10.hasNext()) {
++                    StructurePiece var11 = (StructurePiece)var10.next();
++                    if (var11.g().b(var4) && !var11.a(var0, var1, var2, var3, var4, var5, var9)) {
++                        var10.remove();
++                    }
++                }
++
++                this.b();
++            }
++        }
++    }
++
++    protected void b() {
++        this.c = StructureBoundingBox.a();
++        for (StructurePiece var1 : this.b) { // Kenzie - decompile error
++            this.c.c(var1.g());
++        }
++
++    }
++
++    public NBTTagCompound a(int var0, int var1) {
++        NBTTagCompound var2 = new NBTTagCompound();
++        if (this.e()) {
++            var2.setString("id", IRegistry.STRUCTURE_FEATURE.getKey(this.l()).toString());
++            var2.setInt("ChunkX", var0);
++            var2.setInt("ChunkZ", var1);
++            var2.setInt("references", this.h);
++            var2.set("BB", this.c.h());
++            NBTTagList var3 = new NBTTagList();
++            synchronized(this.b) {
++                Iterator var6 = this.b.iterator();
++
++                while(true) {
++                    if (!var6.hasNext()) {
++                        break;
++                    }
++
++                    StructurePiece piece = (StructurePiece)var6.next(); // Kenzie - decompile error
++                    var3.add(piece.f());
++                }
++            }
++
++            var2.set("Children", var3);
++            return var2;
++        } else {
++            var2.setString("id", "INVALID");
++            return var2;
++        }
++    }
++
++    protected void a(int var0, Random var1, int var2) {
++        int var3 = var0 - var2;
++        int var4 = this.c.e() + 1;
++        if (var4 < var3) {
++            var4 += var1.nextInt(var3 - var4);
++        }
++
++        int var5 = var4 - this.c.e;
++        this.c.a(0, var5, 0);
++        for (StructurePiece var7 : this.b) { // Kenzie - decompile error
++            var7.a(0, var5, 0);
++        }
++
++    }
++
++    protected void a(Random var0, int var1, int var2) {
++        int var3 = var2 - var1 + 1 - this.c.e();
++        int var4;
++        if (var3 > 1) {
++            var4 = var1 + var0.nextInt(var3);
++        } else {
++            var4 = var1;
++        }
++
++        int var5 = var4 - this.c.b;
++        this.c.a(0, var5, 0);
++        for (StructurePiece var7 : this.b) { // Kenzie - decompile error
++            var7.a(0, var5, 0);
++        }
++
++    }
++
++    public boolean e() {
++        return !this.b.isEmpty();
++    }
++
++    public int f() {
++        return this.f;
++    }
++
++    public int g() {
++        return this.g;
++    }
++
++    public BlockPosition a() {
++        return new BlockPosition(this.f << 4, 0, this.g << 4);
++    }
++
++    public boolean h() {
++        return this.h < this.k();
++    }
++
++    public void i() {
++        ++this.h;
++    }
++
++    public int j() {
++        return this.h;
++    }
++
++    protected int k() {
++        return 1;
++    }
++
++    public StructureGenerator<?> l() {
++        return this.e;
++    }
++
++    static {
++        a = new StructureStart<WorldGenMineshaftConfiguration>(StructureGenerator.MINESHAFT, 0, 0, StructureBoundingBox.a(), 0, 0L) {
++            public void a(IRegistryCustom var0, ChunkGenerator var1, DefinedStructureManager var2, int var3, int var4, BiomeBase var5, WorldGenMineshaftConfiguration var6) {
++            }
++        };
++    }
++}
