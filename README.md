@@ -6,6 +6,11 @@ No breaking changes should be made to existing features. Wellspring's sole aim i
 
 Get involved on [Discord](https://discord.gg/gMdgGKM)?
 
+Looking for the API [documentation](https://wellspri.ng/apidocs)?
+
+Looking for the [releases](https://github.com/Moderocky/Wellspring/releases)?
+
+
 Maven Information
 -----
 Repository information:
@@ -40,6 +45,13 @@ Current additional features:
    * They function as an actually-useful replacement for both entity metadata and persistent data containers.
    * Attachments have a normal class structure, but have a hook to allow data to be saved within NBT.
    * See [here](https://github.com/Moderocky/Wellspring/blob/master/guides/attachments.md) for more information.
+ * A full Structure API, not only for procedural world structures but also for structure-block structures.
+   * Pasting and loading from a structure 'clipboard.'
+   * Saving and loading from to world resources, files and resource streams.
+   * Detecting generated structure bounds and individual parts.
+ * Class-wide inherited listener annotations.
+ * Tile entities and tile entity NBT exposed.
+ * All blocks may have NBT attributed to them, which is stored within the chunk section.
  * Custom potion effect type [builder](https://github.com/Moderocky/Wellspring/blob/master/guides/potions.md).
    * Persist over restarts.
    * Work with existing bukkit effects.
@@ -66,7 +78,7 @@ Current testing/in-progress features:
 
 Planned future features:
 -----
- * Interface layer with Bukkit for creating attributes, goals, custom entities, potions and enchantments.
+ * Interface layer with Bukkit for creating goals and custom entities.
  * Interface layer with Bukkit for creating customised worlds, biomes and structure types.
  * Replacement of all of the idiotic Bukkit enums - allowing for modded content, materials, blocks, items, APIs, etc. to be added easily.
    * This will (eventually) include materials, though that will take a long time to complete.
