@@ -1,0 +1,33 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Sat, 10 Oct 2020 19:34:13 +0100
+Subject: [PATCH] Remove pre-initialiser function.
+
+
+diff --git a/src/main/java/net/minecraft/server/TileEntity.java b/src/main/java/net/minecraft/server/TileEntity.java
+index b7a3d9394c0ee24033944e25b9cbe375340b604e..0473a024015c3346c27242f51b784f7dd0a03f27 100644
+--- a/src/main/java/net/minecraft/server/TileEntity.java
++++ b/src/main/java/net/minecraft/server/TileEntity.java
+@@ -74,11 +74,8 @@ public abstract class TileEntity implements KeyedObject, mx.kenzie.wellspring.ti
+     @Override
+     public TileState getState() {
+         final Location location = getLocation();
+-        if (state == null) {
++        if (state == null && location != null) {
+             state = (TileState) location.getBlock().getState(false);
+-            final TileState state = this.getState();
+-            if (state != null)
+-                world.getServer().attachmentFactory.addAttachments(state, attachments); // Kenzie - reconstitute tile states
+         }
+         return state;
+     }
+@@ -162,9 +159,6 @@ public abstract class TileEntity implements KeyedObject, mx.kenzie.wellspring.ti
+         if (!prev.equals(repl)) {
+             attachments.removeByClass(TileState.class);
+             this.position = repl;
+-            final TileState state = this.getState();
+-            if (state != null && world != null)
+-                world.getServer().attachmentFactory.addAttachments(TileState.class, this::getState, attachments);
+         }
+         // Kenzie end
+         // CraftBukkit start - read container
