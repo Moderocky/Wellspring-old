@@ -1,0 +1,20 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Mon, 12 Oct 2020 10:31:49 +0100
+Subject: [PATCH] Ring bell.
+
+
+diff --git a/src/main/java/org/bukkit/craftbukkit/block/CraftBell.java b/src/main/java/org/bukkit/craftbukkit/block/CraftBell.java
+index 83f176a5c0879af2f98fbc4232c4e9e641bd2594..81cf51903d7c10786e545f476e0d3233470ed56b 100644
+--- a/src/main/java/org/bukkit/craftbukkit/block/CraftBell.java
++++ b/src/main/java/org/bukkit/craftbukkit/block/CraftBell.java
+@@ -14,4 +14,9 @@ public class CraftBell extends CraftBlockEntityState<TileEntityBell> implements
+     public CraftBell(Material material, TileEntityBell te) {
+         super(material, te);
+     }
++
++    @Override
++    public void ring() {
++        getTileEntity().setProperty(1, 0);
++    }
+ }

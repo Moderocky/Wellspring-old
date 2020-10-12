@@ -1,0 +1,32 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Mon, 12 Oct 2020 10:31:43 +0100
+Subject: [PATCH] Ring bell.
+
+
+diff --git a/src/main/java/org/bukkit/block/Bell.java b/src/main/java/org/bukkit/block/Bell.java
+index 6fee356a3fc2811d99d9ed2a551118e3e6f0de79..dd3107fd2b1415b58b618c8406fcacd142e7bd0b 100644
+--- a/src/main/java/org/bukkit/block/Bell.java
++++ b/src/main/java/org/bukkit/block/Bell.java
+@@ -3,4 +3,8 @@ package org.bukkit.block;
+ /**
+  * Represents a captured state of Bell.
+  */
+-public interface Bell extends TileState { }
++public interface Bell extends TileState {
++
++    void ring();
++
++}
+diff --git a/src/main/java/org/bukkit/block/TileState.java b/src/main/java/org/bukkit/block/TileState.java
+index e010f6aea49711821d2e338cb1c349a6f0b3c8fc..5397a405eff251092d2960dc9569311131a471c8 100644
+--- a/src/main/java/org/bukkit/block/TileState.java
++++ b/src/main/java/org/bukkit/block/TileState.java
+@@ -46,6 +46,6 @@ public interface TileState extends BlockState, PersistentDataHolder, NBTHolder,
+     @Override
+     PersistentDataContainer getPersistentDataContainer();
+ 
+-    @NotNull TileEntity getTileEntity(); // Kenzie
++    @NotNull <T extends TileEntity> T getTileEntity(); // Kenzie
+ 
+ }

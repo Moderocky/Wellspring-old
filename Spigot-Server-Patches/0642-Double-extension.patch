@@ -1,0 +1,19 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Mon, 12 Oct 2020 10:34:15 +0100
+Subject: [PATCH] Double extension.
+
+
+diff --git a/src/main/java/org/bukkit/craftbukkit/block/CraftBlockEntityState.java b/src/main/java/org/bukkit/craftbukkit/block/CraftBlockEntityState.java
+index fd204ba38f87a9b41b1fb6f7f4726bbf9c190e72..5b7a5183a4778e63d0fa481cc3c3ff3a4983dab2 100644
+--- a/src/main/java/org/bukkit/craftbukkit/block/CraftBlockEntityState.java
++++ b/src/main/java/org/bukkit/craftbukkit/block/CraftBlockEntityState.java
+@@ -15,7 +15,7 @@ import org.bukkit.craftbukkit.CraftServer;
+ import org.bukkit.craftbukkit.CraftWorld;
+ import org.bukkit.persistence.PersistentDataContainer;
+ 
+-public class CraftBlockEntityState<T extends TileEntity> extends CraftBlockState implements TileState {
++public class CraftBlockEntityState<T extends TileEntity & mx.kenzie.wellspring.tile.TileEntity> extends CraftBlockState implements TileState {
+ 
+     private final Class<T> tileEntityClass;
+     private final T tileEntity;
