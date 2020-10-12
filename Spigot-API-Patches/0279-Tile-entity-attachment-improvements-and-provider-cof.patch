@@ -1,0 +1,341 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Sat, 10 Oct 2020 17:11:54 +0100
+Subject: [PATCH] Tile entity attachment improvements and provider cofunctions.
+
+
+diff --git a/src/main/java/mx/kenzie/wellspring/Provider.java b/src/main/java/mx/kenzie/wellspring/Provider.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..3b75f48f5b391db11f4f7937e784917a6d9475de
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/Provider.java
+@@ -0,0 +1,47 @@
++package mx.kenzie.wellspring;
++
++import com.google.common.reflect.TypeToken;
++import org.bukkit.UndefinedNullability;
++import org.jetbrains.annotations.NotNull;
++
++import java.util.function.Supplier;
++
++/**
++ * A provider function, typically to be occupied by
++ * a method reference for a nullary consumer.
++ *
++ * This is also designed to allow for the type to be
++ * obtained without actually calling the provider.
++ *
++ * This is purely functional and used internally.
++ *
++ * @author Moderocky
++ * @param <T> the type
++ */
++@FunctionalInterface
++public interface Provider<T> extends Supplier<T> {
++
++    default @NotNull
++    @SuppressWarnings({"UnstableApiUsage"})
++    TypeToken<T> getToken() {
++        return new TypeToken<T>(this.getClass()) { };
++    }
++
++    default @NotNull
++    @SuppressWarnings({"unchecked", "UnstableApiUsage"})
++    Class<T> getType() {
++        return (Class<T>) getToken().getRawType();
++    }
++
++    @UndefinedNullability("Completely up to implementation.")
++        /*
++        This could be used anywhere, no way of inferring nullity.
++        Thank you, Bukkit, for forcing needless annotations everywhere.
++        I'm sure the world is infinitely grateful...
++
++        In case you're having any future *brilliant* ideas of the same ilk,
++        please take a minute and think about not doing so, okay?
++        */
++    T get();
++
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/enchantment/Rarity.java b/src/main/java/mx/kenzie/wellspring/enchantment/Rarity.java
+index 9880a26984223bb7a3d0217d4ac12dd3bf2ba2c3..47bcc8bbbc75d8e87ed601bb5e85e235fbd2c0c9 100644
+--- a/src/main/java/mx/kenzie/wellspring/enchantment/Rarity.java
++++ b/src/main/java/mx/kenzie/wellspring/enchantment/Rarity.java
+@@ -2,6 +2,8 @@ package mx.kenzie.wellspring.enchantment;
+ 
+ /**
+  * Enchantment rarity - governs discovery chances.
++ *
++ * @author Moderocky
+  */
+ public enum Rarity {
+     COMMON(10),
+diff --git a/src/main/java/mx/kenzie/wellspring/enchantment/Target.java b/src/main/java/mx/kenzie/wellspring/enchantment/Target.java
+index 032f546aeb8de83bde3f8448a63d568a274f6bcb..b37c952128b402aced95d2c0c5d0c6b762e26b5f 100644
+--- a/src/main/java/mx/kenzie/wellspring/enchantment/Target.java
++++ b/src/main/java/mx/kenzie/wellspring/enchantment/Target.java
+@@ -4,6 +4,8 @@ package mx.kenzie.wellspring.enchantment;
+  * Enchantment item type target
+  * - governs what types of items may benefit from
+  * this enchantment.
++ *
++ * @author Moderocky
+  */
+ public enum Target {
+     ARMOR,
+diff --git a/src/main/java/mx/kenzie/wellspring/event/EntityLandEvent.java b/src/main/java/mx/kenzie/wellspring/event/EntityLandEvent.java
+index f0ced91def33fd3d5ab62c8aa59a0b70f7b05444..16346e8021f61066f2961a83909c8c534f8601f8 100644
+--- a/src/main/java/mx/kenzie/wellspring/event/EntityLandEvent.java
++++ b/src/main/java/mx/kenzie/wellspring/event/EntityLandEvent.java
+@@ -7,6 +7,8 @@ import org.jetbrains.annotations.NotNull;
+ 
+ /**
+  * Called when an entity's movement trajectory would cause them to touch the ground.
++ *
++ * @author Moderocky
+  */
+ public class EntityLandEvent extends EntityEvent {
+     private static final HandlerList handlers = new HandlerList();
+diff --git a/src/main/java/mx/kenzie/wellspring/nbt/BlockNBTStorage.java b/src/main/java/mx/kenzie/wellspring/nbt/BlockNBTStorage.java
+index d07a30fee7fc280742cadba2351b2c864bcacca1..5fdb02bdfc80622d1f254f140a434e60988bec05 100644
+--- a/src/main/java/mx/kenzie/wellspring/nbt/BlockNBTStorage.java
++++ b/src/main/java/mx/kenzie/wellspring/nbt/BlockNBTStorage.java
+@@ -10,6 +10,8 @@ import org.jetbrains.annotations.NotNull;
+  *
+  * Please note - storing excessive amounts of block NBT
+  * will increase the size of your world files and consume RAM while.
++ *
++ * @author Moderocky
+  */
+ public interface BlockNBTStorage {
+ 
+diff --git a/src/main/java/mx/kenzie/wellspring/structure/DecorationType.java b/src/main/java/mx/kenzie/wellspring/structure/DecorationType.java
+index 4246e75768230d3f8a7e342b56eb75287a92eccd..ea60070e7774d3ed10136e91b39bab018a500f93 100644
+--- a/src/main/java/mx/kenzie/wellspring/structure/DecorationType.java
++++ b/src/main/java/mx/kenzie/wellspring/structure/DecorationType.java
+@@ -1,5 +1,14 @@
+ package mx.kenzie.wellspring.structure;
+ 
++/**
++ * A decoration type.
++ * This is only used for structures currently, but
++ * as future world-generation content is added to
++ * Wellspring, the necessary types will also be
++ * added.
++ *
++ * @author Moderocky
++ */
+ public enum DecorationType {
+     SURFACE,
+     UNDERGROUND,
+diff --git a/src/main/java/mx/kenzie/wellspring/structure/Structure.java b/src/main/java/mx/kenzie/wellspring/structure/Structure.java
+index 545e1810343f29e5febfee8b5a815244eaeb141f..86d5cf746799e1a37063d918d7919d7557e17d09 100644
+--- a/src/main/java/mx/kenzie/wellspring/structure/Structure.java
++++ b/src/main/java/mx/kenzie/wellspring/structure/Structure.java
+@@ -31,6 +31,8 @@ import java.io.InputStream;
+  *
+  * For pasting/applying the structure to a position,
+  * see {@link Structure#paste(Location, StructureInfo)}
++ *
++ * @author Moderocky
+  */
+ public interface Structure extends NBTHolder {
+ 
+diff --git a/src/main/java/mx/kenzie/wellspring/structure/StructureInfo.java b/src/main/java/mx/kenzie/wellspring/structure/StructureInfo.java
+index be0678ca9d71e4f96aaefb71ce8fa28a0b70a544..587c33b95993aaa7d2e047e9e1ee84aeec982719 100644
+--- a/src/main/java/mx/kenzie/wellspring/structure/StructureInfo.java
++++ b/src/main/java/mx/kenzie/wellspring/structure/StructureInfo.java
+@@ -18,6 +18,7 @@ import java.util.Random;
+  *
+  * This data would typically be provided by the structure block.
+  *
++ * @author Moderocky
+  */
+ public interface StructureInfo {
+ 
+diff --git a/src/main/java/mx/kenzie/wellspring/structure/WorldStructurePart.java b/src/main/java/mx/kenzie/wellspring/structure/WorldStructurePart.java
+index ebdf3edc8fa3c0bd65465b6d20867b2cab53b8d7..5f138264b954f5f02a50ff996d26fae509bc008f 100644
+--- a/src/main/java/mx/kenzie/wellspring/structure/WorldStructurePart.java
++++ b/src/main/java/mx/kenzie/wellspring/structure/WorldStructurePart.java
+@@ -12,6 +12,8 @@ import org.jetbrains.annotations.NotNull;
+  *
+  * Structures such as fortresses and strongholds are made
+  * from myriad and varied parts.
++ *
++ * @author Moderocky
+  */
+ public interface WorldStructurePart extends Keyed {
+ 
+diff --git a/src/main/java/mx/kenzie/wellspring/structure/WorldStructureType.java b/src/main/java/mx/kenzie/wellspring/structure/WorldStructureType.java
+index 60c9b6328256a7b6720fafa76c7b0cd5606f3ac4..d0ec0b4a46afab1b9ca667c21e859f56996f8497 100644
+--- a/src/main/java/mx/kenzie/wellspring/structure/WorldStructureType.java
++++ b/src/main/java/mx/kenzie/wellspring/structure/WorldStructureType.java
+@@ -12,6 +12,20 @@ import java.util.Map;
+ import static mx.kenzie.wellspring.structure.DecorationType.SURFACE;
+ import static mx.kenzie.wellspring.structure.DecorationType.UNDERGROUND;
+ 
++/**
++ * A type of structure within the world.
++ *
++ * Note that this is different from Bukkit's {@link org.bukkit.StructureType}.
++ * Bukkit's types seem to be more geared towards map usage, and
++ * altering Bukkit classes can have unintended consequences. Instead,
++ * Wellspring has its own implementation.
++ *
++ * If you or a modification has altered world generation, you may register
++ * the necessary structure types here using
++ * {@link WorldStructureType#define(NamespacedKey, DecorationType)}
++ *
++ * @author Moderocky
++ */
+ public final class WorldStructureType {
+     private static final Map<NamespacedKey, WorldStructureType> STRUCTURE_MAP = new HashMap<>();
+     public static final WorldStructureType PILLAGER_OUTPOST = define("Pillager_Outpost", SURFACE);
+diff --git a/src/main/java/mx/kenzie/wellspring/tile/TileEntity.java b/src/main/java/mx/kenzie/wellspring/tile/TileEntity.java
+index db0853ccbe9ef203ce53b6c3401f99b19f33b8e3..e4a3190b0e11cf4b41a760e9b3ca62eca8d171e0 100644
+--- a/src/main/java/mx/kenzie/wellspring/tile/TileEntity.java
++++ b/src/main/java/mx/kenzie/wellspring/tile/TileEntity.java
+@@ -17,6 +17,8 @@ import org.jetbrains.annotations.NotNull;
+  *
+  * Instead, consider storing the location or the block itself and
+  * retrieving the tile entity when required.
++ *
++ * @author Moderocky
+  */
+ public interface TileEntity extends NBTHolder, Attachable {
+ 
+diff --git a/src/main/java/mx/kenzie/wellspring/tile/TileType.java b/src/main/java/mx/kenzie/wellspring/tile/TileType.java
+index 11e9d84d2cdbea4ebe74a6ccd2f5a2bb88c06600..6556e76e7bcaf5bdd9a38b73cacb2b6537c10a52 100644
+--- a/src/main/java/mx/kenzie/wellspring/tile/TileType.java
++++ b/src/main/java/mx/kenzie/wellspring/tile/TileType.java
+@@ -8,6 +8,21 @@ import org.jetbrains.annotations.Nullable;
+ import java.util.*;
+ import java.util.function.Supplier;
+ 
++/**
++ * A type of tile entity.
++ *
++ * Note that this is not an enum, so if your particular
++ * implementation is using modded content you may easily
++ * register any additional tile entity types.
++ *
++ * Additionally, if you are adding a new tile entity within
++ * your plugin (which is ill-advised but perfectly possible)
++ * you should register it here.
++ * Currently, you would also need to add it to the NMS IRegistry
++ * as well. A fix for that might arrive within a future release.
++ *
++ * @author Moderocky
++ */
+ public final class TileType {
+ 
+     public static final TileType FURNACE = create("furnace", Material.FURNACE);
+@@ -78,7 +93,7 @@ public final class TileType {
+ 
+     public static @NotNull
+     TileType create(@NotNull NamespacedKey key, @NotNull Material... materials) {
+-        if (MAP.containsKey(key)) throw new IllegalArgumentException("A tile type with this key already exists!");
++        if (key.isMinecraft() && MAP.containsKey(key)) throw new IllegalArgumentException("A tile type with this key already exists!");
+         TileType tile = new TileType(key, materials);
+         MAP.put(key, tile);
+         return tile;
+diff --git a/src/main/java/org/bukkit/Bukkit.java b/src/main/java/org/bukkit/Bukkit.java
+index f2648a96b293a959813ae76ab537474360c4454a..2d954dd393df85cab958a64b5544a2f65badb767 100644
+--- a/src/main/java/org/bukkit/Bukkit.java
++++ b/src/main/java/org/bukkit/Bukkit.java
+@@ -18,6 +18,7 @@ import java.util.logging.Logger;
+ import mx.kenzie.wellspring.nbt.NBTFactory;
+ import mx.kenzie.wellspring.packet.PacketFactory;
+ import mx.kenzie.wellspring.potion.PotionBuilder;
++import mx.kenzie.wellspring.tile.TileType;
+ import org.bukkit.Warning.WarningState;
+ import org.bukkit.advancement.Advancement;
+ import org.bukkit.attachment.Attachable;
+@@ -1737,6 +1738,21 @@ public final class Bukkit {
+ 
+     // Kenzie start - attachments
+ 
++    /**
++     * Allows the registration of an attachment for specific tile entity types.
++     * The corresponding tile entities will receive a new instance of the attachment
++     * (as per the creator function) upon their creation.
++     *
++     * Attachments ought to be final, due to the need to match their class when
++     * retrieving the attachment instance from the object.
++     * @param plugin The providing plugin.
++     * @param creatorFunction A function to create a new attachment instance.
++     * @param types The tile entity types this attachment should be registered for.
++     */
++    public static void registerAttachment(@NotNull Plugin plugin, @NotNull Function<Entity, Attachment<?>> creatorFunction, @NotNull TileType... types) {
++        server.registerAttachment(plugin, creatorFunction, types);
++    }
++
+     /**
+      * Allows the registration of an attachment for specific entity types.
+      * The corresponding entity types will receive a new instance of the attachment
+diff --git a/src/main/java/org/bukkit/Server.java b/src/main/java/org/bukkit/Server.java
+index 2581b12d85b15d9d560c8ec7846c748b388ebe94..73e1488ff070c29cbdeef9c6584f8353859b699c 100644
+--- a/src/main/java/org/bukkit/Server.java
++++ b/src/main/java/org/bukkit/Server.java
+@@ -18,6 +18,7 @@ import java.util.logging.Logger;
+ import mx.kenzie.wellspring.nbt.NBTFactory;
+ import mx.kenzie.wellspring.packet.PacketFactory;
+ import mx.kenzie.wellspring.potion.PotionBuilder;
++import mx.kenzie.wellspring.tile.TileType;
+ import org.bukkit.Warning.WarningState;
+ import org.bukkit.advancement.Advancement;
+ import org.bukkit.attachment.Attachable;
+@@ -1431,6 +1432,20 @@ public interface Server extends PluginMessageRecipient {
+     List<Entity> selectEntities(@NotNull CommandSender sender, @NotNull String selector) throws IllegalArgumentException;
+ 
+     // Kenzie start - attachments
++
++    /**
++     * Allows the registration of an attachment for specific tile entity types.
++     * The corresponding tile entities will receive a new instance of the attachment
++     * (as per the creator function) upon their creation.
++     *
++     * Attachments ought to be final, due to the need to match their class when
++     * retrieving the attachment instance from the object.
++     * @param plugin The providing plugin.
++     * @param creatorFunction A function to create a new attachment instance.
++     * @param types The tile entity types this attachment should be registered for.
++     */
++    void registerAttachment(@NotNull Plugin plugin, @NotNull Function<Entity, Attachment<?>> creatorFunction, @NotNull TileType... types);
++
+     /**
+      * Allows the registration of an attachment for specific entity types.
+      * The corresponding entity types will receive a new instance of the attachment
+diff --git a/src/main/java/org/bukkit/block/TileState.java b/src/main/java/org/bukkit/block/TileState.java
+index 7c514d1de9358a2eaa262fcb1c95a881264061ec..e010f6aea49711821d2e338cb1c349a6f0b3c8fc 100644
+--- a/src/main/java/org/bukkit/block/TileState.java
++++ b/src/main/java/org/bukkit/block/TileState.java
+@@ -3,6 +3,7 @@ package org.bukkit.block;
+ import mx.kenzie.wellspring.nbt.NBTHolder;
+ import mx.kenzie.wellspring.tile.TileEntity;
+ import org.bukkit.attachment.Attachable;
++import org.bukkit.attachment.Attachment;
+ import org.bukkit.persistence.PersistentDataContainer;
+ import org.bukkit.persistence.PersistentDataHolder;
+ import org.jetbrains.annotations.NotNull;
+@@ -17,8 +18,13 @@ import org.jetbrains.annotations.NotNull;
+  *
+  * After modifying the data provided by a TileState, {@link #update()} needs to
+  * be called to store the data.
++ *
++ * Wellspring NOTE: Although TileStates are technically "attachable" they do not
++ * hold attachments of their own (since they are fleeting snapshots) - instead
++ * the attachment is stored by the linked {@link TileEntity} using a contingent TileState
++ * snapshot as a placeholder.
+  */
+-public interface TileState extends BlockState, PersistentDataHolder, NBTHolder { // Kenzie
++public interface TileState extends BlockState, PersistentDataHolder, NBTHolder, Attachable { // Kenzie
+ 
+     /**
+      * Returns a custom tag container capable of storing tags on the object.
+@@ -41,4 +47,5 @@ public interface TileState extends BlockState, PersistentDataHolder, NBTHolder {
+     PersistentDataContainer getPersistentDataContainer();
+ 
+     @NotNull TileEntity getTileEntity(); // Kenzie
++
+ }

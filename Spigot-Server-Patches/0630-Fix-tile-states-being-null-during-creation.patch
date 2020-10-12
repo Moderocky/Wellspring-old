@@ -1,0 +1,71 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Sat, 10 Oct 2020 17:40:06 +0100
+Subject: [PATCH] Fix tile states being null during creation.
+
+
+diff --git a/src/main/java/net/minecraft/server/TileEntity.java b/src/main/java/net/minecraft/server/TileEntity.java
+index 7d731ba02f2156ae798c787a8493c89445834ec8..49e91b0f4818f90c4ed731d4d13f22f0d75fac33 100644
+--- a/src/main/java/net/minecraft/server/TileEntity.java
++++ b/src/main/java/net/minecraft/server/TileEntity.java
+@@ -70,11 +70,13 @@ public abstract class TileEntity implements KeyedObject, mx.kenzie.wellspring.ti
+ 
+     @Override
+     public TileState getState() {
+-        return ((TileState) getLocation().getBlock().getState());
++        final Location location = getLocation();
++        return location == null ? null : ((TileState) getLocation().getBlock().getState());
+     }
+ 
+     @Override
+     public Location getLocation() {
++        if (world == null) return null;
+         return new Location(world.getWorld(), position.getX(), position.getY(), position.getZ());
+     }
+ 
+@@ -138,7 +140,9 @@ public abstract class TileEntity implements KeyedObject, mx.kenzie.wellspring.ti
+         attachments.removeByClass(TileState.class); // Kenzie - reconstitute tile states
+         this.world = world;
+         this.position = blockposition.immutableCopy();
+-        world.getServer().attachmentFactory.addAttachments(TileState.class, this::getState, attachments); // Kenzie - reconstitute tile states
++        final TileState state = this.getState();
++        if (state != null)
++            world.getServer().attachmentFactory.addAttachments(state, attachments); // Kenzie - reconstitute tile states
+     }
+ 
+     public boolean hasWorld() {
+@@ -152,8 +156,9 @@ public abstract class TileEntity implements KeyedObject, mx.kenzie.wellspring.ti
+         if (!prev.equals(repl)) {
+             attachments.removeByClass(TileState.class);
+             this.position = repl;
+-            (world != null ? world.getServer() : MinecraftServer.getServer().server)
+-                .attachmentFactory.addAttachments(TileState.class, this::getState, attachments);
++            final TileState state = this.getState();
++            if (state != null && world != null)
++                world.getServer().attachmentFactory.addAttachments(TileState.class, this::getState, attachments);
+         }
+         // Kenzie end
+         // CraftBukkit start - read container
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+index e809d6828d091847e2c1e990116ae91b7085835b..19737cf2d23bdc8cf06f6dc52dc4326dd528b7d7 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+@@ -82,6 +82,7 @@ import org.bukkit.WorldCreator;
+ import org.bukkit.attachment.Attachable;
+ import org.bukkit.attachment.Attachment;
+ import org.bukkit.attribute.Attribute;
++import org.bukkit.block.TileState;
+ import org.bukkit.block.data.BlockData;
+ import org.bukkit.boss.BarColor;
+ import org.bukkit.boss.BarFlag;
+@@ -2381,6 +2382,10 @@ public final class CraftServer implements Server, Wellspring { // Kenzie - Secon
+ 
+     @Override
+     public <T extends Attachable> void registerAttachment(Plugin plugin, java.util.function.Function<? extends T, Attachment<?>> creatorFunction, Class<T> target) {
++        if (TileState.class.isAssignableFrom(target)) {
++            registerAttachment(plugin, (java.util.function.Function<Entity, Attachment<?>>) creatorFunction, TileType.get((Class<? extends TileState>) target));
++            return;
++        }
+         attachmentFactory.registerAttachment(plugin, target, (java.util.function.Function<Attachable, Attachment<?>>) creatorFunction);
+     }
+ 

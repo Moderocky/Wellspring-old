@@ -1,0 +1,312 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Sat, 10 Oct 2020 17:12:00 +0100
+Subject: [PATCH] Tile entity attachment improvements and provider cofunctions.
+
+
+diff --git a/src/main/java/mx/kenzie/server/attachment/AttachmentFactory.java b/src/main/java/mx/kenzie/server/attachment/AttachmentFactory.java
+index 33b971e137a4c26daefcfba3df89a3314b7fe8ed..74f0cb133ad9adcd7e8135e99c87f04a9e19302f 100644
+--- a/src/main/java/mx/kenzie/server/attachment/AttachmentFactory.java
++++ b/src/main/java/mx/kenzie/server/attachment/AttachmentFactory.java
+@@ -1,5 +1,6 @@
+ package mx.kenzie.server.attachment;
+ 
++import mx.kenzie.wellspring.Provider;
+ import org.apache.commons.lang3.Validate;
+ import org.bukkit.attachment.Attachable;
+ import org.bukkit.attachment.Attachment;
+@@ -64,6 +65,23 @@ public class AttachmentFactory {
+         }
+     }
+ 
++    public <T extends Attachable> void addAttachments(Class<T> cls, Provider<T> providerFunc, AttachmentHolder holder) {
++        T target = providerFunc.get();
++        Set<Function<Attachable, Attachment<?>>> providers = getAttachmentProviders(cls);
++        for (Function<Attachable, Attachment<?>> provider : providers) {
++            try {
++                Attachment<? super T> attachment = (Attachment<? super T>) provider.apply(target);
++                holder.add(attachment);
++            } catch (Throwable throwable) {
++                throwable.printStackTrace();
++            }
++        }
++    }
++
++    public <T extends Attachable> void removeAttachments(Class<T> cls, AttachmentHolder holder) {
++        holder.removeByClass(cls);
++    }
++
+     public Set<Function<Attachable, Attachment<?>>> getAttachmentProviders(Class<? extends Attachable> target) {
+         Validate.notNull(target, "Target class cannot be null!");
+         Set<Function<Attachable, Attachment<?>>> providers = new HashSet<>();
+diff --git a/src/main/java/mx/kenzie/server/attachment/AttachmentHolder.java b/src/main/java/mx/kenzie/server/attachment/AttachmentHolder.java
+index 2a6e02de88b4c58104cfe9303209b4406dcbeec9..dbea2f768297ab0c85f9ea4f1b2de8c4c671fa9d 100644
+--- a/src/main/java/mx/kenzie/server/attachment/AttachmentHolder.java
++++ b/src/main/java/mx/kenzie/server/attachment/AttachmentHolder.java
+@@ -5,6 +5,7 @@ import org.bukkit.attachment.Attachable;
+ import org.bukkit.attachment.Attachment;
+ import org.bukkit.plugin.Plugin;
+ 
++import javax.annotation.Nullable;
+ import java.util.ArrayList;
+ import java.util.HashSet;
+ import java.util.Set;
+@@ -24,6 +25,16 @@ public class AttachmentHolder extends ArrayList<Attachment<?>> {
+         return null;
+     }
+ 
++    public void removeByClass(Class<? extends Attachable> cls) {
++        this.removeIf(attachment -> {
++            if (attachment.getSubject() == null || cls.isAssignableFrom(attachment.getSubject().getClass())) {
++                attachment.onDisposal();
++                return true;
++            }
++            return false;
++        });
++    }
++
+     public boolean containsByClass(Class<? extends Attachment<?>> cls) {
+         for (Attachment<?> attachment : this) {
+             if (attachment.getClass() == cls) return true;
+diff --git a/src/main/java/net/minecraft/server/TileEntity.java b/src/main/java/net/minecraft/server/TileEntity.java
+index 387be075dff7833316df9d209523180fcb484866..7d731ba02f2156ae798c787a8493c89445834ec8 100644
+--- a/src/main/java/net/minecraft/server/TileEntity.java
++++ b/src/main/java/net/minecraft/server/TileEntity.java
+@@ -135,8 +135,10 @@ public abstract class TileEntity implements KeyedObject, mx.kenzie.wellspring.ti
+     }
+ 
+     public void setLocation(World world, BlockPosition blockposition) {
++        attachments.removeByClass(TileState.class); // Kenzie - reconstitute tile states
+         this.world = world;
+         this.position = blockposition.immutableCopy();
++        world.getServer().attachmentFactory.addAttachments(TileState.class, this::getState, attachments); // Kenzie - reconstitute tile states
+     }
+ 
+     public boolean hasWorld() {
+@@ -144,7 +146,16 @@ public abstract class TileEntity implements KeyedObject, mx.kenzie.wellspring.ti
+     }
+ 
+     public void load(IBlockData iblockdata, NBTTagCompound nbttagcompound) {
+-        this.position = new BlockPosition(nbttagcompound.getInt("x"), nbttagcompound.getInt("y"), nbttagcompound.getInt("z"));
++        // Kenzie start - check for reconstitution
++        final BlockPosition prev = this.position;
++        final BlockPosition repl = new BlockPosition(nbttagcompound.getInt("x"), nbttagcompound.getInt("y"), nbttagcompound.getInt("z"));
++        if (!prev.equals(repl)) {
++            attachments.removeByClass(TileState.class);
++            this.position = repl;
++            (world != null ? world.getServer() : MinecraftServer.getServer().server)
++                .attachmentFactory.addAttachments(TileState.class, this::getState, attachments);
++        }
++        // Kenzie end
+         // CraftBukkit start - read container
+         this.persistentDataContainer.clear(); // Paper - clear instead of reinit
+ 
+diff --git a/src/main/java/net/minecraft/server/TileEntityTypes.java b/src/main/java/net/minecraft/server/TileEntityTypes.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..86c957a8ce84f85b35c7efd6a606c4cbd59c6b95
+--- /dev/null
++++ b/src/main/java/net/minecraft/server/TileEntityTypes.java
+@@ -0,0 +1,144 @@
++package net.minecraft.server;
++
++import com.google.common.collect.ImmutableSet;
++import com.mojang.datafixers.types.Type;
++import java.util.Set;
++import java.util.function.Supplier;
++import javax.annotation.Nullable;
++
++import mx.kenzie.wellspring.Provider;
++import org.apache.logging.log4j.LogManager;
++import org.apache.logging.log4j.Logger;
++
++public class TileEntityTypes<T extends TileEntity> {
++    private static final Logger LOGGER = LogManager.getLogger();
++    public static final TileEntityTypes<TileEntityFurnaceFurnace> FURNACE;
++    public static final TileEntityTypes<TileEntityChest> CHEST;
++    public static final TileEntityTypes<TileEntityChestTrapped> TRAPPED_CHEST;
++    public static final TileEntityTypes<TileEntityEnderChest> ENDER_CHEST;
++    public static final TileEntityTypes<TileEntityJukeBox> JUKEBOX;
++    public static final TileEntityTypes<TileEntityDispenser> DISPENSER;
++    public static final TileEntityTypes<TileEntityDropper> DROPPER;
++    public static final TileEntityTypes<TileEntitySign> SIGN;
++    public static final TileEntityTypes<TileEntityMobSpawner> MOB_SPAWNER;
++    public static final TileEntityTypes<TileEntityPiston> PISTON;
++    public static final TileEntityTypes<TileEntityBrewingStand> BREWING_STAND;
++    public static final TileEntityTypes<TileEntityEnchantTable> ENCHANTING_TABLE;
++    public static final TileEntityTypes<TileEntityEnderPortal> END_PORTAL;
++    public static final TileEntityTypes<TileEntityBeacon> BEACON;
++    public static final TileEntityTypes<TileEntitySkull> SKULL;
++    public static final TileEntityTypes<TileEntityLightDetector> DAYLIGHT_DETECTOR;
++    public static final TileEntityTypes<TileEntityHopper> HOPPER;
++    public static final TileEntityTypes<TileEntityComparator> COMPARATOR;
++    public static final TileEntityTypes<TileEntityBanner> BANNER;
++    public static final TileEntityTypes<TileEntityStructure> STRUCTURE_BLOCK;
++    public static final TileEntityTypes<TileEntityEndGateway> END_GATEWAY;
++    public static final TileEntityTypes<TileEntityCommand> COMMAND_BLOCK;
++    public static final TileEntityTypes<TileEntityShulkerBox> SHULKER_BOX;
++    public static final TileEntityTypes<TileEntityBed> BED;
++    public static final TileEntityTypes<TileEntityConduit> CONDUIT;
++    public static final TileEntityTypes<TileEntityBarrel> BARREL;
++    public static final TileEntityTypes<TileEntitySmoker> SMOKER;
++    public static final TileEntityTypes<TileEntityBlastFurnace> BLAST_FURNACE;
++    public static final TileEntityTypes<TileEntityLectern> LECTERN;
++    public static final TileEntityTypes<TileEntityBell> BELL;
++    public static final TileEntityTypes<TileEntityJigsaw> JIGSAW;
++    public static final TileEntityTypes<TileEntityCampfire> CAMPFIRE;
++    public static final TileEntityTypes<TileEntityBeehive> BEEHIVE;
++    private final Provider<? extends T> I; // Kenzie - typed providers
++    private final Set<Block> J;
++    private final Type<?> K;
++
++    public Provider<? extends T> getProvider() { // Kenzie - whole method getter
++        return I;
++    }
++
++    @Nullable
++    public static MinecraftKey a(TileEntityTypes<?> var0) {
++        return IRegistry.BLOCK_ENTITY_TYPE.getKey(var0);
++    }
++
++    private static <T extends TileEntity> TileEntityTypes<T> a(String var0, TileEntityTypes.a<T> var1) {
++        if (var1.b.isEmpty()) {
++            LOGGER.warn("Block entity type {} requires at least one valid block to be defined!", var0);
++        }
++
++        Type<?> var2 = SystemUtils.a(DataConverterTypes.BLOCK_ENTITY, var0);
++        return (TileEntityTypes)IRegistry.a(IRegistry.BLOCK_ENTITY_TYPE, var0, var1.a(var2));
++    }
++
++    public TileEntityTypes(Provider<? extends T> var0, Set<Block> var1, Type<?> var2) { // Kenzie - typed providers
++        this.I = var0;
++        this.J = var1;
++        this.K = var2;
++    }
++
++    @Nullable
++    public T a() {
++        return this.I.get(); // Kenzie - decompile error
++    }
++
++    public boolean isValidBlock(Block var0) {
++        return this.J.contains(var0);
++    }
++
++    @Nullable
++    public T a(IBlockAccess var0, BlockPosition var1) {
++        TileEntity var2 = var0.getTileEntity(var1);
++        return var2 != null && var2.getTileType() == this ? (T) var2 : null; // Kenzie - decompile error
++    }
++
++    static {
++        FURNACE = a("furnace", TileEntityTypes.a.a(TileEntityFurnaceFurnace::new, Blocks.FURNACE));
++        CHEST = a("chest", TileEntityTypes.a.a(TileEntityChest::new, Blocks.CHEST));
++        TRAPPED_CHEST = a("trapped_chest", TileEntityTypes.a.a(TileEntityChestTrapped::new, Blocks.TRAPPED_CHEST));
++        ENDER_CHEST = a("ender_chest", TileEntityTypes.a.a(TileEntityEnderChest::new, Blocks.ENDER_CHEST));
++        JUKEBOX = a("jukebox", TileEntityTypes.a.a(TileEntityJukeBox::new, Blocks.JUKEBOX));
++        DISPENSER = a("dispenser", TileEntityTypes.a.a(TileEntityDispenser::new, Blocks.DISPENSER));
++        DROPPER = a("dropper", TileEntityTypes.a.a(TileEntityDropper::new, Blocks.DROPPER));
++        SIGN = a("sign", TileEntityTypes.a.a(TileEntitySign::new, Blocks.OAK_SIGN, Blocks.SPRUCE_SIGN, Blocks.BIRCH_SIGN, Blocks.ACACIA_SIGN, Blocks.JUNGLE_SIGN, Blocks.DARK_OAK_SIGN, Blocks.OAK_WALL_SIGN, Blocks.SPRUCE_WALL_SIGN, Blocks.BIRCH_WALL_SIGN, Blocks.ACACIA_WALL_SIGN, Blocks.JUNGLE_WALL_SIGN, Blocks.DARK_OAK_WALL_SIGN, Blocks.CRIMSON_SIGN, Blocks.CRIMSON_WALL_SIGN, Blocks.WARPED_SIGN, Blocks.WARPED_WALL_SIGN));
++        MOB_SPAWNER = a("mob_spawner", TileEntityTypes.a.a(TileEntityMobSpawner::new, Blocks.SPAWNER));
++        PISTON = a("piston", TileEntityTypes.a.a(TileEntityPiston::new, Blocks.MOVING_PISTON));
++        BREWING_STAND = a("brewing_stand", TileEntityTypes.a.a(TileEntityBrewingStand::new, Blocks.BREWING_STAND));
++        ENCHANTING_TABLE = a("enchanting_table", TileEntityTypes.a.a(TileEntityEnchantTable::new, Blocks.ENCHANTING_TABLE));
++        END_PORTAL = a("end_portal", TileEntityTypes.a.a(TileEntityEnderPortal::new, Blocks.END_PORTAL));
++        BEACON = a("beacon", TileEntityTypes.a.a(TileEntityBeacon::new, Blocks.BEACON));
++        SKULL = a("skull", TileEntityTypes.a.a(TileEntitySkull::new, Blocks.SKELETON_SKULL, Blocks.SKELETON_WALL_SKULL, Blocks.CREEPER_HEAD, Blocks.CREEPER_WALL_HEAD, Blocks.DRAGON_HEAD, Blocks.DRAGON_WALL_HEAD, Blocks.ZOMBIE_HEAD, Blocks.ZOMBIE_WALL_HEAD, Blocks.WITHER_SKELETON_SKULL, Blocks.WITHER_SKELETON_WALL_SKULL, Blocks.PLAYER_HEAD, Blocks.PLAYER_WALL_HEAD));
++        DAYLIGHT_DETECTOR = a("daylight_detector", TileEntityTypes.a.a(TileEntityLightDetector::new, Blocks.DAYLIGHT_DETECTOR));
++        HOPPER = a("hopper", TileEntityTypes.a.a(TileEntityHopper::new, Blocks.HOPPER));
++        COMPARATOR = a("comparator", TileEntityTypes.a.a(TileEntityComparator::new, Blocks.COMPARATOR));
++        BANNER = a("banner", TileEntityTypes.a.a(TileEntityBanner::new, Blocks.WHITE_BANNER, Blocks.ORANGE_BANNER, Blocks.MAGENTA_BANNER, Blocks.LIGHT_BLUE_BANNER, Blocks.YELLOW_BANNER, Blocks.LIME_BANNER, Blocks.PINK_BANNER, Blocks.GRAY_BANNER, Blocks.LIGHT_GRAY_BANNER, Blocks.CYAN_BANNER, Blocks.PURPLE_BANNER, Blocks.BLUE_BANNER, Blocks.BROWN_BANNER, Blocks.GREEN_BANNER, Blocks.RED_BANNER, Blocks.BLACK_BANNER, Blocks.WHITE_WALL_BANNER, Blocks.ORANGE_WALL_BANNER, Blocks.MAGENTA_WALL_BANNER, Blocks.LIGHT_BLUE_WALL_BANNER, Blocks.YELLOW_WALL_BANNER, Blocks.LIME_WALL_BANNER, Blocks.PINK_WALL_BANNER, Blocks.GRAY_WALL_BANNER, Blocks.LIGHT_GRAY_WALL_BANNER, Blocks.CYAN_WALL_BANNER, Blocks.PURPLE_WALL_BANNER, Blocks.BLUE_WALL_BANNER, Blocks.BROWN_WALL_BANNER, Blocks.GREEN_WALL_BANNER, Blocks.RED_WALL_BANNER, Blocks.BLACK_WALL_BANNER));
++        STRUCTURE_BLOCK = a("structure_block", TileEntityTypes.a.a(TileEntityStructure::new, Blocks.STRUCTURE_BLOCK));
++        END_GATEWAY = a("end_gateway", TileEntityTypes.a.a(TileEntityEndGateway::new, Blocks.END_GATEWAY));
++        COMMAND_BLOCK = a("command_block", TileEntityTypes.a.a(TileEntityCommand::new, Blocks.COMMAND_BLOCK, Blocks.CHAIN_COMMAND_BLOCK, Blocks.REPEATING_COMMAND_BLOCK));
++        SHULKER_BOX = a("shulker_box", TileEntityTypes.a.a(TileEntityShulkerBox::new, Blocks.SHULKER_BOX, Blocks.BLACK_SHULKER_BOX, Blocks.BLUE_SHULKER_BOX, Blocks.BROWN_SHULKER_BOX, Blocks.CYAN_SHULKER_BOX, Blocks.GRAY_SHULKER_BOX, Blocks.GREEN_SHULKER_BOX, Blocks.LIGHT_BLUE_SHULKER_BOX, Blocks.LIGHT_GRAY_SHULKER_BOX, Blocks.LIME_SHULKER_BOX, Blocks.MAGENTA_SHULKER_BOX, Blocks.ORANGE_SHULKER_BOX, Blocks.PINK_SHULKER_BOX, Blocks.PURPLE_SHULKER_BOX, Blocks.RED_SHULKER_BOX, Blocks.WHITE_SHULKER_BOX, Blocks.YELLOW_SHULKER_BOX));
++        BED = a("bed", TileEntityTypes.a.a(TileEntityBed::new, Blocks.RED_BED, Blocks.BLACK_BED, Blocks.BLUE_BED, Blocks.BROWN_BED, Blocks.CYAN_BED, Blocks.GRAY_BED, Blocks.GREEN_BED, Blocks.LIGHT_BLUE_BED, Blocks.LIGHT_GRAY_BED, Blocks.LIME_BED, Blocks.MAGENTA_BED, Blocks.ORANGE_BED, Blocks.PINK_BED, Blocks.PURPLE_BED, Blocks.WHITE_BED, Blocks.YELLOW_BED));
++        CONDUIT = a("conduit", TileEntityTypes.a.a(TileEntityConduit::new, Blocks.CONDUIT));
++        BARREL = a("barrel", TileEntityTypes.a.a(TileEntityBarrel::new, Blocks.BARREL));
++        SMOKER = a("smoker", TileEntityTypes.a.a(TileEntitySmoker::new, Blocks.SMOKER));
++        BLAST_FURNACE = a("blast_furnace", TileEntityTypes.a.a(TileEntityBlastFurnace::new, Blocks.BLAST_FURNACE));
++        LECTERN = a("lectern", TileEntityTypes.a.a(TileEntityLectern::new, Blocks.LECTERN));
++        BELL = a("bell", TileEntityTypes.a.a(TileEntityBell::new, Blocks.BELL));
++        JIGSAW = a("jigsaw", TileEntityTypes.a.a(TileEntityJigsaw::new, Blocks.JIGSAW));
++        CAMPFIRE = a("campfire", TileEntityTypes.a.a(TileEntityCampfire::new, Blocks.CAMPFIRE, Blocks.SOUL_CAMPFIRE));
++        BEEHIVE = a("beehive", TileEntityTypes.a.a(TileEntityBeehive::new, Blocks.BEE_NEST, Blocks.BEEHIVE));
++    }
++
++    public static final class a<T extends TileEntity> {
++        private final Provider<? extends T> a; // Kenzie - typed providers
++        private final Set<Block> b;
++
++        private a(Provider<? extends T> var0, Set<Block> var1) { // Kenzie - typed providers
++            this.a = var0;
++            this.b = var1;
++        }
++
++        public static <T extends TileEntity> TileEntityTypes.a<T> a(Provider<? extends T> var0, Block... var1) { // Kenzie - typed providers
++            return new TileEntityTypes.a(var0, ImmutableSet.copyOf(var1));
++        }
++
++        public TileEntityTypes<T> a(Type<?> var0) {
++            return new TileEntityTypes(this.a, this.b, var0);
++        }
++    }
++}
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+index 529237a7102fedea9b2a436bf55aef5ad778974a..e809d6828d091847e2c1e990116ae91b7085835b 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+@@ -8,6 +8,7 @@ import com.google.common.collect.ImmutableSet;
+ import com.google.common.collect.Iterators;
+ import com.google.common.collect.Lists;
+ import com.google.common.collect.MapMaker;
++import com.google.common.reflect.TypeToken;
+ import com.mojang.authlib.GameProfile;
+ import com.mojang.brigadier.StringReader;
+ import com.mojang.brigadier.exceptions.CommandSyntaxException;
+@@ -59,6 +60,7 @@ import mx.kenzie.wellspring.nbt.NBTFactory;
+ import mx.kenzie.wellspring.nbt.NBTList;
+ import mx.kenzie.wellspring.packet.PacketFactory;
+ import mx.kenzie.wellspring.potion.PotionBuilder;
++import mx.kenzie.wellspring.tile.TileType;
+ import net.minecraft.server.*;
+ import org.apache.commons.lang.Validate;
+ import org.apache.commons.lang3.StringUtils;
+@@ -2359,6 +2361,17 @@ public final class CraftServer implements Server, Wellspring { // Kenzie - Secon
+     }
+ 
+     // Kenzie start
++    @Override
++    public void registerAttachment(Plugin plugin, java.util.function.Function<Entity, Attachment<?>> creatorFunction, TileType... types) {
++        for (TileType type : types) {
++            final Class<? extends Attachable> cls;
++            TileEntityTypes<?> entityTypes = IRegistry.BLOCK_ENTITY_TYPE.get(MinecraftKey.a(type.getKey().toString()));
++            if (entityTypes == null) continue;
++            cls = entityTypes.getProvider().getType();
++            attachmentFactory.registerAttachment(plugin, cls, (java.util.function.Function<Attachable, Attachment<?>>) (java.util.function.Function) creatorFunction);
++        }
++    }
++
+     @Override
+     public void registerAttachment(Plugin plugin, java.util.function.Function<Entity, Attachment<?>> creatorFunction, EntityType... types) {
+         for (EntityType type : types) {
+diff --git a/src/main/java/org/bukkit/craftbukkit/block/CraftBlockEntityState.java b/src/main/java/org/bukkit/craftbukkit/block/CraftBlockEntityState.java
+index cc06cc459f494d3e4d28d74237b0afbe0fb011f6..12bb42b8d7557818a6c1bfae9a83a82eb9aebff4 100644
+--- a/src/main/java/org/bukkit/craftbukkit/block/CraftBlockEntityState.java
++++ b/src/main/java/org/bukkit/craftbukkit/block/CraftBlockEntityState.java
+@@ -31,6 +31,16 @@ public class CraftBlockEntityState<T extends TileEntity> extends CraftBlockState
+     public void loadNBT(NBTCompound compound) {
+         tileEntity.loadNBT(compound);
+     }
++
++    @Override
++    public <T extends Attachment<?>> T getAttachment(Class<T> attachmentClass) throws NullPointerException {
++        return tileEntity.getAttachment(attachmentClass);
++    }
++
++    @Override
++    public <T extends Attachment<?>> boolean hasAttachment(Class<T> attachmentClass) {
++        return tileEntity.hasAttachment(attachmentClass);
++    }
+     // Kenzie end
+ 
+     public CraftBlockEntityState(Block block, Class<T> tileEntityClass) {
