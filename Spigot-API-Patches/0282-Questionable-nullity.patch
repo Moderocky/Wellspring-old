@@ -1,0 +1,186 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Tue, 13 Oct 2020 16:36:05 +0100
+Subject: [PATCH] Questionable nullity.
+
+
+diff --git a/src/main/java/mx/kenzie/wellspring/annotation/UnlikelyNull.java b/src/main/java/mx/kenzie/wellspring/annotation/UnlikelyNull.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..e31c5ab46f5f966fdade185777fee1f79fecd7b2
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/annotation/UnlikelyNull.java
+@@ -0,0 +1,28 @@
++package mx.kenzie.wellspring.annotation;
++
++
++import java.lang.annotation.*;
++
++/**
++ * This annotation exists for the purpose of avoiding false
++ * warnings and test results, in places where {@link org.jetbrains.annotations.Nullable}
++ * would be inappropriate to use and Bukkit's asinine annotation
++ * policy requires there be a nullability annotation present.
++ *
++ * For example, if a method should not return null by default
++ * but a user implementation could cause it to, or where
++ * it may return null in edge cases, this annotation can be
++ * used in place of {@link org.jetbrains.annotations.Nullable}.
++ *
++ * The {@link UnlikelyNull#value()} should be used to provide a
++ * description of when this might be null.
++ *
++ * @author Moderocky
++ */
++
++@Documented
++@Retention(RetentionPolicy.CLASS)
++@Target({ElementType.METHOD, ElementType.FIELD, ElementType.PARAMETER, ElementType.LOCAL_VARIABLE})
++public @interface UnlikelyNull {
++    String value() default "";
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/service/BlindAccessService.java b/src/main/java/mx/kenzie/wellspring/service/BlindAccessService.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..ec0119c9ce963be910bac7cb2b4d34102e8f83d8
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/service/BlindAccessService.java
+@@ -0,0 +1,14 @@
++package mx.kenzie.wellspring.service;
++
++
++/**
++ * This is a special type of service, designed to be
++ * accessible without an interface.
++ * Plugins can blindly 'search' for the features
++ * they need using the {@link Property} annotation.
++ */
++public interface BlindAccessService extends NamedService {
++
++    Property searchFor(String name, Class<?> type);
++
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/service/NamedService.java b/src/main/java/mx/kenzie/wellspring/service/NamedService.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..86972d07f951c018d720d3e40361216497b8bf91
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/service/NamedService.java
+@@ -0,0 +1,19 @@
++package mx.kenzie.wellspring.service;
++
++import org.jetbrains.annotations.Contract;
++import org.jetbrains.annotations.NotNull;
++
++/**
++ * Allows a service to be found by name.
++ */
++public interface NamedService extends Service {
++
++    /**
++     * @return the service name, lower-case
++     */
++    @NotNull
++    @Contract(pure = true)
++    String getName();
++
++
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/service/Property.java b/src/main/java/mx/kenzie/wellspring/service/Property.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..2181323d08c72cc9564f27586c1ac7fc01c697e3
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/service/Property.java
+@@ -0,0 +1,14 @@
++package mx.kenzie.wellspring.service;
++
++import org.jetbrains.annotations.NotNull;
++
++import java.lang.annotation.*;
++
++@Retention(RetentionPolicy.RUNTIME)
++@Inherited
++@Target({ElementType.METHOD, ElementType.FIELD})
++public @interface Property {
++
++    @NotNull String value();
++
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/service/Service.java b/src/main/java/mx/kenzie/wellspring/service/Service.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..5fb09a95f3a02bf6f272ce068e3dfb386af1f0de
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/service/Service.java
+@@ -0,0 +1,40 @@
++package mx.kenzie.wellspring.service;
++
++import mx.kenzie.wellspring.annotation.UnlikelyNull;
++import org.bukkit.plugin.Plugin;
++import org.jetbrains.annotations.Contract;
++
++/**
++ * Represents a service. This is something whereby plugins
++ * can blindly access an implementation provided by the server
++ * or a plugin.
++ *
++ * It allows the use of APIs without the need for strict ownership
++ * and provides greater accessibility.
++ *
++ * Plugins may register their own services, as well as replace
++ * default server-provided implementations.
++ */
++public interface Service {
++
++    /**
++     * The plugin supplying this implementation.
++     * This should NEVER be null if plugin-provided.
++     * If server-provided, this can be null.
++     *
++     * @return the provider
++     */
++    @UnlikelyNull("null if server-provided")
++    @Contract(pure = true)
++    Plugin getSupplier();
++
++    /**
++     * Returns the weight of the supplier.
++     * This is used to determine the order in which
++     * suppliers should be prioritised if necessary.
++     * @return the weight of the supplier
++     */
++    @Contract(pure = true)
++    int getWeight();
++
++}
+diff --git a/src/main/java/org/bukkit/UndefinedNullability.java b/src/main/java/org/bukkit/UndefinedNullability.java
+index f465ea001c190e10eb99db818559d302e5512e99..10a084247b4e6c601ef1a7e6288d03dbe4cb8604 100644
+--- a/src/main/java/org/bukkit/UndefinedNullability.java
++++ b/src/main/java/org/bukkit/UndefinedNullability.java
+@@ -9,11 +9,14 @@ import java.lang.annotation.RetentionPolicy;
+  * {@link org.jetbrains.annotations.Nullable} is applicable. For example when
+  * interface defines a method, whose nullability depends on the implementation.
+  *
+- * @deprecated This should generally not be used in any new API code as it
+- * suggests a bad API design.
++ * Wellspring NOTE:
++ * Bukkit's asinine policy on nullability annotations directly contradicts the
++ * idea of the {@link org.jetbrains.annotations.Nullable} annotation.
++ *
++ * As such, this is not deprecated, and may be used for cases where Nullable
++ * is inappropriate.
+  */
+-@Retention(RetentionPolicy.CLASS)
+-@Deprecated
++@Retention(RetentionPolicy.CLASS) // Kenzie - remove deprecation
+ public @interface UndefinedNullability {
+ 
+     /**
+diff --git a/src/test/java/org/bukkit/AnnotationTest.java b/src/test/java/org/bukkit/AnnotationTest.java
+index a48be38b159bec27ec398666b28620a9ea625547..aa1631b84de6d774e403b44568bd03bd621b62ef 100644
+--- a/src/test/java/org/bukkit/AnnotationTest.java
++++ b/src/test/java/org/bukkit/AnnotationTest.java
+@@ -29,6 +29,7 @@ public class AnnotationTest {
+         "Lorg/jetbrains/annotations/Nullable;",
+         "Lorg/jetbrains/annotations/NotNull;",
+         "Lorg/jetbrains/annotations/Contract;",
++        "Lmx/kenzie/wellspring/annotation/UnlikelyNull;", // Kenzie - fix Bukkit's mistakes
+         "Lorg/bukkit/UndefinedNullability;"
+     };
+ 
