@@ -1,0 +1,37 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Fri, 16 Oct 2020 20:05:38 +0100
+Subject: [PATCH] Find 'empty' WorldStructures.
+
+
+diff --git a/src/main/java/mx/kenzie/wellspring/Wellspring.java b/src/main/java/mx/kenzie/wellspring/Wellspring.java
+index 1a16a0f876a46a02f19d45b95bee3307df5158e6..6a048d656112c5c5c4b56e73f3c83bfea33fdb6d 100644
+--- a/src/main/java/mx/kenzie/wellspring/Wellspring.java
++++ b/src/main/java/mx/kenzie/wellspring/Wellspring.java
+@@ -52,6 +52,9 @@ public interface Wellspring extends Server {
+ 
+         public abstract boolean isStructurePresent(@NotNull WorldStructureType structure, @NotNull Location location);
+ 
++        public abstract @NotNull
++        WorldStructure emptyStructureInstance();
++
+         public abstract @NotNull
+         WorldStructure getStructure(@NotNull WorldStructureType structure, @NotNull Location location);
+ 
+diff --git a/src/main/java/mx/kenzie/wellspring/structure/WorldStructure.java b/src/main/java/mx/kenzie/wellspring/structure/WorldStructure.java
+index 250539ac24a59ed93cc2d2a8d34c64de82e13331..c6e65d9f71046cd567bb445581ed6019b5f49c4d 100644
+--- a/src/main/java/mx/kenzie/wellspring/structure/WorldStructure.java
++++ b/src/main/java/mx/kenzie/wellspring/structure/WorldStructure.java
+@@ -58,4 +58,12 @@ public interface WorldStructure extends Keyed {
+         return WorldStructureType.from(getKey());
+     }
+ 
++    /**
++     * Structures are never "null" when acquired - this
++     * determines whether they are an instance of the default
++     * 'empty' structure (the equivalent to null.)
++     * @return whether this structure is empty
++     */
++    boolean isEmpty();
++
+ }
