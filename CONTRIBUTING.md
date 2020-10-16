@@ -1,2 +1,2 @@
-Contributing to Tuinity
+Contributing to Wellspring
 TODO

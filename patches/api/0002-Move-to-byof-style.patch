@@ -1,0 +1,4846 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Fri, 16 Oct 2020 14:54:17 +0100
+Subject: [PATCH] Move to byof style.
+
+Fix missed block NBT.
+
+diff --git a/pom.xml b/pom.xml
+index 3b28efedcbf7eba68f9a0dc68692aa8920ca5b53..4f306d6e36d2be7ec0e17be06bc9a9a8985a60d1 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -15,7 +15,7 @@
+ 
+     <name>Wellspring-API</name>
+     <url>https://github.com/Moderocky/Wellspring</url>
+-    <description>An enhanced plugin API for Minecraft servers.</description>
++    <description>A cutting-edge plugin API that exposes more Minecraft features.</description>
+ 
+     <properties>
+         <!-- <skipTests>true</skipTests> Paper - This [was] not going to end well -->
+@@ -24,6 +24,18 @@
+         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+     </properties>
+ 
++    <!--   // Kenzie-->
++    <distributionManagement>
++        <repository>
++            <id>pan-repo</id>
++            <url>https://gitlab.com/api/v4/projects/18568066/packages/maven</url>
++        </repository>
++        <snapshotRepository>
++            <id>pan-repo</id>
++            <url>https://gitlab.com/api/v4/projects/18568066/packages/maven</url>
++        </snapshotRepository>
++    </distributionManagement>
++
+     <repositories>
+         <!--
+             If you are a plugin developer, please use https://hub.spigotmc.org/nexus/content/repositories/snapshots/
+@@ -228,12 +240,25 @@
+                 <artifactId>maven-javadoc-plugin</artifactId>
+                 <version>3.2.0</version>
+                 <configuration>
++                    <stylesheetfile>${basedir}/</stylesheetfile>
++                    <stylesheetfile>javadoc-style.css</stylesheetfile>
++                    <failOnError>false</failOnError>
+                     <links>
+                         <link>https://guava.dev/releases/21.0/api/docs/</link>
+                         <link>https://javadoc.io/doc/org.yaml/snakeyaml/1.26/</link>
+                         <link>https://javadoc.io/doc/org.jetbrains/annotations-java5/19.0.0/</link>
+                         <link>https://javadoc.io/doc/net.md-5/bungeecord-chat/1.16-R0.3/</link>
+                     </links>
++                    <bottom>
++                        <![CDATA[
++                            <script>
++                            if (typeof useModuleDirectories !== 'undefined') {
++                              useModuleDirectories = false;
++                            }
++                            </script>
++                        ]]>
++                    </bottom>
++                    <additionalJOption>--allow-script-in-comments</additionalJOption>
+                 </configuration>
+             </plugin>
+         </plugins>
+diff --git a/src/main/java/com/destroystokyo/paper/network/NetworkClient.java b/src/main/java/com/destroystokyo/paper/network/NetworkClient.java
+index 7b2af1bd72dfbcf4e962a982940fc49b851aa04f..a3758cc0d897139c7b89391a6647c42d3093c963 100644
+--- a/src/main/java/com/destroystokyo/paper/network/NetworkClient.java
++++ b/src/main/java/com/destroystokyo/paper/network/NetworkClient.java
+@@ -2,6 +2,7 @@ package com.destroystokyo.paper.network;
+ 
+ import java.net.InetSocketAddress;
+ 
++import mx.kenzie.wellspring.packet.Packet;
+ import org.jetbrains.annotations.NotNull;
+ import org.jetbrains.annotations.Nullable;
+ 
+@@ -38,4 +39,19 @@ public interface NetworkClient {
+     @Nullable
+     InetSocketAddress getVirtualHost();
+ 
++    // Kenzie start - packets
++    /**
++     * Sends the specified packet to the network connection.
++     * Please note that only outgoing packets will work
++     * properly.
++     *
++     * This may be used from other threads, but the packet
++     * will be sent out with the next tick.
++     * @param packet the packet to be sent
++     */
++    default void sendPacket(@NotNull Packet packet) {
++        packet.send(this);
++    }
++    // Kenzie end
++
+ }
+diff --git a/src/main/java/mx/kenzie/wellspring/Provider.java b/src/main/java/mx/kenzie/wellspring/Provider.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..3b75f48f5b391db11f4f7937e784917a6d9475de
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/Provider.java
+@@ -0,0 +1,47 @@
++package mx.kenzie.wellspring;
++
++import com.google.common.reflect.TypeToken;
++import org.bukkit.UndefinedNullability;
++import org.jetbrains.annotations.NotNull;
++
++import java.util.function.Supplier;
++
++/**
++ * A provider function, typically to be occupied by
++ * a method reference for a nullary consumer.
++ *
++ * This is also designed to allow for the type to be
++ * obtained without actually calling the provider.
++ *
++ * This is purely functional and used internally.
++ *
++ * @author Moderocky
++ * @param <T> the type
++ */
++@FunctionalInterface
++public interface Provider<T> extends Supplier<T> {
++
++    default @NotNull
++    @SuppressWarnings({"UnstableApiUsage"})
++    TypeToken<T> getToken() {
++        return new TypeToken<T>(this.getClass()) { };
++    }
++
++    default @NotNull
++    @SuppressWarnings({"unchecked", "UnstableApiUsage"})
++    Class<T> getType() {
++        return (Class<T>) getToken().getRawType();
++    }
++
++    @UndefinedNullability("Completely up to implementation.")
++        /*
++        This could be used anywhere, no way of inferring nullity.
++        Thank you, Bukkit, for forcing needless annotations everywhere.
++        I'm sure the world is infinitely grateful...
++
++        In case you're having any future *brilliant* ideas of the same ilk,
++        please take a minute and think about not doing so, okay?
++        */
++    T get();
++
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/Wellspring.java b/src/main/java/mx/kenzie/wellspring/Wellspring.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..1a16a0f876a46a02f19d45b95bee3307df5158e6
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/Wellspring.java
+@@ -0,0 +1,95 @@
++package mx.kenzie.wellspring;
++
++import mx.kenzie.wellspring.enchantment.EnchantmentBuilder;
++import mx.kenzie.wellspring.nbt.NBTCompound;
++import mx.kenzie.wellspring.structure.*;
++import org.bukkit.Bukkit;
++import org.bukkit.Location;
++import org.bukkit.NamespacedKey;
++import org.bukkit.Server;
++import org.bukkit.attribute.Attribute;
++import org.bukkit.entity.EntityType;
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
++
++import java.io.InputStream;
++import java.util.Map;
++
++/**
++ * A second interface to evade Bukkit's Bukkit/Server parity tests.
++ * <p>
++ * This generally should not be used by plugins, but is technically
++ * an instance of CraftServer.
++ *
++ * @author Moderocky
++ */
++public interface Wellspring extends Server {
++
++    static @NotNull
++    Wellspring getInstance() {
++        return (Wellspring) Bukkit.getServer();
++    }
++
++    static @NotNull
++    Bridge bridge() {
++        return getInstance().getBridge();
++    }
++
++    @NotNull
++    EnchantmentBuilder createEnchantment(@NotNull NamespacedKey key, @NotNull String name);
++
++    @NotNull
++    Bridge getBridge();
++
++    /**
++     * This provides a bridging utility for accessing the craft server.
++     * It is preferable to implementing the methods directly into {@link org.bukkit.Bukkit}
++     * since that class is cluttered and unnecessarily static.
++     * <p>
++     * This implementation also makes changeover much easier.
++     */
++    abstract class Bridge {
++
++        public abstract boolean isStructurePresent(@NotNull WorldStructureType structure, @NotNull Location location);
++
++        public abstract @NotNull
++        WorldStructure getStructure(@NotNull WorldStructureType structure, @NotNull Location location);
++
++        public abstract @Nullable
++        WorldStructurePart getStructurePart(@NotNull WorldStructureType structure, @NotNull Location location);
++
++        public abstract @NotNull
++        StructureInfo createStructureInfo();
++
++        public abstract @NotNull
++        Structure createStructure();
++
++        public abstract @NotNull
++        Structure loadStructure(@NotNull NBTCompound compound);
++
++        public abstract @NotNull
++        Structure loadStructure(@NotNull InputStream stream);
++
++        public abstract @Nullable
++        Structure loadStructure(@NotNull NamespacedKey key);
++
++        public abstract float getWidth(@NotNull EntityType type);
++
++        public abstract float getHeight(@NotNull EntityType type);
++
++        public abstract int getEntityIndex(@NotNull String entityKey);
++
++        public abstract @NotNull
++        Map<Attribute, Double> getBaseValues(@NotNull EntityType type);
++
++        public abstract void setBaseValues(@NotNull EntityType type, @NotNull Map<Attribute, Double> attributes);
++
++        public abstract double getBaseValue(@NotNull EntityType type, @NotNull Attribute attribute);
++
++        public abstract void setBaseValue(@NotNull EntityType type, @NotNull Attribute attribute, double value);
++
++        public abstract void removeBase(@NotNull EntityType type, @NotNull Attribute attribute);
++
++    }
++
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/attribute/AttributeProvider.java b/src/main/java/mx/kenzie/wellspring/attribute/AttributeProvider.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..6acc60dea88eeea7e6190624c24e4ce4b0ead3b9
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/attribute/AttributeProvider.java
+@@ -0,0 +1,84 @@
++package mx.kenzie.wellspring.attribute;
++
++import mx.kenzie.wellspring.Wellspring;
++import org.bukkit.attribute.Attribute;
++import org.bukkit.entity.EntityType;
++import org.jetbrains.annotations.NotNull;
++
++import java.util.Map;
++
++/**
++ * An access point for the attribute provider for entities.
++ *
++ * This allows you to change the default attributes that an
++ * entity-type has, and to add new custom ones.
++ * This is only for setting the baseline values, not for
++ * making individual edits.
++ * Edits to the provider should only be done during the STARTUP
++ * phase to prevent complications.
++ *
++ * @author Moderocky
++ */
++public interface AttributeProvider {
++
++    /**
++     * Provides a map of the default attributes for this entity type,
++     * and their baseline values.
++     * @return a cloned map
++     */
++    default @NotNull
++    Map<Attribute, Double> getBaseValues() {
++        return Wellspring.bridge().getBaseValues((EntityType) this);
++    }
++
++    /**
++     * Replaces the existing attribute map with this new one.
++     * This may cause issues with entities already loaded.
++     *
++     * Please note: removing attributes from default entity types
++     * will almost certainly cause errors.
++     *
++     * @param attributes the new attribute map
++     */
++    default void setBaseValues(@NotNull Map<Attribute, Double> attributes) {
++        Wellspring.bridge().setBaseValues((EntityType) this, attributes);
++    }
++
++    /**
++     * Provides the baseline value for the attribute on this entity type.
++     *
++     * @param attribute the attribute to test
++     * @return the value otherwise zero
++     */
++    default double getBaseValue(@NotNull Attribute attribute) {
++        return Wellspring.bridge().getBaseValue((EntityType) this, attribute);
++    }
++
++    /**
++     * Change an individual attribute's value for an entity type
++     * This can be used to add a custom attribute to the entity type
++     *
++     * @param attribute the attribute to set
++     * @param value the value
++     */
++    default void setBaseValue(@NotNull Attribute attribute, double value) {
++        Wellspring.bridge().setBaseValue((EntityType) this, attribute, value);
++    }
++
++    /**
++     * Removes a default attribute entry from this entity type
++     *
++     * NOTE: removing default attributes WILL cause errors!
++     * - These are not null-checked internally as they are
++     * assumed always to be present.
++     *
++     * This should only be used for adding or removing custom
++     * attribute types.
++     *
++     * @param attribute the attribute base to remove
++     */
++    default void removeBase(@NotNull Attribute attribute) {
++        Wellspring.bridge().removeBase((EntityType) this, attribute);
++    }
++
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/conversion/BiConverter.java b/src/main/java/mx/kenzie/wellspring/conversion/BiConverter.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..3dcb287cbe4fe2e03b3121a88a793bca38760e74
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/conversion/BiConverter.java
+@@ -0,0 +1,23 @@
++package mx.kenzie.wellspring.conversion;
++
++import org.bukkit.UndefinedNullability;
++import org.jetbrains.annotations.Contract;
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
++
++public interface BiConverter<X, Y>  extends Converter<X, Y> {
++
++    @UndefinedNullability
++    @Contract(value = "null -> null", pure = true)
++    X to(@Nullable Y y);
++
++    @Override
++    @UndefinedNullability
++    @Contract(value = "null -> null", pure = true)
++    Y from(@Nullable X x);
++
++    default @NotNull Converter<Y, X> reverse() {
++        return this::to;
++    }
++
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/conversion/Converter.java b/src/main/java/mx/kenzie/wellspring/conversion/Converter.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..97f504744c8a99fcbd5452fa4d89068cb740c577
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/conversion/Converter.java
+@@ -0,0 +1,15 @@
++package mx.kenzie.wellspring.conversion;
++
++import org.bukkit.UndefinedNullability;
++import org.jetbrains.annotations.Contract;
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
++
++@FunctionalInterface
++public interface Converter<X, Y> {
++
++    @UndefinedNullability
++    @Contract(value = "null -> null", pure = true)
++    Y from(@Nullable X x);
++
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/enchantment/EnchantmentBuilder.java b/src/main/java/mx/kenzie/wellspring/enchantment/EnchantmentBuilder.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..7b2ac33e73a3841a0112c1de84a9a4a358396cbb
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/enchantment/EnchantmentBuilder.java
+@@ -0,0 +1,282 @@
++package mx.kenzie.wellspring.enchantment;
++
++import mx.kenzie.wellspring.Wellspring;
++import net.md_5.bungee.api.ChatColor;
++import net.md_5.bungee.api.chat.BaseComponent;
++import net.md_5.bungee.api.chat.ComponentBuilder;
++import net.md_5.bungee.api.chat.TranslatableComponent;
++import org.bukkit.NamespacedKey;
++import org.bukkit.attribute.Attribute;
++import org.bukkit.attribute.AttributeModifier;
++import org.bukkit.enchantments.Enchantment;
++import org.bukkit.entity.EntityCategory;
++import org.bukkit.event.entity.EntityDamageEvent;
++import org.bukkit.inventory.EquipmentSlot;
++import org.bukkit.inventory.ItemStack;
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
++
++import java.util.function.Function;
++
++/**
++ * Used to create new custom enchantments.
++ * This should be used during the STARTUP phase to assure proper conversion.
++ *
++ * @author Moderocky
++ */
++public abstract class EnchantmentBuilder {
++
++    protected final NamespacedKey key;
++    protected final String name;
++    protected Rarity rarity = Rarity.COMMON;
++    protected Target target = Target.BREAKABLE;
++    protected Function<ItemStack, Boolean> canEnchant;
++    protected Function<EntityDamageEvent.DamageCause, Integer> damageProtection = cause -> 0;
++    protected Function<EntityCategory, Float> damageBonus = cat -> 0.0F;
++    protected Function<Enchantment, Boolean> compatible = enchantment -> true;
++    protected String description;
++    protected Function<Integer, BaseComponent[]> nameByLevel;
++    protected EquipmentSlot[] effectiveSlots;
++    protected EnchantmentStrikeConsumer onDealDamage, onTakeDamage;
++    protected boolean treasure, curse, tradable, discoverable;
++    protected int minLevel = 1, maxLevel = 1, minCost = 1, maxCost = 1;
++
++    protected EnchantmentBuilder(@NotNull NamespacedKey key, @NotNull String name) {
++        this.key = key;
++        this.name = name;
++
++        this.nameByLevel = integer -> {
++            ComponentBuilder builder = new ComponentBuilder(name).color(curse ? ChatColor.RED : ChatColor.GRAY);
++            if (maxLevel > 1) {
++                builder.append(" ").append(new TranslatableComponent("enchantment.level." + integer));
++            }
++            return builder.create();
++        };
++    }
++
++    /**
++     * Create a new enchantment builder.
++     *
++     * @param key  The key to register this under
++     * @param name The enchantment's name (used in messages, etc.)
++     * @return The builder
++     */
++    public static @NotNull
++    EnchantmentBuilder create(@NotNull NamespacedKey key, @NotNull String name) {
++        return Wellspring.getInstance().createEnchantment(key, name);
++    }
++
++    /**
++     * Governs the rarity of the enchantment, which
++     * determines how common it is.
++     */
++    public @NotNull
++    EnchantmentBuilder setRarity(@NotNull Rarity rarity) {
++        this.rarity = rarity;
++        return this;
++    }
++
++    /**
++     * Which types of items this can be applied to.
++     */
++    public @NotNull
++    EnchantmentBuilder setTarget(@NotNull Target target) {
++        this.target = target;
++        this.canEnchant = null;
++        return this;
++    }
++
++    /**
++     * Is this a 'treasure' enchantment found only in
++     * loot chests (e.g. Mending, Frost Walker.)
++     */
++    public @NotNull
++    EnchantmentBuilder setTreasure(boolean treasure) {
++        this.treasure = treasure;
++        return this;
++    }
++
++    /**
++     * Is this a 'curse' enchantment - not removable via grindstone.
++     */
++    public @NotNull
++    EnchantmentBuilder setCurse(boolean curse) {
++        this.curse = curse;
++        return this;
++    }
++
++    /**
++     * Will this appear within the villager trading set, like Mending?
++     */
++    public @NotNull
++    EnchantmentBuilder setTradable(boolean tradable) {
++        this.tradable = tradable;
++        return this;
++    }
++
++    /**
++     * Exact purpose is unknown.
++     * Currently, soul speed is the only enchantment with this marked
++     * as FALSE. All others are true by default.
++     * <p>
++     * May have something to do with enchantment tables?
++     */
++    public @NotNull
++    EnchantmentBuilder setDiscoverable(boolean discoverable) {
++        this.discoverable = discoverable;
++        return this;
++    }
++
++    /**
++     * The minimum (starting) level, almost always 1.
++     */
++    public @NotNull
++    EnchantmentBuilder setMinLevel(int minLevel) {
++        this.minLevel = minLevel;
++        return this;
++    }
++
++    /**
++     * The maximum safe level.
++     */
++    public @NotNull
++    EnchantmentBuilder setMaxLevel(int maxLevel) {
++        this.maxLevel = maxLevel;
++        return this;
++    }
++
++    /**
++     * Experience and anvil multipliers.
++     */
++    public @NotNull
++    EnchantmentBuilder setMinCost(int minCost) {
++        this.minCost = minCost;
++        return this;
++    }
++
++    /**
++     * Experience and anvil multipliers.
++     */
++    public @NotNull
++    EnchantmentBuilder setMaxCost(int maxCost) {
++        this.maxCost = maxCost;
++        return this;
++    }
++
++    /**
++     * Whether this can be applied to the target item stack.
++     */
++    public @NotNull
++    EnchantmentBuilder setCanEnchant(@Nullable Function<ItemStack, Boolean> canEnchant) {
++        this.canEnchant = canEnchant;
++        this.target = null;
++        return this;
++    }
++
++    /**
++     * Whether this enchantment is active or inert in the given slot.
++     * For example; frost walker is inert unless on the boots.
++     */
++    public @NotNull
++    EnchantmentBuilder setEffectiveSlots(@NotNull EquipmentSlot[] effectiveSlots) {
++        this.effectiveSlots = effectiveSlots;
++        return this;
++    }
++
++    /**
++     * This is used to influence taken damage. The exact purpose is unclear, but
++     * it is used by protection enchantments.
++     */
++    public @NotNull
++    EnchantmentBuilder setDamageProtection(@NotNull Function<EntityDamageEvent.DamageCause, Integer> damageProtection) {
++        this.damageProtection = damageProtection;
++        return this;
++    }
++
++    /**
++     * This is used to affect damage bonuses against entity types.
++     * (e.g. smite, bane of arthropods.)
++     */
++    public @NotNull
++    EnchantmentBuilder setDamageBonus(@NotNull Function<EntityCategory, Float> damageBonus) {
++        this.damageBonus = damageBonus;
++        return this;
++    }
++
++    /**
++     * Whether this enchantment can be applied in conjunction with the another.
++     * (e.g. sharpness conflicts with smite.)
++     */
++    public @NotNull
++    EnchantmentBuilder setCompatible(@NotNull Function<Enchantment, Boolean> compatible) {
++        this.compatible = compatible;
++        return this;
++    }
++
++    /**
++     * The description language key.
++     * Exact implementation is unknown.
++     */
++    public @NotNull
++    EnchantmentBuilder setDescription(@NotNull String description) {
++        this.description = description;
++        return this;
++    }
++
++    /**
++     * A function to create a name based on the enchantment level.
++     * (e.g. Sharpness IV)
++     * <p>
++     * By default, this will generate one akin to the generic.
++     */
++    public @NotNull
++    EnchantmentBuilder setNameByLevel(@NotNull Function<Integer, BaseComponent[]> nameByLevel) {
++        this.nameByLevel = nameByLevel;
++        return this;
++    }
++
++    /**
++     * Schedule a function to be executed upon dealing damage to an entity.
++     */
++    public @NotNull
++    EnchantmentBuilder onDealDamage(@Nullable EnchantmentStrikeConsumer onDealDamage) {
++        this.onDealDamage = onDealDamage;
++        return this;
++    }
++
++    /**
++     * Schedule a function to be executed upon taking damage.
++     */
++    public @NotNull
++    EnchantmentBuilder onTakeDamage(@Nullable EnchantmentStrikeConsumer onTakeDamage) {
++        this.onTakeDamage = onTakeDamage;
++        return this;
++    }
++
++    /**
++     * Add an attribute for this enchantment.
++     * The attribute will only function when the item is put in the correct slot.
++     *
++     * The modifier's value will be multiplied by the enchantment's level, so be careful
++     * of using large values.
++     *
++     * This will be combined with the item's attributes for use cases, but will not
++     * be stored within the item's NBT.
++     *
++     * @param attribute the attribute to add
++     * @param value the value of the attribute, to be multiplied by the enchantment level
++     * @param operation the attribute operation
++     * @return builder method
++     */
++    public abstract @NotNull
++    EnchantmentBuilder addAttribute(@NotNull Attribute attribute, double value, @NotNull AttributeModifier.Operation operation);
++
++    /**
++     * Registers and creates the enchantment.
++     *
++     * @return the newly-registered enchantment.
++     */
++    public abstract @NotNull
++    Enchantment create();
++
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/enchantment/EnchantmentHolder.java b/src/main/java/mx/kenzie/wellspring/enchantment/EnchantmentHolder.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..22fc06b09211bb4f5944cc34f9048a4863e8004f
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/enchantment/EnchantmentHolder.java
+@@ -0,0 +1,52 @@
++package mx.kenzie.wellspring.enchantment;
++
++import org.bukkit.enchantments.Enchantment;
++import org.jetbrains.annotations.NotNull;
++
++/**
++ * An enchantment holder - either an entity with equipment
++ * or an item stack.
++ *
++ * This can be used to find the highest-level enchantment on
++ * an entity's total gear.
++ * Entities will only count valid enchantments.
++ *
++ * For an item it will only include present enchantments.
++ *
++ * @author Moderocky
++ */
++public interface EnchantmentHolder {
++
++    /**
++     * Whether the enchantment is present on the holder.
++     * If the holder is an entity, it will check for any valid
++     * enchantments on any gear.
++     *
++     * @param enchantment the enchantment to check
++     * @return whether present
++     */
++    default boolean hasEnchantment(@NotNull Enchantment enchantment) {
++        return getMaxPresentLevel(enchantment) > 0;
++    }
++
++    /**
++     * The highest level present for this enchantment.
++     *
++     * @param enchantment the enchantment to check
++     * @return the level
++     */
++    int getMaxPresentLevel(@NotNull Enchantment enchantment);
++
++    /**
++     * The cumulative total level of an enchantment for this holder.
++     * If the holder is an entity and has multiple of the same enchantment
++     * on different gear, these will be totalled.
++     *
++     * @param enchantment the enchantment to check
++     * @return the total level
++     */
++    default int getCumulativeLevel(@NotNull Enchantment enchantment) {
++        return getMaxPresentLevel(enchantment);
++    }
++
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/enchantment/EnchantmentStrikeConsumer.java b/src/main/java/mx/kenzie/wellspring/enchantment/EnchantmentStrikeConsumer.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..12c2920e9ed9192865fe7a72d6bc8a87ccbefdd2
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/enchantment/EnchantmentStrikeConsumer.java
+@@ -0,0 +1,26 @@
++package mx.kenzie.wellspring.enchantment;
++
++import org.bukkit.entity.Entity;
++import org.bukkit.entity.LivingEntity;
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
++
++
++/**
++ * Used for enchantment callbacks when the wielder deals
++ * or takes damage.
++ *
++ * @author Moderocky
++ */
++public interface EnchantmentStrikeConsumer {
++
++    /**
++     * This is used for dealing/taking damage
++     *
++     * @param holder   The wielder of the enchanted item
++     * @param opponent The opponent - may be null during damage-taking
++     * @param level    The enchantment level
++     */
++    void onStrike(@NotNull LivingEntity holder, @Nullable Entity opponent, int level);
++
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/enchantment/Rarity.java b/src/main/java/mx/kenzie/wellspring/enchantment/Rarity.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..47bcc8bbbc75d8e87ed601bb5e85e235fbd2c0c9
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/enchantment/Rarity.java
+@@ -0,0 +1,23 @@
++package mx.kenzie.wellspring.enchantment;
++
++/**
++ * Enchantment rarity - governs discovery chances.
++ *
++ * @author Moderocky
++ */
++public enum Rarity {
++    COMMON(10),
++    UNCOMMON(5),
++    RARE(2),
++    VERY_RARE(1);
++
++    private final int weight;
++
++    Rarity(int weight) {
++        this.weight = weight;
++    }
++
++    public int getWeight() {
++        return this.weight;
++    }
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/enchantment/Target.java b/src/main/java/mx/kenzie/wellspring/enchantment/Target.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..b37c952128b402aced95d2c0c5d0c6b762e26b5f
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/enchantment/Target.java
+@@ -0,0 +1,25 @@
++package mx.kenzie.wellspring.enchantment;
++
++/**
++ * Enchantment item type target
++ * - governs what types of items may benefit from
++ * this enchantment.
++ *
++ * @author Moderocky
++ */
++public enum Target {
++    ARMOR,
++    ARMOR_FEET,
++    ARMOR_LEGS,
++    ARMOR_CHEST,
++    ARMOR_HEAD,
++    WEAPON,
++    DIGGER,
++    FISHING_ROD,
++    TRIDENT,
++    BREAKABLE,
++    BOW,
++    WEARABLE,
++    CROSSBOW,
++    VANISHABLE
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/event/EntityLandEvent.java b/src/main/java/mx/kenzie/wellspring/event/EntityLandEvent.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..16346e8021f61066f2961a83909c8c534f8601f8
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/event/EntityLandEvent.java
+@@ -0,0 +1,36 @@
++package mx.kenzie.wellspring.event;
++
++import org.bukkit.entity.Entity;
++import org.bukkit.event.HandlerList;
++import org.bukkit.event.entity.EntityEvent;
++import org.jetbrains.annotations.NotNull;
++
++/**
++ * Called when an entity's movement trajectory would cause them to touch the ground.
++ *
++ * @author Moderocky
++ */
++public class EntityLandEvent extends EntityEvent {
++    private static final HandlerList handlers = new HandlerList();
++
++    public EntityLandEvent(@NotNull Entity entity) {
++        super(entity);
++    }
++
++    @NotNull
++    public static HandlerList getHandlerList() {
++        return handlers;
++    }
++
++    @NotNull
++    @Override
++    public Entity getEntity() {
++        return entity;
++    }
++
++    @NotNull
++    @Override
++    public HandlerList getHandlers() {
++        return handlers;
++    }
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/nbt/BlockNBTStorage.java b/src/main/java/mx/kenzie/wellspring/nbt/BlockNBTStorage.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..5fdb02bdfc80622d1f254f140a434e60988bec05
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/nbt/BlockNBTStorage.java
+@@ -0,0 +1,30 @@
++package mx.kenzie.wellspring.nbt;
++
++import org.bukkit.block.Block;
++import org.bukkit.util.Vector;
++import org.jetbrains.annotations.NotNull;
++
++/**
++ * Represents something that stores block NBT.
++ * For use purposes, this is only worlds.
++ *
++ * Please note - storing excessive amounts of block NBT
++ * will increase the size of your world files and consume RAM while.
++ *
++ * @author Moderocky
++ */
++public interface BlockNBTStorage {
++
++    default @NotNull NBTCompound getNBT(@NotNull Block block) {
++        return getNBT(new Vector(block.getX(), block.getY(), block.getZ()));
++    }
++
++    default @NotNull NBTCompound getNBT(int x, int y, int z) {
++        return getNBT(new Vector(x, y, z));
++    }
++
++    @NotNull NBTCompound getNBT(@NotNull Vector position);
++
++    void clearNBT(@NotNull Vector position);
++
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/nbt/NBT.java b/src/main/java/mx/kenzie/wellspring/nbt/NBT.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..9f37ea5f606e007f7b8e1afedd7b1ece62018fb6
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/nbt/NBT.java
+@@ -0,0 +1,182 @@
++package mx.kenzie.wellspring.nbt;
++
++import net.md_5.bungee.api.chat.BaseComponent;
++import net.md_5.bungee.chat.ComponentSerializer;
++import org.bukkit.Bukkit;
++import org.bukkit.attribute.AttributeModifier;
++import org.bukkit.inventory.ItemStack;
++import org.jetbrains.annotations.NotNull;
++
++import java.util.Map;
++import java.util.UUID;
++
++/**
++ * This represents an NBT 'base' object, which could be either a map-compound,
++ * a list of bases, or a simple wrapped value.
++ * <p>
++ * In order to determine which, {@link NBT#getType()} can be used.
++ *
++ * @author Moderocky
++ */
++public interface NBT {
++
++    /**
++     * Convert an object to an NBT base.
++     * This works with primitives, strings, some numerical arrays and objects that
++     * are already NBT types.
++     *
++     * @param object An object of a valid type.
++     * @param type   The type of the object, for conversion.
++     * @return The converted NBT base.
++     * @throws IllegalArgumentException If the type was invalid or the object could not be converted.
++     */
++    @SuppressWarnings("deprecation")
++    static @NotNull
++    NBT convert(@NotNull Object object, @NotNull Type type) throws IllegalArgumentException {
++        return Bukkit.getNBTFactory().newBase(object, type);
++    }
++
++    /**
++     * This is a utility for converting objects without knowing their type.
++     * This works with primitives, strings, some numerical arrays and objects that
++     * are already NBT types.
++     * <p>
++     * It can also recursively convert lists, arrays and maps.
++     * <p>
++     * It will not convert objects of invalid types!
++     *
++     * @param object An object of a valid type.
++     * @return The converted NBT base.
++     * @throws IllegalArgumentException If the type was invalid or the object could not be converted.
++     */
++    static @NotNull
++    NBT convert(@NotNull Object object) throws IllegalArgumentException {
++        if (object instanceof NBT) return (NBT) object;
++        if (object instanceof NBT[]) return NBTList.create((NBT[]) object);
++        if (object instanceof Boolean) return convert(object, Type.BOOLEAN);
++        if (object instanceof Byte) return convert(object, Type.BYTE);
++        if (object instanceof Short) return convert(object, Type.SHORT);
++        if (object instanceof Integer) return convert(object, Type.INT);
++        if (object instanceof Long) return convert(object, Type.LONG);
++        if (object instanceof Float) return convert(object, Type.FLOAT);
++        if (object instanceof Double) return convert(object, Type.DOUBLE);
++        if (object instanceof byte[]) return convert(object, Type.BYTE_ARRAY);
++        if (object instanceof int[]) return convert(object, Type.INT_ARRAY);
++        if (object instanceof long[]) return convert(object, Type.LONG_ARRAY);
++        if (object instanceof String) return convert(object, Type.STRING);
++        if (object instanceof UUID) return Bukkit.getNBTFactory().newBase(((UUID) object));
++        if (object instanceof ItemStack) return NBTCompound.convert(((ItemStack) object));
++        if (object instanceof AttributeModifier) return NBTCompound.convert(((AttributeModifier) object));
++        if (object instanceof BaseComponent) return convert(ComponentSerializer.toString(((BaseComponent) object)), Type.STRING);
++        if (object instanceof BaseComponent[]) return convert(ComponentSerializer.toString(((BaseComponent[]) object)), Type.STRING);
++        if (object instanceof Object[]) return NBTList.create(((Object[]) object));
++        if (object instanceof Iterable) return NBTList.create(((Iterable<?>) object));
++        if (object instanceof Map) return NBTCompound.create(((Map<?, ?>) object));
++        throw new IllegalArgumentException("Unsupported type for conversion: " + object.getClass());
++    }
++
++    /**
++     * Returns the true Java object value of this NBT base.
++     *
++     * @param <T> Will attempt to auto-cast to this generic type.
++     * @return The true value. This will be of the type specified in {@link Type#cls}
++     * @throws RuntimeException If the value cannot be obtained or the base is abnormal.
++     */
++    @NotNull
++    <T> T getAsObject() throws RuntimeException;
++
++    /**
++     * This will attempt to unwrap the entire NBT structure to Java objects.
++     * This includes recursively unwrapping lists, compounds, arrays and
++     * all contained bases.
++     *
++     * @param <T> Will attempt to auto-cast to this generic type.
++     * @return The unwrapped object.
++     * @throws RuntimeException If anything inside the structure cannot be unwrapped.
++     */
++    default @NotNull
++    <T> Object unwrap() throws RuntimeException {
++        return getAsObject(); // Overridden by other types.
++    }
++
++    /**
++     * Magic value.
++     *
++     * @return The raw numerical type.
++     */
++    @Deprecated
++    byte getTypeId();
++
++    default boolean isOfType(@NotNull Type type) {
++        return getType() == type;
++    }
++
++    default @NotNull
++    Type getType() {
++        return Type.fromId(getTypeId());
++    }
++
++    @NotNull
++    NBT clone();
++
++    default @NotNull
++    BaseComponent[] display() {
++        return display(0, "");
++    }
++
++    @NotNull
++    BaseComponent[] display(int indentation, @NotNull String unit);
++
++    enum Type {
++        /**
++         * Marked for internal type-comparison use.
++         * Very unsafe - used to mark termination of the data.
++         */
++        @Deprecated
++        NULL_TERMINATOR(0, void.class),
++        BYTE(1, byte.class),
++        SHORT(2, short.class),
++        INT(3, int.class),
++        LONG(4, long.class),
++        FLOAT(5, float.class),
++        DOUBLE(6, double.class),
++        BYTE_ARRAY(7, byte[].class),
++        STRING(8, String.class),
++        LIST(9, NBTList.class),
++        COMPOUND(10, NBTCompound.class),
++        INT_ARRAY(11, int[].class),
++        LONG_ARRAY(12, long[].class),
++        BOOLEAN(1, boolean.class),
++        /**
++         * Used internally to signify any primitive type.
++         */
++        PRIMITIVE_TYPE(99, Object.class);
++
++        final int raw;
++        final @NotNull
++        Class<?> cls;
++
++        Type(int raw, @NotNull Class<?> cls) {
++            this.raw = raw;
++            this.cls = cls;
++        }
++
++        public static @NotNull
++        Type fromId(int raw) {
++            for (Type type : values()) {
++                if (type.raw == raw) return type;
++            }
++            throw new IllegalArgumentException("Unknown type passed to converter.");
++        }
++
++        public int getRawId() {
++            return raw;
++        }
++
++        @NotNull
++        public Class<?> getEntryClass() {
++            return cls;
++        }
++    }
++
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/nbt/NBTCompound.java b/src/main/java/mx/kenzie/wellspring/nbt/NBTCompound.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..6bdbeec7651c8b106491b41a6c59daabfc2d9b83
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/nbt/NBTCompound.java
+@@ -0,0 +1,262 @@
++package mx.kenzie.wellspring.nbt;
++
++import org.bukkit.Bukkit;
++import org.bukkit.attribute.AttributeModifier;
++import org.bukkit.inventory.ItemStack;
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
++
++import java.util.HashMap;
++import java.util.Map;
++import java.util.Set;
++import java.util.UUID;
++
++/**
++ * This represents an NBT 'compound,' which is a (String) key -> (NBT base) value map.
++ *
++ * @author Moderocky
++ */
++public interface NBTCompound extends NBT {
++
++    /**
++     * Creates a new NBT Compound, similar to a Map.
++     *
++     * @return a new NBT compound.
++     */
++    static @NotNull
++    NBTCompound create() {
++        return Bukkit.getNBTFactory().newCompound();
++    }
++
++    /**
++     * Attempts to parse a stringified NBT compound and deserialises it.
++     *
++     * @param stringifiedNBT the string compound.
++     * @return the deserialised compound.
++     * @throws IllegalArgumentException if the string cannot be parsed.
++     */
++    static @NotNull
++    NBTCompound create(@NotNull String stringifiedNBT) throws IllegalArgumentException {
++        return Bukkit.getNBTFactory().parse(stringifiedNBT);
++    }
++
++    /**
++     * Creates a new NBT Compound by wrapping the map and its values.
++     *
++     * @param map The provided map to wrap.
++     * @return the new compound with values.
++     * @throws RuntimeException if the map's contents cannot be converted.
++     */
++    static @NotNull
++    NBTCompound create(@NotNull Map<?, ?> map) throws RuntimeException {
++        final NBTCompound compound = NBTCompound.create();
++        for (Map.Entry<?, ?> entry : map.entrySet()) {
++            Object object = entry.getValue();
++            if (object instanceof NBT) compound.set(entry.getKey().toString(), ((NBT) object));
++            else compound.set(entry.getKey().toString(), NBT.convert(object));
++        }
++        return compound;
++    }
++
++    /**
++     * This returns the entire itemstack serialised to an NBT compound.
++     * It contains all of the necessary data to re-create the item.
++     * @param itemStack the item
++     * @return The item, as NBT
++     */
++    static @NotNull
++    NBTCompound convert(@NotNull ItemStack itemStack) {
++        return itemStack.getAsCompound();
++    }
++
++    static @NotNull
++    NBTCompound convert(@NotNull AttributeModifier modifier) {
++        NBTCompound compound = NBTCompound.create();
++        compound.setString("Name", modifier.getName());
++        compound.setDouble("Amount", modifier.getAmount());
++        compound.setInt("Operation", modifier.getOperation().ordinal);
++        compound.setUUID("UUID", modifier.getUniqueId());
++        return compound;
++    }
++
++    int size();
++
++    boolean isEmpty();
++
++    boolean containsKey(@NotNull String key);
++
++    default boolean containsKey(@NotNull String key, @NotNull Type type) {
++        return containsKey(key, type.raw);
++    }
++
++    @NotNull
++    @Override
++    default Type getType() {
++        return Type.COMPOUND;
++    }
++
++    /**
++     * Potentially version-dependent - easier to use {@link NBTCompound#containsKey(String, Type)}
++     *
++     * @param key     The string key.
++     * @param rawType The NBT base type.
++     * @return Whether key is present.
++     */
++    @Deprecated
++    boolean containsKey(@NotNull String key, int rawType);
++
++    default void set(@NotNull String key, @NotNull Object value) {
++        set(key, NBT.convert(value));
++    }
++
++    void set(@NotNull String key, @NotNull NBT value);
++
++    void setBoolean(@NotNull String key, boolean value);
++
++    void setByte(@NotNull String key, byte value);
++
++    void setShort(@NotNull String key, short value);
++
++    void setInt(@NotNull String key, int value);
++
++    void setLong(@NotNull String key, long value);
++
++    void setFloat(@NotNull String key, float value);
++
++    void setDouble(@NotNull String key, double value);
++
++    void setString(@NotNull String key, @Nullable String value);
++
++    void setUUID(@NotNull String keyPrefix, @Nullable UUID uuid);
++
++    void setByteArray(@NotNull String key, @Nullable byte[] bytes);
++
++    void setIntArray(@NotNull String key, @Nullable int[] ints);
++
++    void setLongArray(@NotNull String key, @Nullable long[] longs);
++
++    void setList(@NotNull String key, @Nullable NBTList list);
++
++    boolean getBoolean(@NotNull String key);
++
++    byte getByte(@NotNull String key);
++
++    short getShort(@NotNull String key);
++
++    int getInt(@NotNull String key);
++
++    long getLong(@NotNull String key);
++
++    float getFloat(@NotNull String key);
++
++    double getDouble(@NotNull String key);
++
++    @Nullable
++    byte[] getByteArray(@NotNull String key);
++
++    @Nullable
++    int[] getIntArray(@NotNull String key);
++
++    @Nullable
++    long[] getLongArray(@NotNull String key);
++
++    @Nullable
++    String getString(@NotNull String key);
++
++    @Nullable
++    NBTCompound getCompound(@NotNull String key);
++
++    @Nullable
++    NBTList getList(@NotNull String key);
++
++    @Nullable
++    NBT get(@NotNull String key);
++
++    void remove(@NotNull String key);
++
++    void clear();
++
++    @NotNull
++    NBTCompound clone();
++
++    /**
++     * Merges the second compound into this. Entries from the new compound will override and replace this.
++     *
++     * @param compound The compound to merge.
++     * @return This compound.
++     */
++    @NotNull
++    NBTCompound merge(@NotNull NBTCompound compound);
++
++    /**
++     * @return A clone of this NBT compound as a map of keys/NBT bases.
++     */
++    @NotNull
++    Map<String, NBT> getAsMap();
++
++    @NotNull
++    Set<String> getKeys();
++
++    @SuppressWarnings({"unchecked", "deprecation"})
++    default @Nullable
++    <T> T get(@NotNull String key, @NotNull Type type) {
++        switch (type) {
++            case NULL_TERMINATOR:
++            case PRIMITIVE_TYPE:
++                throw new IllegalArgumentException("The type " + type + " cannot be used here.");
++            case BYTE:
++                return (T) type.cls.cast(getByte(key));
++            case INT:
++                return (T) type.cls.cast(getInt(key));
++            case SHORT:
++                return (T) type.cls.cast(getShort(key));
++            case LONG:
++                return (T) type.cls.cast(getLong(key));
++            case FLOAT:
++                return (T) type.cls.cast(getFloat(key));
++            case DOUBLE:
++                return (T) type.cls.cast(getDouble(key));
++            case BYTE_ARRAY:
++                return (T) type.cls.cast(getByteArray(key));
++            case INT_ARRAY:
++                return (T) type.cls.cast(getIntArray(key));
++            case LONG_ARRAY:
++                return (T) type.cls.cast(getLongArray(key));
++            case STRING:
++                return (T) type.cls.cast(getString(key));
++            case LIST:
++                return (T) type.cls.cast(getList(key));
++            case COMPOUND:
++                return (T) type.cls.cast(getCompound(key));
++        }
++        return null;
++    }
++
++    @Nullable
++    UUID getUUID(@NotNull String keyPrefix);
++
++    boolean hasUUID(@NotNull String keyPrefix);
++
++    /**
++     * This will attempt to unwrap the entire NBT structure to Java objects.
++     * This includes recursively unwrapping lists, compounds, arrays and
++     * all contained bases.
++     *
++     * @param <T> Will attempt to auto-cast to this generic type.
++     * @return The unwrapped object.
++     * @throws RuntimeException If anything inside the structure cannot be unwrapped.
++     */
++    @Override
++    @SuppressWarnings("unchecked")
++    default @NotNull
++    <T> Map<String, Object> unwrap() throws RuntimeException {
++        final Map<String, Object> map = new HashMap<>();
++        for (String key : this.getKeys()) {
++            NBT nbt = this.get(key);
++            assert nbt != null;
++            map.put(key, nbt.unwrap());
++        }
++        return map;
++    }
++
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/nbt/NBTFactory.java b/src/main/java/mx/kenzie/wellspring/nbt/NBTFactory.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..ba835282ce4942a3904c1c6b8baa8244f5a48175
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/nbt/NBTFactory.java
+@@ -0,0 +1,100 @@
++package mx.kenzie.wellspring.nbt;
++
++import org.bukkit.entity.Entity;
++import org.bukkit.inventory.ItemStack;
++import org.jetbrains.annotations.NotNull;
++
++import java.util.UUID;
++
++/**
++ * The NBT factory is provided by the server as a means of managing NBT implementations.
++ * <p>
++ * Generally speaking, it should not be used as most of the functions can be
++ * employed via their respective classes.
++ *
++ * @author Moderocky
++ */
++public abstract class NBTFactory {
++
++    public NBTFactory() {
++    }
++
++    /**
++     * Allows for the conversion of a stringified NBT compound to an NBT compound.
++     * This should generally NOT be used, except for the purposes of NBT storage.
++     * <p>
++     * This is NOT an excuse to write out NBT manually! Please use the map system instead.
++     *
++     * @param string The stringified NBT.
++     * @return The compound.
++     * @throws IllegalArgumentException If the string is invalid, malformed or otherwise
++     *                                  un-parsable.
++     */
++    public abstract @NotNull
++    NBTCompound parse(@NotNull String string) throws IllegalArgumentException;
++
++    /**
++     * Produces a new NBT compound.
++     *
++     * @return A new empty compound.
++     */
++    public abstract @NotNull
++    NBTCompound newCompound();
++
++    /**
++     * Produces a new NBT list.
++     *
++     * @return A new empty list.
++     */
++    public abstract @NotNull
++    NBTList newList();
++
++    /**
++     * For internal use only - potentially unsafe!
++     *
++     * @param object The object to convert. MUST be a valid {@link NBT.Type}!
++     * @param type   The base type.
++     * @return The converted base.
++     * @throws IllegalArgumentException If the type cannot be wrapped as an NBT base.
++     */
++    @Deprecated
++    public abstract @NotNull
++    NBT newBase(@NotNull Object object, @NotNull NBT.Type type) throws IllegalArgumentException;
++
++    public @NotNull
++    NBT newBase(@NotNull UUID uuid) {
++        long most, least;
++        most = uuid.getMostSignificantBits();
++        least = uuid.getLeastSignificantBits();
++        return newBase(new int[]{(int)(most >> 32), (int)most, (int)(least >> 32), (int)least}, NBT.Type.INT_ARRAY);
++    }
++
++    public @NotNull
++    UUID getAsUUID(@NotNull NBT base) {
++        if (!base.isOfType(NBT.Type.INT_ARRAY)) throw new IllegalArgumentException("Tag must be a valid INT_ARRAY.");
++        final int[] array = base.getAsObject();
++        return new UUID(array[0], array[1]);
++    }
++
++    public @NotNull
++    NBTCompound getNBT(@NotNull NBTHolder holder) {
++        return holder.getNBT();
++    }
++
++    public abstract @NotNull
++    NBTCompound getNBT(@NotNull Entity entity);
++
++    public abstract void mergeNBT(@NotNull ItemStack itemStack, @NotNull NBTCompound compound);
++
++    public abstract void setNBT(@NotNull ItemStack itemStack, @NotNull NBTCompound compound);
++
++    public abstract @NotNull
++    NBTCompound getNBT(@NotNull ItemStack itemStack);
++
++    public abstract @NotNull
++    NBTCompound getAsCompound(@NotNull ItemStack itemStack);
++
++    public abstract @NotNull
++    ItemStack createItem(@NotNull NBTCompound compound);
++
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/nbt/NBTHolder.java b/src/main/java/mx/kenzie/wellspring/nbt/NBTHolder.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..7be379c689d35bff0b838b25d99b5e0e56b06b28
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/nbt/NBTHolder.java
+@@ -0,0 +1,69 @@
++package mx.kenzie.wellspring.nbt;
++
++import org.jetbrains.annotations.NotNull;
++
++/**
++ * An object that holds (or is stored as) data in the NBT (Named Binary Tag) format.
++ * This includes entities, items, world events and potentially structures.
++ * <p>
++ * Not all NBT-holders are currently implemented.
++ * <p>
++ * This is generally an unsafe class to mess with! Please refrain especially from
++ * merging or loading new compounds unless you know what you are doing - it may
++ * lead to data corruption or unexpected consequences.
++ * <p>
++ * NBT access is potentially SLOWER than using the direct methods! It should not be
++ * treated as an alternative to the existing entity/item API.
++ *
++ * @author Moderocky
++ */
++public interface NBTHolder {
++
++    /**
++     * Retrieves the current NBT tag compound of the object.
++     * Please note that this internally triggers the saving method, which serialises
++     * all of the holder's persistent data - not something that ought to be done
++     * frequently.
++     * <p>
++     * It will also trigger any attachment accessors.
++     *
++     * @return A clone of the holder's stored data as an NBT compound.
++     */
++    @NotNull
++    NBTCompound getNBT();
++
++    /**
++     * This will merge the provided compound with the holder's existing data.
++     * Values from the new compound will OVERWRITE existing values.
++     * <p>
++     * This is preferable to {@link NBTHolder#loadNBT(NBTCompound)} as it has less chance
++     * of breaking anything important due to missing values.
++     * <p>
++     * Note that this internally reloads the holder's data, as if from file.
++     * It will also trigger any attachment accessors. As such, it should not be
++     * done too frequently as it can cause unnecessary delays.
++     *
++     * @param compound The new NBT compound to merge.
++     */
++    default void mergeNBT(@NotNull NBTCompound compound) {
++        NBTCompound original = getNBT();
++        loadNBT(original.merge(compound));
++    }
++
++    /**
++     * This will replace the holder's existing data with the provided compound.
++     * This is potentially UNSAFE! Please refrain from using this unless you know
++     * what you are doing.
++     * <p>
++     * {@link NBTHolder#mergeNBT(NBTCompound)} is preferable as it has less chance
++     * of breaking anything important.
++     * <p>
++     * Note that this internally reloads the holder's data, as if from file.
++     * It will also trigger any attachment accessors. As such, it should not be
++     * done too frequently as it can cause unnecessary delays.
++     *
++     * @param compound The new NBT compound to replace the original with.
++     */
++    void loadNBT(@NotNull NBTCompound compound);
++
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/nbt/NBTList.java b/src/main/java/mx/kenzie/wellspring/nbt/NBTList.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..d9514d935029463cf92e5eb2938bdf9b94977f15
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/nbt/NBTList.java
+@@ -0,0 +1,169 @@
++package mx.kenzie.wellspring.nbt;
++
++import org.bukkit.Bukkit;
++import org.jetbrains.annotations.NotNull;
++
++import java.util.*;
++
++/**
++ * A list of NBT bases. This includes compounds or primitive types.
++ * <p>
++ * This is (internally) a {@link Collection} but cannot be typed as such.
++ * You may safely use {@link NBTList#getAsArray()} or {@link NBTList#getAsList()} for iteration.
++ *
++ * @author Moderocky
++ */
++public interface NBTList extends NBT {
++
++    /**
++     * @return A new NBT list.
++     */
++    static @NotNull
++    NBTList create() {
++        return Bukkit.getNBTFactory().newList();
++    }
++
++    /**
++     * This is purely a utility method for faster list creation.
++     * Similar to {@link Arrays#asList(Object[])} but for NBT.
++     *
++     * @param bases An array of NBT bases
++     * @return The list with the bases added.
++     */
++    static @NotNull
++    NBTList create(@NotNull NBT... bases) {
++        final NBTList list = NBTList.create();
++        for (NBT nbt : bases) {
++            list.add(nbt);
++        }
++        return list;
++    }
++
++    /**
++     * This is purely a utility method for faster list creation.
++     * Similar to {@link Arrays#asList(Object[])} but for NBT.
++     * <p>
++     * The objects will be converted to NBT bases.
++     *
++     * @param objects An array of objects
++     * @return The list with the objects converted and added.
++     */
++    static @NotNull
++    NBTList create(@NotNull Object... objects) {
++        final NBTList list = NBTList.create();
++        for (Object object : objects) {
++            list.add(NBT.convert(object));
++        }
++        return list;
++    }
++
++    /**
++     * This is purely a utility method for faster list creation.
++     * Similar to {@link ArrayList}'s clone constructor, but for NBT.
++     * <p>
++     * The objects will be converted to NBT bases.
++     * If they are already NBT bases, they will be added.
++     *
++     * @param objects A collection of objects
++     * @return The list with the objects converted and added.
++     */
++    static @NotNull
++    NBTList create(@NotNull Iterable<?> objects) {
++        final NBTList list = NBTList.create();
++        for (Object object : objects) {
++            if (object instanceof NBT) list.add(((NBT) object));
++            else list.add(NBT.convert(object));
++        }
++        return list;
++    }
++
++    int size();
++
++    boolean isEmpty();
++
++    void clear();
++
++    @NotNull
++    @Override
++    default Type getType() {
++        return Type.LIST;
++    }
++
++    /**
++     * Adds a new NBT entry.
++     *
++     * @param entry The entry to add.
++     */
++    void add(@NotNull NBT entry);
++
++    /**
++     * Removes the specified entry.
++     *
++     * @param entry The entry to remove.
++     */
++    void remove(@NotNull NBT entry);
++
++    /**
++     * Produces a collection of this list's entries.
++     * The collection is NOT backed by the original list, but the
++     * NBT bases in the list are the originals.
++     * <p>
++     * It is safe to remove elements of this from the original list
++     * during iteration, as it is a copy.
++     *
++     * @return A new fixed-length collection.
++     */
++    @NotNull
++    Collection<NBT> getAsList();
++
++    /**
++     * @return An array of this list's entries.
++     */
++    @NotNull
++    NBT[] getAsArray();
++
++    /**
++     * @return This list unwrapped to Java objects.
++     */
++    default @NotNull
++    List<Object> getAsObjects() {
++        final List<Object> list = new ArrayList<>();
++        for (NBT nbt : this.getAsArray()) {
++            list.add(nbt.getAsObject());
++        }
++        return list;
++    }
++
++    /**
++     * This will attempt to unwrap the entire NBT structure to Java objects.
++     * This includes recursively unwrapping lists, compounds, arrays and
++     * all contained bases.
++     *
++     * @param <T> Will attempt to auto-cast to this generic type.
++     * @return The unwrapped object.
++     * @throws RuntimeException If anything inside the structure cannot be unwrapped.
++     */
++    @Override
++    @SuppressWarnings("unchecked")
++    default @NotNull
++    <T> List<T> unwrap() throws RuntimeException {
++        final List<Object> list = new ArrayList<>();
++        for (NBT nbt : this.getAsArray()) {
++            list.add(nbt.unwrap());
++        }
++        return (List<T>) list;
++    }
++
++    @NotNull
++    Iterator<NBT> getIterator();
++
++    @NotNull
++    NBT remove(int index) throws IndexOutOfBoundsException;
++
++    @NotNull
++    NBT get(int index) throws IndexOutOfBoundsException;
++
++    @NotNull
++    NBTList clone();
++
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/Packet.java b/src/main/java/mx/kenzie/wellspring/packet/Packet.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..b52f2aec8ea54bd262f08e588457ba71e8e60196
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/packet/Packet.java
+@@ -0,0 +1,34 @@
++package mx.kenzie.wellspring.packet;
++
++import com.destroystokyo.paper.network.NetworkClient;
++import org.bukkit.Bukkit;
++import org.bukkit.entity.Player;
++import org.jetbrains.annotations.NotNull;
++
++/**
++ * A small message for sending client server.
++ *
++ * @author Moderocky
++ */
++public interface Packet {
++
++    @NotNull
++    default Direction getDirection() {
++        return getType().direction;
++    }
++
++    @NotNull
++    default PacketType getType() {
++        return PacketType.of(this);
++    }
++
++    default void send(@NotNull NetworkClient... recipients) {
++        Bukkit.getPacketFactory().send(this, recipients);
++    }
++
++    enum Direction {
++        INCOMING,
++        OUTGOING
++    }
++
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/PacketBuilder.java b/src/main/java/mx/kenzie/wellspring/packet/PacketBuilder.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..cbf752123f1feb620aae53d5d5aa8fcea7ef3bb0
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/packet/PacketBuilder.java
+@@ -0,0 +1,38 @@
++package mx.kenzie.wellspring.packet;
++
++import org.bukkit.Bukkit;
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
++
++import java.util.ArrayList;
++import java.util.List;
++
++/**
++ * Used to build a packet internally.
++ *
++ * @author Moderocky
++ */
++public class PacketBuilder {
++
++    private final @NotNull
++    PacketType type;
++    private final @NotNull
++    List<Object> list;
++
++    public PacketBuilder(@NotNull PacketType type) {
++        this.type = type;
++        this.list = new ArrayList<>();
++    }
++
++    public @NotNull
++    PacketBuilder with(@Nullable Object object) {
++        list.add(object);
++        return this;
++    }
++
++    public @NotNull
++    Packet create() {
++        return Bukkit.getPacketFactory().createFrom(type, list.toArray(new Object[0]));
++    }
++
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/PacketConstructor.java b/src/main/java/mx/kenzie/wellspring/packet/PacketConstructor.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..2bb73aa04e3d58d79a0ee961e47b3941821e2004
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/packet/PacketConstructor.java
+@@ -0,0 +1,11 @@
++package mx.kenzie.wellspring.packet;
++
++import org.jetbrains.annotations.NotNull;
++
++@FunctionalInterface
++public interface PacketConstructor<T> {
++
++    @NotNull
++    T create();
++
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java b/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..2b8cd89c44044a747f494ed8b5282065461d367e
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java
+@@ -0,0 +1,129 @@
++package mx.kenzie.wellspring.packet;
++
++import com.destroystokyo.paper.network.NetworkClient;
++import mx.kenzie.wellspring.conversion.BiConverter;
++import mx.kenzie.wellspring.conversion.Converter;
++import net.md_5.bungee.api.chat.BaseComponent;
++import org.bukkit.Location;
++import org.bukkit.NamespacedKey;
++import org.bukkit.advancement.Advancement;
++import org.bukkit.advancement.AdvancementProgress;
++import org.bukkit.block.data.BlockData;
++import org.bukkit.entity.Entity;
++import org.bukkit.entity.EntityType;
++import org.bukkit.entity.Player;
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
++
++import java.util.*;
++
++/**
++ * For creating and sending outgoing packets to the client.
++ * <p>
++ * Not fully implemented!
++ *
++ * @author Moderocky
++ */
++public abstract class PacketFactory {
++
++    @NotNull
++    protected HashMap<Class<?>, ConversionEntry<?, ?>> converters = new HashMap<>();
++
++    public <X, Y> void registerConverter(@NotNull Converter<X, Y> converter, @NotNull Class<X> from, @NotNull Class<Y> to) {
++        ConversionEntry<X, Y> entry = new ConversionEntry<>(converter, from, to);
++        converters.put(from, entry);
++    }
++
++    public <X, Y> void registerConverter(@NotNull BiConverter<X, Y> converter, @NotNull Class<X> from, @NotNull Class<Y> to) {
++        registerConverter((Converter<X, Y>) converter, from, to);
++        registerConverter(converter.reverse(), to, from);
++    }
++
++    /**
++     * Creates a packet from the given type using a builder system.
++     * This allows you to input the field values of the packet directly.
++     * <p>
++     * WARNING - this is potentially unsafe and requires knowledge of the NMS packet code.
++     * If possible, please use the exposed builder methods instead.
++     *
++     * @param type        The packet type - this should almost always be {@link mx.kenzie.wellspring.packet.PacketType.Outgoing}
++     * @param fieldInputs The field values, in order. These will be set via reflection
++     * @return The complete packet, if possible
++     */
++    public abstract @NotNull
++    Packet createFrom(@NotNull PacketType type, @NotNull Object... fieldInputs) throws IllegalArgumentException;
++
++    public abstract @NotNull Packet statusOutPong(long ms);
++
++    public abstract @NotNull Packet statusOutOutServerInfo(@NotNull BaseComponent[] motd, int online, int maxPlayers, @NotNull String version, int protocol, @Nullable String icon);
++
++    public abstract @NotNull
++    Packet loginOutCustomPayload();
++
++    public abstract @NotNull
++    Packet playOutAbilities(boolean invulnerable, boolean flying, boolean canFly, boolean canInstantlyBuild, float flySpeed, float walkSpeed);
++
++    public abstract @NotNull
++    Packet playOutAdvancements(boolean reset, @NotNull Collection<Advancement> toAdd, @NotNull Set<NamespacedKey> toRemove, @NotNull Map<NamespacedKey, AdvancementProgress> progress);
++
++    public abstract @NotNull
++    Packet playOutAnimation(@NotNull Entity entity, int animationId);
++
++    public abstract @NotNull
++    Packet playOutAttachEntity(@NotNull Entity target, @NotNull Entity holder);
++
++    public abstract @NotNull
++    Packet playOutAutoRecipe(int container, @NotNull NamespacedKey recipe);
++
++    public abstract @NotNull
++    Packet playOutBlockAction(@NotNull Location location, @NotNull BlockData data, int action, int parameter);
++
++    public abstract @NotNull
++    Packet playOutSpawnEntity(@NotNull EntityType type, @NotNull Location location);
++
++    public abstract @NotNull
++    Packet playOutSpawnEntity(@NotNull EntityType type, @NotNull Location location, int id, @NotNull UUID uuid);
++
++    public abstract @NotNull
++    Packet playOutSpawnLivingEntity(@NotNull EntityType type, @NotNull Location location);
++
++    public abstract @NotNull
++    Packet playOutSpawnLivingEntity(@NotNull EntityType type, @NotNull Location location, int id, @NotNull UUID uuid);
++
++    public abstract @NotNull
++    Packet playOutSpawnLivingEntity(@NotNull EntityType type, @NotNull Location location, int id, @NotNull UUID uuid, float yaw, float pitch, float headRotation);
++
++    public abstract void send(@NotNull Packet packet, @NotNull NetworkClient... recipients) throws IllegalArgumentException;
++
++
++    protected static class ConversionEntry<X, Y> {
++        @NotNull
++        public final Converter<X, Y> converter;
++        @NotNull
++        public final Class<X> from;
++        @NotNull
++        public final Class<Y> to;
++
++        public ConversionEntry(@NotNull Converter<X, Y> converter, @NotNull Class<X> from, @NotNull Class<Y> to) {
++            this.converter = converter;
++            this.from = from;
++            this.to = to;
++        }
++
++        @NotNull
++        public Converter<X, Y> getConverter() {
++            return converter;
++        }
++
++        @NotNull
++        public Class<X> getFrom() {
++            return from;
++        }
++
++        @NotNull
++        public Class<Y> getTo() {
++            return to;
++        }
++    }
++
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/PacketListener.java b/src/main/java/mx/kenzie/wellspring/packet/PacketListener.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..cd00523be6423fc67225a2ca031e9c6c843ec576
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/packet/PacketListener.java
+@@ -0,0 +1,4 @@
++package mx.kenzie.wellspring.packet;
++
++public interface PacketListener {
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/PacketType.java b/src/main/java/mx/kenzie/wellspring/packet/PacketType.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..9e0968cf23527336adf6a876d9cd70a668eca375
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/packet/PacketType.java
+@@ -0,0 +1,253 @@
++package mx.kenzie.wellspring.packet;
++
++import org.jetbrains.annotations.NotNull;
++
++import java.util.Arrays;
++import java.util.HashMap;
++import java.util.Map;
++
++public class PacketType {
++
++    private static final Map<Class<?>, PacketType> PACKET_TYPE_MAP = new HashMap<>();
++    final @NotNull
++    Class<?> packet;
++    final @NotNull
++    Packet.Direction direction;
++    final @NotNull
++    Class<?>[] fields;
++    final @NotNull
++    PacketConstructor<?> constructor;
++
++    PacketType(@NotNull Class<?> packet, @NotNull Packet.Direction direction, @NotNull PacketConstructor<?> constructor, @NotNull Class<?>... fields) {
++        this.packet = packet;
++        this.direction = direction;
++        this.fields = fields;
++        this.constructor = constructor;
++        PACKET_TYPE_MAP.put(packet, this);
++    }
++
++    public static @NotNull
++    PacketType of(@NotNull Object object) {
++        final Class<?> cls;
++        if (object instanceof PacketType) return (PacketType) object;
++        else if (object instanceof Class) cls = ((Class<?>) object);
++        else cls = object.getClass();
++        for (Map.Entry<Class<?>, PacketType> entry : PACKET_TYPE_MAP.entrySet()) {
++            if (entry.getKey().isAssignableFrom(cls)) return entry.getValue();
++        }
++        throw new IllegalArgumentException("The provided object is neither a packet nor a packet class!");
++    }
++
++    public @NotNull
++    Packet create(@NotNull Object... fields) {
++        if (fields.length < 1) return (Packet) constructor.create();
++        PacketBuilder builder = new PacketBuilder(this);
++        for (Object field : fields) {
++            builder.with(field);
++        }
++        return builder.create();
++    }
++
++    @NotNull
++    public Class<?> getPacketClass() {
++        return packet;
++    }
++
++    /**
++     * Internal use only - creates a packet using the nullary constructor.
++     * Packets made by this are essentially useless without tweaking via
++     * reflection.
++     * <p>
++     * If you are creating a new implementation for some reason,
++     * PacketClassHere::new is sufficient for the functional-interface.
++     *
++     * @return The packet constructor function.
++     */
++    @NotNull
++    @Deprecated
++    public PacketConstructor<?> getConstructor() {
++        return constructor;
++    }
++
++    public @NotNull
++    Class<?>[] getFields() {
++        return fields;
++    }
++
++    public @NotNull
++    Packet.Direction getDirection() {
++        return direction;
++    }
++
++    @Override
++    @NotNull
++    public String toString() {
++        return "PacketType{" +
++            "direction=" + direction +
++            ", fields=" + Arrays.toString(fields) +
++            ", constructor=" + constructor +
++            '}';
++    }
++
++    public static class Incoming extends PacketType {
++        public static PacketType STATUS_PING;
++        public static PacketType STATUS_START;
++        public static PacketType LOGIN_CUSTOM_PAYLOAD;
++        public static PacketType ABILITIES;
++        public static PacketType ADVANCEMENTS;
++        public static PacketType ARM_ANIMATION;
++        public static PacketType AUTO_RECIPE;
++        public static PacketType BEACON;
++        public static PacketType BOOK_EDIT;
++        public static PacketType BLOCK_DIG;
++        public static PacketType BLOCK_PLACE;
++        public static PacketType BOAT_MOVE;
++        public static PacketType CHAT;
++        public static PacketType CLIENT_COMMAND;
++        public static PacketType CLOSE_WINDOW;
++        public static PacketType CUSTOM_PAYLOAD;
++        public static PacketType DIFFICULTY_CHANGE;
++        public static PacketType DIFFICULTY_LOCK;
++        public static PacketType ENCHANT_ITEM;
++        public static PacketType ENTITY_ACTION;
++        public static PacketType ENTITY_NBT_QUERY;
++        public static PacketType FLYING;
++        public static PacketType HELD_ITEM_SLOT;
++        public static PacketType ITEM_NAME;
++        public static PacketType JIGSAW_GENERATE;
++        public static PacketType KEEP_ALIVE;
++        public static PacketType PICK_ITEM;
++        public static PacketType RECIPE_DISPLAYED;
++        public static PacketType RESOURCE_PACK_STATUS;
++        public static PacketType SET_COMMAND_BLOCK;
++        public static PacketType SET_COMMAND_MINECART;
++        public static PacketType SET_CREATIVE_SLOT;
++        public static PacketType SET_JIGSAW;
++        public static PacketType SETTINGS;
++        public static PacketType SPECTATE;
++        public static PacketType STEER_VEHICLE;
++        public static PacketType STRUCTURE;
++        public static PacketType TAB_COMPLETE;
++        public static PacketType TELEPORT_ACCEPT;
++        public static PacketType TILE_NBT_QUERY;
++        public static PacketType TRANSACTION;
++        public static PacketType TRADE_SELECT;
++        public static PacketType UPDATE_SIGN;
++        public static PacketType USE_ENTITY;
++        public static PacketType USE_ITEM;
++        public static PacketType VEHICLE_MOVE;
++        public static PacketType WINDOW_CLICK;
++
++        public Incoming(@NotNull Class<?> cls, @NotNull PacketConstructor<?> constructor, @NotNull Class<?>... fields) {
++            this(cls, Packet.Direction.INCOMING, constructor, fields);
++        }
++
++        Incoming(@NotNull Class<?> cls, @NotNull Packet.Direction direction, @NotNull PacketConstructor<?> constructor, @NotNull Class<?>... fields) {
++            super(cls, direction, constructor, fields);
++        }
++    }
++
++    public static class Outgoing extends PacketType {
++        public static PacketType STATUS_PONG;
++        public static PacketType STATUS_SERVER_INFO;
++        public static PacketType LOGIN_CUSTOM_PAYLOAD;
++        public static PacketType ABILITIES;
++        public static PacketType ADVANCEMENTS;
++        public static PacketType ANIMATION;
++        public static PacketType ATTACH_ENTITY;
++        public static PacketType AUTO_RECIPE;
++        public static PacketType BLOCK_ACTION;
++        public static PacketType BLOCK_BREAK;
++        public static PacketType BLOCK_BREAK_ANIMATION;
++        public static PacketType BLOCK_CHANGE;
++        public static PacketType BOSS;
++        public static PacketType CAMERA;
++        public static PacketType CHAT;
++        public static PacketType CLOSE_WINDOW;
++        public static PacketType COLLECT;
++        public static PacketType COMBAT_EVENT;
++        public static PacketType COMMANDS;
++        public static PacketType CUSTOM_PAYLOAD;
++        public static PacketType CUSTOM_SOUND_EFFECT;
++        public static PacketType ENTITY;
++        public static PacketType ENTITY_DESTROY;
++        public static PacketType ENTITY_EFFECT;
++        public static PacketType ENTITY_EQUIPMENT;
++        public static PacketType ENTITY_HEAD_ROTATION;
++        public static PacketType ENTITY_METADATA;
++        public static PacketType ENTITY_SOUND;
++        public static PacketType ENTITY_STATUS;
++        public static PacketType ENTITY_TELEPORT;
++        public static PacketType ENTITY_VELOCITY;
++        public static PacketType ENTITY_LOOK;
++        public static PacketType EXPERIENCE;
++        public static PacketType EXPLOSION;
++        public static PacketType GAME_STATE_CHANGE;
++        public static PacketType HELD_ITEM_SLOT;
++        public static PacketType KEEP_ALIVE;
++        public static PacketType KICK_DISCONNECT;
++        public static PacketType LIGHT_UPDATE;
++        public static PacketType LOGIN;
++        public static PacketType LOOK_AT;
++        public static PacketType MAP;
++        public static PacketType MAP_CHUNK;
++        public static PacketType MOUNT;
++        public static PacketType MULTI_BLOCK_CHANGE;
++        public static PacketType NAMED_ENTITY_SPAWN;
++        public static PacketType NAMED_SOUND_EFFECT;
++        public static PacketType NBT_QUERY;
++        public static PacketType OPEN_BOOK;
++        public static PacketType OPEN_SIGN_EDITOR;
++        public static PacketType OPEN_WINDOW;
++        public static PacketType OPEN_WINDOW_HORSE;
++        public static PacketType OPEN_WINDOW_MERCHANT;
++        public static PacketType PLAYER_INFO;
++        public static PacketType PLAYER_LIST_HEADER_FOOTER;
++        public static PacketType POSITION;
++        public static PacketType RECIPES;
++        public static PacketType RECIPE_UPDATE;
++        public static PacketType REMOVE_ENTITY_EFFECT;
++        public static PacketType RESOURCE_PACK;
++        public static PacketType RESPAWN;
++        public static PacketType SCOREBOARD_DISPLAY_OBJECTIVE;
++        public static PacketType SCOREBOARD_OBJECTIVE;
++        public static PacketType SCOREBOARD_SCORE;
++        public static PacketType SCOREBOARD_TEAM;
++        public static PacketType SELECT_ADVANCEMENT_TAV;
++        public static PacketType SERVER_DIFFICULTY;
++        public static PacketType SET_COOLDOWN;
++        public static PacketType SET_SLOT;
++        public static PacketType SPAWN_ENTITY;
++        public static PacketType SPAWN_EXPERIENCE;
++        public static PacketType SPAWN_LIVING_ENTITY;
++        public static PacketType SPAWN_PAINTING;
++        public static PacketType SPAWN_POSITION;
++        public static PacketType STATISTIC;
++        public static PacketType STOP_SOUND;
++        public static PacketType TAB_COMPLETE;
++        public static PacketType TAGS;
++        public static PacketType TILE_ENTITY_DATA;
++        public static PacketType TITLE;
++        public static PacketType TRANSACTION;
++        public static PacketType UNLOAD_CHUNK;
++        public static PacketType UPDATE_ATTRIBUTES;
++        public static PacketType UPDATE_HEALTH;
++        public static PacketType UPDATE_TIME;
++        public static PacketType VEHICLE_MOVE;
++        public static PacketType VIEW_CENTRE;
++        public static PacketType VIEW_DISTANCE;
++        public static PacketType WINDOW_DATA;
++        public static PacketType WINDOW_ITEMS;
++        public static PacketType WORLD_BORDER;
++        public static PacketType WORLD_EVENT;
++        public static PacketType WORLD_PARTICLES;
++
++        public Outgoing(@NotNull Class<?> cls, @NotNull PacketConstructor<?> constructor, @NotNull Class<?>... fields) {
++            this(cls, Packet.Direction.OUTGOING, constructor, fields);
++        }
++
++        Outgoing(@NotNull Class<?> cls, @NotNull Packet.Direction direction, @NotNull PacketConstructor<?> constructor, @NotNull Class<?>... fields) {
++            super(cls, direction, constructor, fields);
++        }
++    }
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/potion/PotionBuilder.java b/src/main/java/mx/kenzie/wellspring/potion/PotionBuilder.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..5e8e63970f12d9fe51ef5db8f382427ed7a2ef32
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/potion/PotionBuilder.java
+@@ -0,0 +1,153 @@
++package mx.kenzie.wellspring.potion;
++
++import org.bukkit.Bukkit;
++import org.bukkit.NamespacedKey;
++import org.bukkit.attribute.Attribute;
++import org.bukkit.attribute.AttributeModifier;
++import org.bukkit.entity.LivingEntity;
++import org.bukkit.plugin.Plugin;
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
++
++import java.awt.*;
++import java.util.HashMap;
++import java.util.Map;
++import java.util.function.BiConsumer;
++
++/**
++ * Allows for the creation of custom potion effect types.
++ * These can have their own colours, linked attributes and scheduled behaviour.
++ * <p>
++ * They will persist over restarts and log-outs as long as the plugin registers
++ * the effect in the STARTUP phase, before the world is loaded.
++ * This also requires a consistent effect index to be used.
++ * <p>
++ * To create a builder, use {@link Bukkit#createPotionEffect(NamespacedKey, String)}
++ *
++ * @author Moderocky
++ */
++public abstract class PotionBuilder {
++
++    protected final @NotNull
++    NamespacedKey key;
++    protected final @NotNull
++    String name;
++    protected final @NotNull
++    Map<Attribute, AttributeModifier> attributes = new HashMap<>();
++
++    protected boolean instant;
++
++    protected PotionBuilder(@NotNull NamespacedKey key, @NotNull String name) {
++        this.key = key;
++        this.name = name;
++    }
++
++    /**
++     * Creates a new builder.
++     *
++     * @param key  The key of the effect (used to prevent re-registration)
++     * @param name The name of the effect
++     * @return The new builder
++     */
++    public static @NotNull
++    PotionBuilder create(@NotNull NamespacedKey key, @NotNull String name) {
++        return Bukkit.createPotionEffect(key, name);
++    }
++
++    /**
++     * Marks the potion as "instant" (e.g. healing, harming)
++     *
++     * @param instant Instant
++     * @return Chain
++     */
++    public @NotNull
++    PotionBuilder setInstant(boolean instant) {
++        this.instant = instant;
++        return this;
++    }
++
++    /**
++     * Sets the colour of the potion bubble particles
++     *
++     * @param color The colour of the particles
++     * @return Chain
++     */
++    public abstract @NotNull
++    PotionBuilder setColor(@NotNull Color color);
++
++    /**
++     * Sets the type of the potion, for filtering
++     *
++     * @param type The type
++     * @return Chain
++     */
++    public abstract @NotNull
++    PotionBuilder setType(@NotNull PotionType type);
++
++    /**
++     * Sets an action to be run when the potion ticks.
++     * Note - this will be run VERY frequently, so can cause lag.
++     *
++     * @param consumer The action to run
++     * @return Chain
++     */
++    public abstract @NotNull
++    PotionBuilder setTickConsumer(@Nullable BiConsumer<LivingEntity, Integer> consumer);
++
++    /**
++     * Adds an attribute to the potion. The attribute will be applied to the target so long
++     * as they have the effect.
++     * The attribute modifier's value will be affected by the potion level.
++     *
++     * @param attribute The attribute
++     * @param modifier  The modifier
++     * @return Chain
++     */
++    public @NotNull
++    PotionBuilder addAttribute(@NotNull Attribute attribute, @NotNull AttributeModifier modifier) {
++        attributes.put(attribute, modifier);
++        return this;
++    }
++
++    public @NotNull
++    PotionBuilder removeAttribute(@NotNull Attribute attribute) {
++        attributes.remove(attribute);
++        return this;
++    }
++
++    /**
++     * Registers the potion and attaches it to this plugin.
++     * <p>
++     * NOTE - the hashed namespaced key will be used as the index.
++     *
++     * @param plugin The plugin to register it with.
++     */
++    public abstract void register(@NotNull Plugin plugin);
++
++    /**
++     * Registers the potion and attaches it to this plugin.
++     * <p>
++     * NOTE - indices are used to store the potion effect.
++     * Duplicates will override, please be careful.
++     * <p>
++     * Numerical storage blocks are generated using the hashed
++     * plugin name. This means that changing your plugin's name
++     * will cause existing effects not to load.
++     *
++     * @param plugin The plugin to register it with.
++     * @param index  The index (used for saving/loading) - this should be from 1 to N
++     *               and is based on the plugin's name to avoid conflicts.
++     *               Large numbers are not advised.
++     */
++    public abstract void register(@NotNull Plugin plugin, int index);
++
++    @NotNull
++    public String getName() {
++        return name;
++    }
++
++    @NotNull
++    public NamespacedKey getKey() {
++        return key;
++    }
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/potion/PotionType.java b/src/main/java/mx/kenzie/wellspring/potion/PotionType.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..0f778787315431d1b9ad1152cd30bdcfdc389b78
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/potion/PotionType.java
+@@ -0,0 +1,7 @@
++package mx.kenzie.wellspring.potion;
++
++public enum PotionType {
++    HARMFUL,
++    NEUTRAL,
++    BENEFICIAL
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/structure/DecorationType.java b/src/main/java/mx/kenzie/wellspring/structure/DecorationType.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..ea60070e7774d3ed10136e91b39bab018a500f93
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/structure/DecorationType.java
+@@ -0,0 +1,16 @@
++package mx.kenzie.wellspring.structure;
++
++/**
++ * A decoration type.
++ * This is only used for structures currently, but
++ * as future world-generation content is added to
++ * Wellspring, the necessary types will also be
++ * added.
++ *
++ * @author Moderocky
++ */
++public enum DecorationType {
++    SURFACE,
++    UNDERGROUND,
++    STRONGHOLD
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/structure/Structure.java b/src/main/java/mx/kenzie/wellspring/structure/Structure.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..86d5cf746799e1a37063d918d7919d7557e17d09
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/structure/Structure.java
+@@ -0,0 +1,333 @@
++package mx.kenzie.wellspring.structure;
++
++import mx.kenzie.wellspring.Wellspring;
++import mx.kenzie.wellspring.nbt.NBTCompound;
++import mx.kenzie.wellspring.nbt.NBTHolder;
++import mx.kenzie.wellspring.nbt.NBTList;
++import org.bukkit.Location;
++import org.bukkit.NamespacedKey;
++import org.bukkit.block.structure.Mirror;
++import org.bukkit.block.structure.StructureRotation;
++import org.bukkit.util.BoundingBox;
++import org.bukkit.util.Vector;
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
++
++import java.io.File;
++import java.io.FileInputStream;
++import java.io.FileNotFoundException;
++import java.io.InputStream;
++
++/**
++ * A loaded structure (template) which can be pasted,
++ * populated and saved.
++ *
++ * This does not reference a particular physical structure
++ * or type of structure, but instead a (pre-)clonal template
++ * that can be pasted or saved to a file.
++ *
++ * For copying/saving block strata to the structure,
++ * see {@link Structure#populate(Location, Vector)}
++ *
++ * For pasting/applying the structure to a position,
++ * see {@link Structure#paste(Location, StructureInfo)}
++ *
++ * @author Moderocky
++ */
++public interface Structure extends NBTHolder {
++
++    /**
++     * Creates a new empty structure template. This is effectively a
++     * storage 'clipboard' for a structure that can be copied to/pasted from.
++     *
++     * It holds no data about locations or rotations or positions.
++     *
++     * @return a new structure
++     */
++    static @NotNull Structure create() {
++        return Wellspring.bridge().createStructure();
++    }
++
++    /**
++     * Loads a structure from the given file.
++     * @param file the file to load from - must exist!
++     * @return the loaded/populated structure
++     * @throws RuntimeException if the file does not exist / is not valid NBT
++     */
++    static @NotNull Structure loadFrom(@NotNull File file) throws RuntimeException {
++        try {
++            return loadFrom(new FileInputStream(file));
++        } catch (FileNotFoundException ex) {
++            throw new RuntimeException(ex);
++        }
++    }
++
++    /**
++     * Loads a structure from the given world resource.
++     * This is the same storage technique as structure blocks use - meaning
++     * you can access structures saved by a structure block.
++     * It will save it within the server's root world's resources.
++     *
++     * @param resource the key (path) for your structure
++     * @return the structure, if one exists, otherwise null
++     * @throws RuntimeException if something goes wrong during loading
++     */
++    static @Nullable
++    Structure loadFrom(@NotNull NamespacedKey resource) throws RuntimeException {
++        return Wellspring.bridge().loadStructure(resource);
++    }
++
++    /**
++     * Loads a structure from the given stream. This could be a
++     * file stream, an input stream from a packaged resource,
++     * a download stream from an external URL or anything else.
++     * @param stream the stream to load from
++     * @return the loaded/populated structure
++     */
++    static @NotNull Structure loadFrom(@NotNull InputStream stream) {
++        return Wellspring.bridge().loadStructure(stream);
++    }
++
++    /**
++     * Loads a structure from the given NBT compound. This allows you
++     * to store structures in your own way using their NBT.
++     * This is functionally equivalent to creating an empty structure
++     * and then loading the NBT into it.
++     * @param compound the nbt to load from
++     * @return the structure
++     */
++    static @NotNull Structure loadFrom(@NotNull NBTCompound compound) {
++        return Wellspring.bridge().loadStructure(compound);
++    }
++
++    /**
++     * This effectively copies the given area to the structure.
++     * By default this will include entities and ignore structure voids.
++     * @param target the corner location (min x/y/z)
++     * @param size the size, in blocks, of the structure (positive and non-zero)
++     */
++    void populate(@NotNull Location target, @NotNull Vector size);
++
++    /**
++     * This effectively copies the given area to the structure.
++     * By default this will ignore structure voids.
++     * @param target the corner location (min x/y/z)
++     * @param size the size, in blocks, of the structure (positive and non-zero)
++     * @param includeEntities whether to include entities whose feet-locations
++     *                       fall within the bounds
++     */
++    void populate(@NotNull Location target, @NotNull Vector size, boolean includeEntities);
++
++    /**
++     * This effectively copies the given area to the structure.
++     * Structure voids are used to preserve blocks at the pasting
++     * location, such as keeping existing terrain when pasting in a
++     * village house.
++     *
++     * If you want the structure voids to be saved verbatim, then set
++     * the option to false.
++     * @param target the corner location (min x/y/z)
++     * @param size the size, in blocks, of the structure (positive and non-zero)
++     * @param includeEntities whether to include entities whose feet-locations
++     *                       fall within the bounds
++     * @param ignoreVoids whether to ignore structure voids that are saved,
++     *                    which will keep the existing block when pasting the
++     *                    structure.
++     */
++    void populate(@NotNull Location target, @NotNull Vector size, boolean includeEntities, boolean ignoreVoids);
++
++    /**
++     * This will return the (positive) size of the structure at the
++     * given rotation.
++     * For example, a 3x4x5 structure rotated 90° would be 5x4x3.
++     *
++     * @param rotation the rotation
++     * @return the spatial dimensions at this rotation
++     */
++    @NotNull
++    Vector getSize(@NotNull StructureRotation rotation);
++
++    /**
++     * Pastes the structure at the given location. You can use the
++     * {@link StructureInfo} to provide special data such as the pivot point,
++     * rotation and mirroring.
++     *
++     * Note: Bukkit gets upset if a structure is pasted over existing
++     * tile entities - you may wish to clear the bounds first.
++     *
++     * The structure must be populated before pasting.
++     *
++     * @param location the location to paste at
++     * @param info the special settings
++     * @return true if successful, false if failed
++     */
++    boolean paste(@NotNull Location location, @NotNull StructureInfo info);
++
++    /**
++     * Pastes the structure at the given location. This will paste it
++     * in the original orientation and from the corner.
++     *
++     * Note: Bukkit gets upset if a structure is pasted over existing
++     * tile entities - you may wish to clear the bounds first.
++     *
++     * The structure must be populated before pasting.
++     *
++     * @param location the location to paste at
++     * @return true if successful, false if failed
++     */
++    default boolean paste(@NotNull Location location) {
++        return paste(location, StructureInfo.create());
++    }
++
++    /**
++     * Returns a bounding box of the area the structure will occupy if pasted
++     * using this data.
++     * Note: Minecraft's internal bounding boxes function slightly differently from
++     * Bukkit's. Please test first to make sure you understand how to interpret
++     * the result of this calculation.
++     *
++     * @param target the target location
++     * @param pivot the given pivot
++     * @param rotation the given rotation
++     * @param mirror the given reflection
++     * @return the provisional bounds
++     */
++    default @NotNull
++    BoundingBox getBounds(@NotNull Location target, @NotNull Location pivot, @NotNull StructureRotation rotation, @NotNull Mirror mirror) {
++        return getBounds(target.toVector(), pivot.toVector(), rotation, mirror);
++    }
++
++    /**
++     * Returns a bounding box of the area the structure will occupy if pasted
++     * using this data.
++     * Note: Minecraft's internal bounding boxes function slightly differently from
++     * Bukkit's. Please test first to make sure you understand how to interpret
++     * the result of this calculation.
++     *
++     * @param target the target location
++     * @param pivot the given pivot
++     * @param rotation the given rotation
++     * @param mirror the given reflection
++     * @return the provisional bounds
++     */
++    @NotNull
++    BoundingBox getBounds(@NotNull Vector target, @NotNull Vector pivot, @NotNull StructureRotation rotation, @NotNull Mirror mirror);
++
++    /**
++     * Returns a bounding box of the area the structure will occupy if pasted
++     * using this data.
++     * Note: Minecraft's internal bounding boxes function slightly differently from
++     * Bukkit's. Please test first to make sure you understand how to interpret
++     * the result of this calculation.
++     *
++     * @param target the target location
++     * @param data the structure data
++     * @return the provisional bounds
++     */
++    default @NotNull
++    BoundingBox getBounds(@NotNull Location target, @NotNull StructureInfo data) {
++        return getBounds(target.toVector(), data);
++    }
++
++    /**
++     * Returns a bounding box of the area the structure will occupy if pasted
++     * using this data.
++     * Note: Minecraft's internal bounding boxes function slightly differently from
++     * Bukkit's. Please test first to make sure you understand how to interpret
++     * the result of this calculation.
++     *
++     * @param target the target location
++     * @param data the structure data
++     * @return the provisional bounds
++     */
++    @NotNull
++    BoundingBox getBounds(@NotNull Vector target, @NotNull StructureInfo data);
++
++    /**
++     * Used to give this structure an 'author' when saving to a file.
++     * This is a simple piece of metadata you can attribute.
++     *
++     * @return the author
++     */
++    @Nullable
++    String getAuthor();
++
++    /**
++     * Used to give this structure an 'author' when saving to a file.
++     * This is a simple piece of metadata you can attribute.
++     * @param author the author
++     */
++    void setAuthor(@Nullable String author);
++
++    /**
++     * Saves this structure to an NBT compound.
++     * @return the new NBT compound
++     */
++    default @NotNull
++    NBTCompound save() {
++        return save(NBTCompound.create());
++    }
++
++    /**
++     * Saves this structure to an NBT compound.
++     * @param compound the compound to be saved to
++     * @return the compound
++     */
++    @NotNull
++    NBTCompound save(@NotNull NBTCompound compound);
++
++    /**
++     * Populates the structure from the given NBT compound.
++     * This is effectively the same as using {@link Structure#loadFrom(NBTCompound)}.
++     * @param compound the valid compound to load from
++     */
++    void load(@NotNull NBTCompound compound);
++
++    /**
++     * Saves this structure to the given file. The file must
++     * already exist and be accessible.
++     *
++     * The structure will be saved as compressed NBT.
++     *
++     * @param file the file to save to
++     */
++    void saveTo(@NotNull File file);
++
++    /**
++     * Saves the file to the root world's resources, similar to
++     * how a structure block saves structures.
++     * @param resource the resource key to use
++     */
++    void saveAs(@NotNull NamespacedKey resource);
++
++    /**
++     * Effectively the same as {@link Structure#save()}
++     * @return the compound
++     */
++    default @NotNull
++    @Override
++    NBTCompound getNBT() {
++        return save();
++    }
++
++    /**
++     * Effectively the same as {@link Structure#load(NBTCompound)}
++     */
++    @Override
++    default void loadNBT(@NotNull NBTCompound compound) {
++        load(compound);
++    }
++
++    /**
++     * This is an unsafe method!
++     * This is for modifying a structure's blockinfo/entity palette,
++     * and currently has no API implementation.
++     * This will almost certainly require NMS to use effectively
++     * and should not be used unless absolutely necessary.
++     * @param a blockinfo palette (?)
++     * @param b entity palette (?)
++     */
++    @Deprecated
++    void loadPalette(@NotNull NBTList a, @NotNull NBTList b);
++
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/structure/StructureInfo.java b/src/main/java/mx/kenzie/wellspring/structure/StructureInfo.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..587c33b95993aaa7d2e047e9e1ee84aeec982719
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/structure/StructureInfo.java
+@@ -0,0 +1,63 @@
++package mx.kenzie.wellspring.structure;
++
++import mx.kenzie.wellspring.Wellspring;
++import org.bukkit.Location;
++import org.bukkit.block.structure.Mirror;
++import org.bukkit.block.structure.StructureRotation;
++import org.bukkit.util.Vector;
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
++
++import java.util.Random;
++
++/**
++ * The situational data of a structure.
++ * This includes things like mirroring, depreciation seed,
++ * rotation and rotational pivot, as well as individual settings
++ * for liquids and entities.
++ *
++ * This data would typically be provided by the structure block.
++ *
++ * @author Moderocky
++ */
++public interface StructureInfo {
++
++    /**
++     * Creates a blank info with the default settings.
++     * @return the new info
++     */
++    @NotNull
++    static StructureInfo create() {
++        return Wellspring.bridge().createStructureInfo();
++    }
++
++    @NotNull StructureInfo setMirror(@NotNull Mirror mirror);
++
++    @NotNull StructureInfo setRotation(@NotNull StructureRotation rotation);
++
++    @NotNull StructureInfo keepLiquids(boolean keep);
++
++    @NotNull StructureInfo ignoreEntities(@NotNull boolean ignore);
++
++    @NotNull StructureInfo setSeed(@Nullable Random random);
++
++    default @NotNull StructureInfo setPivot(@NotNull Vector pivot) {
++        return setPivot(pivot.getBlockX(), pivot.getBlockY(), pivot.getBlockZ());
++    }
++
++    @NotNull StructureInfo setPivot(int x, int y, int z);
++
++    default @NotNull StructureInfo setSeed(long seed) {
++        return setSeed(new Random(seed));
++    }
++
++    boolean isKeepLiquids();
++
++    boolean isIgnoreEntities();
++
++    @NotNull Vector getPivot();
++
++    @Nullable
++    Random getSeed();
++
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/structure/WorldStructure.java b/src/main/java/mx/kenzie/wellspring/structure/WorldStructure.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..250539ac24a59ed93cc2d2a8d34c64de82e13331
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/structure/WorldStructure.java
+@@ -0,0 +1,61 @@
++package mx.kenzie.wellspring.structure;
++
++import org.bukkit.Keyed;
++import org.bukkit.NamespacedKey;
++import org.bukkit.util.BoundingBox;
++import org.jetbrains.annotations.NotNull;
++
++import java.util.List;
++
++/**
++ * Represents a structure in the world, such as
++ * a mineshaft or a pillager outpost.
++ *
++ * These structures have a defined bounding box which
++ * can impact what entities spawn in the area among
++ * other things.
++ *
++ * Entering the bounds may also provide achievements
++ * (see stronghold/fortress.)
++ *
++ * @author Moderocky
++ */
++public interface WorldStructure extends Keyed {
++
++    /**
++     * Provides the bounds for the entire structure.
++     * Please note that some structures use the bounds of internal
++     * pieces for actual calculations.
++     * @return the bounds
++     */
++    @NotNull
++    BoundingBox getBoundingBox();
++
++    /**
++     * Provides the parts of the structure.
++     *
++     * All structures are divided into parts, though some may have
++     * only one "core" part.
++     * @return the parts of this structure
++     */
++    @NotNull
++    List<WorldStructurePart> getParts();
++
++    /**
++     * Provides the ID for this structure type.
++     *
++     * @return the id
++     */
++    @NotNull
++    @Override
++    NamespacedKey getKey();
++
++    /**
++     * @return the type of this structure
++     */
++    default @NotNull
++    WorldStructureType getType() {
++        return WorldStructureType.from(getKey());
++    }
++
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/structure/WorldStructurePart.java b/src/main/java/mx/kenzie/wellspring/structure/WorldStructurePart.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..5f138264b954f5f02a50ff996d26fae509bc008f
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/structure/WorldStructurePart.java
+@@ -0,0 +1,39 @@
++package mx.kenzie.wellspring.structure;
++
++import org.bukkit.Keyed;
++import org.bukkit.NamespacedKey;
++import org.bukkit.util.BoundingBox;
++import org.jetbrains.annotations.NotNull;
++
++/**
++ * Represents a tangible segment of a structure.
++ * For small structures, the entire structure may be defined
++ * as one part (such as jungle temples.)
++ *
++ * Structures such as fortresses and strongholds are made
++ * from myriad and varied parts.
++ *
++ * @author Moderocky
++ */
++public interface WorldStructurePart extends Keyed {
++
++    /**
++     * Provides the bounds for this part of the structure.
++     * @return the bounds
++     */
++    @NotNull
++    BoundingBox getBoundingBox();
++
++    /**
++     * Provides the ID for this part.
++     *
++     * This will be fairly useless without a knowledge of
++     * which ID corresponds to which part of what structure.
++     *
++     * @return the id
++     */
++    @NotNull
++    @Override
++    NamespacedKey getKey();
++
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/structure/WorldStructureType.java b/src/main/java/mx/kenzie/wellspring/structure/WorldStructureType.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..d0ec0b4a46afab1b9ca667c21e859f56996f8497
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/structure/WorldStructureType.java
+@@ -0,0 +1,106 @@
++package mx.kenzie.wellspring.structure;
++
++import mx.kenzie.wellspring.Wellspring;
++import org.bukkit.Location;
++import org.bukkit.NamespacedKey;
++import org.jetbrains.annotations.NotNull;
++
++import java.util.HashMap;
++import java.util.Locale;
++import java.util.Map;
++
++import static mx.kenzie.wellspring.structure.DecorationType.SURFACE;
++import static mx.kenzie.wellspring.structure.DecorationType.UNDERGROUND;
++
++/**
++ * A type of structure within the world.
++ *
++ * Note that this is different from Bukkit's {@link org.bukkit.StructureType}.
++ * Bukkit's types seem to be more geared towards map usage, and
++ * altering Bukkit classes can have unintended consequences. Instead,
++ * Wellspring has its own implementation.
++ *
++ * If you or a modification has altered world generation, you may register
++ * the necessary structure types here using
++ * {@link WorldStructureType#define(NamespacedKey, DecorationType)}
++ *
++ * @author Moderocky
++ */
++public final class WorldStructureType {
++    private static final Map<NamespacedKey, WorldStructureType> STRUCTURE_MAP = new HashMap<>();
++    public static final WorldStructureType PILLAGER_OUTPOST = define("Pillager_Outpost", SURFACE);
++    public static final WorldStructureType MINESHAFT = define("Mineshaft", UNDERGROUND);
++    public static final WorldStructureType MANSION = define("Mansion", SURFACE);
++    public static final WorldStructureType JUNGLE_PYRAMID = define("Jungle_Pyramid", SURFACE);
++    public static final WorldStructureType DESERT_PYRAMID = define("Desert_Pyramid", SURFACE);
++    public static final WorldStructureType IGLOO = define("Igloo", SURFACE);
++    public static final WorldStructureType RUINED_PORTAL = define("Ruined_Portal", SURFACE);
++    public static final WorldStructureType SHIPWRECK = define("Shipwreck", SURFACE);
++    public static final WorldStructureType SWAMP_HUT = define("Swamp_Hut", SURFACE);
++    public static final WorldStructureType STRONGHOLD = define("Stronghold", DecorationType.STRONGHOLD);
++    public static final WorldStructureType MONUMENT = define("Monument", SURFACE);
++    public static final WorldStructureType OCEAN_RUIN = define("Ocean_Ruin", SURFACE);
++    public static final WorldStructureType FORTRESS = define("Fortress", UNDERGROUND);
++    public static final WorldStructureType ENDCITY = define("EndCity", SURFACE);
++    public static final WorldStructureType BURIED_TREASURE = define("Buried_Treasure", UNDERGROUND);
++    public static final WorldStructureType VILLAGE = define("Village", SURFACE);
++    public static final WorldStructureType NETHER_FOSSIL = define("Nether_Fossil", UNDERGROUND);
++    public static final WorldStructureType BASTION_REMNANT = define("Bastion_Remnant", SURFACE);
++
++    private final @NotNull
++    NamespacedKey key;
++    private final @NotNull
++    DecorationType type;
++
++    private WorldStructureType(@NotNull NamespacedKey key, @NotNull DecorationType type) {
++        this.key = key;
++        this.type = type;
++    }
++
++    @NotNull
++    public final NamespacedKey getKey() {
++        return key;
++    }
++
++    @NotNull
++    public DecorationType getType() {
++        return type;
++    }
++
++    public boolean isPresent(@NotNull Location location) {
++        return Wellspring.bridge().isStructurePresent(this, location);
++    }
++
++    public @NotNull
++    WorldStructure get(@NotNull Location location) {
++        return Wellspring.bridge().getStructure(this, location);
++    }
++
++    public @NotNull
++    WorldStructurePart getPart(@NotNull Location location) {
++        return Wellspring.bridge().getStructurePart(this, location);
++    }
++
++    public static @NotNull
++    WorldStructureType from(@NotNull NamespacedKey key) {
++        return STRUCTURE_MAP.get(key);
++    }
++
++    private static @NotNull
++    WorldStructureType define(final @NotNull String id, @NotNull DecorationType type) {
++        final @NotNull NamespacedKey key = NamespacedKey.minecraft(id.toLowerCase(Locale.ENGLISH));
++        final @NotNull WorldStructureType structure;
++        STRUCTURE_MAP.put(key, structure = new WorldStructureType(key, type));
++        return structure;
++    }
++
++    public static @NotNull
++    WorldStructureType define(final @NotNull NamespacedKey key, @NotNull DecorationType type) {
++        if (key.isMinecraft() && STRUCTURE_MAP.containsKey(key))
++            throw new IllegalArgumentException("Minecraft structure definitions cannot be overridden!");
++        final @NotNull WorldStructureType structure;
++        STRUCTURE_MAP.put(key, structure = new WorldStructureType(key, type));
++        return structure;
++    }
++
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/tile/TileEntity.java b/src/main/java/mx/kenzie/wellspring/tile/TileEntity.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..8a7255407efac06390bddc2398a18ac24541f5fb
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/tile/TileEntity.java
+@@ -0,0 +1,50 @@
++package mx.kenzie.wellspring.tile;
++
++import mx.kenzie.wellspring.nbt.NBTHolder;
++import org.bukkit.Location;
++import org.bukkit.attachment.Attachable;
++import org.bukkit.block.TileState;
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
++
++/**
++ * Represents an actual, unchanging tile entity within the
++ * world.
++ * Unlike Bukkit's *amazing* TileState system, this references the true
++ * object and is unique.
++ *
++ * Note: it is unwise to store this except as a weak reference - it
++ * can interfere with the disposal of destroyed tile entities.
++ *
++ * Instead, consider storing the location or the block itself and
++ * retrieving the tile entity when required.
++ *
++ * @author Moderocky
++ */
++public interface TileEntity extends NBTHolder, Attachable {
++
++    /**
++     * Provides a snapshot tile state of this tile entity.
++     * Nullable during creation.
++     *
++     * @return the snapshot
++     */
++    @Nullable
++    TileState getState();
++
++    /**
++     * Provides the actual location of this tile entity.
++     *
++     * Note that during an attachment initialisation this will
++     * not be the correct location - minecraft assigns the location
++     * post-creation.
++     *
++     * @return the location
++     */
++    @Nullable
++    Location getLocation();
++
++    @NotNull
++    TileType getType();
++
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/tile/TileType.java b/src/main/java/mx/kenzie/wellspring/tile/TileType.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..bfac1922c3463ed537cea8b3bac8a5754e643299
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/tile/TileType.java
+@@ -0,0 +1,135 @@
++package mx.kenzie.wellspring.tile;
++
++import org.bukkit.Material;
++import org.bukkit.NamespacedKey;
++import org.bukkit.block.*;
++import org.bukkit.block.Comparator;
++import org.bukkit.block.data.type.Piston;
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
++
++import java.util.*;
++import java.util.function.Supplier;
++
++/**
++ * A type of tile entity.
++ *
++ * Note that this is not an enum, so if your particular
++ * implementation is using modded content you may easily
++ * register any additional tile entity types.
++ *
++ * Additionally, if you are adding a new tile entity within
++ * your plugin (which is ill-advised but perfectly possible)
++ * you should register it here.
++ * Currently, you would also need to add it to the NMS IRegistry
++ * as well. A fix for that might arrive within a future release.
++ *
++ * @author Moderocky
++ */
++public final class TileType {
++
++    public static final TileType FURNACE = create("furnace", Furnace.class, Material.FURNACE);
++    public static final TileType CHEST = create("chest", Chest.class, Material.CHEST);
++    public static final TileType TRAPPED_CHEST = create("trapped_chest", Chest.class, Material.TRAPPED_CHEST);
++    public static final TileType ENDER_CHEST = create("ender_chest", EnderChest.class, Material.ENDER_CHEST);
++    public static final TileType JUKEBOX = create("jukebox", Jukebox.class, Material.JUKEBOX);
++    public static final TileType DISPENSER = create("dispenser", Dispenser.class, Material.DISPENSER);
++    public static final TileType DROPPER = create("dropper", Dropper.class, Material.DROPPER);
++    public static final TileType SIGN = create("sign", Sign.class, Material.OAK_SIGN, Material.SPRUCE_SIGN, Material.BIRCH_SIGN, Material.ACACIA_SIGN, Material.JUNGLE_SIGN, Material.DARK_OAK_SIGN, Material.OAK_WALL_SIGN, Material.SPRUCE_WALL_SIGN, Material.BIRCH_WALL_SIGN, Material.ACACIA_WALL_SIGN, Material.JUNGLE_WALL_SIGN, Material.DARK_OAK_WALL_SIGN, Material.CRIMSON_SIGN, Material.CRIMSON_WALL_SIGN, Material.WARPED_SIGN, Material.WARPED_WALL_SIGN);
++    public static final TileType MOB_SPAWNER = create("mob_spawner", CreatureSpawner.class, Material.SPAWNER);
++    public static final TileType PISTON = create("piston", TileState.class, Material.MOVING_PISTON);
++    public static final TileType BREWING_STAND = create("brewing_stand", BrewingStand.class, Material.BREWING_STAND);
++    public static final TileType ENCHANTING_TABLE = create("enchanting_table", EnchantingTable.class, Material.ENCHANTING_TABLE);
++    public static final TileType END_PORTAL = create("end_portal", TileState.class, Material.END_PORTAL);
++    public static final TileType BEACON = create("beacon", Beacon.class, Material.BEACON);
++    public static final TileType SKULL = create("skull", Skull.class, Material.SKELETON_SKULL, Material.SKELETON_WALL_SKULL, Material.CREEPER_HEAD, Material.CREEPER_WALL_HEAD, Material.DRAGON_HEAD, Material.DRAGON_WALL_HEAD, Material.ZOMBIE_HEAD, Material.ZOMBIE_WALL_HEAD, Material.WITHER_SKELETON_SKULL, Material.WITHER_SKELETON_WALL_SKULL, Material.PLAYER_HEAD, Material.PLAYER_WALL_HEAD);
++    public static final TileType DAYLIGHT_DETECTOR = create("daylight_detector", DaylightDetector.class, Material.DAYLIGHT_DETECTOR);
++    public static final TileType HOPPER = create("hopper", Hopper.class, Material.HOPPER);
++    public static final TileType COMPARATOR = create("comparator", Comparator.class, Material.COMPARATOR);
++    public static final TileType BANNER = create("banner", Banner.class, Material.WHITE_BANNER, Material.ORANGE_BANNER, Material.MAGENTA_BANNER, Material.LIGHT_BLUE_BANNER, Material.YELLOW_BANNER, Material.LIME_BANNER, Material.PINK_BANNER, Material.GRAY_BANNER, Material.LIGHT_GRAY_BANNER, Material.CYAN_BANNER, Material.PURPLE_BANNER, Material.BLUE_BANNER, Material.BROWN_BANNER, Material.GREEN_BANNER, Material.RED_BANNER, Material.BLACK_BANNER, Material.WHITE_WALL_BANNER, Material.ORANGE_WALL_BANNER, Material.MAGENTA_WALL_BANNER, Material.LIGHT_BLUE_WALL_BANNER, Material.YELLOW_WALL_BANNER, Material.LIME_WALL_BANNER, Material.PINK_WALL_BANNER, Material.GRAY_WALL_BANNER, Material.LIGHT_GRAY_WALL_BANNER, Material.CYAN_WALL_BANNER, Material.PURPLE_WALL_BANNER, Material.BLUE_WALL_BANNER, Material.BROWN_WALL_BANNER, Material.GREEN_WALL_BANNER, Material.RED_WALL_BANNER, Material.BLACK_WALL_BANNER);
++    public static final TileType STRUCTURE_BLOCK = create("structure_block", Structure.class, Material.STRUCTURE_BLOCK);
++    public static final TileType END_GATEWAY = create("end_gateway", EndGateway.class, Material.END_GATEWAY);
++    public static final TileType COMMAND_BLOCK = create("command_block", CommandBlock.class, Material.COMMAND_BLOCK, Material.CHAIN_COMMAND_BLOCK, Material.REPEATING_COMMAND_BLOCK);
++    public static final TileType SHULKER_BOX = create("shulker_box", ShulkerBox.class, Material.SHULKER_BOX, Material.BLACK_SHULKER_BOX, Material.BLUE_SHULKER_BOX, Material.BROWN_SHULKER_BOX, Material.CYAN_SHULKER_BOX, Material.GRAY_SHULKER_BOX, Material.GREEN_SHULKER_BOX, Material.LIGHT_BLUE_SHULKER_BOX, Material.LIGHT_GRAY_SHULKER_BOX, Material.LIME_SHULKER_BOX, Material.MAGENTA_SHULKER_BOX, Material.ORANGE_SHULKER_BOX, Material.PINK_SHULKER_BOX, Material.PURPLE_SHULKER_BOX, Material.RED_SHULKER_BOX, Material.WHITE_SHULKER_BOX, Material.YELLOW_SHULKER_BOX);
++    public static final TileType BED = create("bed", Bed.class, Material.RED_BED, Material.BLACK_BED, Material.BLUE_BED, Material.BROWN_BED, Material.CYAN_BED, Material.GRAY_BED, Material.GREEN_BED, Material.LIGHT_BLUE_BED, Material.LIGHT_GRAY_BED, Material.LIME_BED, Material.MAGENTA_BED, Material.ORANGE_BED, Material.PINK_BED, Material.PURPLE_BED, Material.WHITE_BED, Material.YELLOW_BED);
++    public static final TileType CONDUIT = create("conduit", Conduit.class, Material.CONDUIT);
++    public static final TileType BARREL = create("barrel", Barrel.class, Material.BARREL);
++    public static final TileType SMOKER = create("smoker", Smoker.class, Material.SMOKER);
++    public static final TileType BLAST_FURNACE = create("blast_furnace", BlastFurnace.class, Material.BLAST_FURNACE);
++    public static final TileType LECTERN = create("lectern", Lectern.class, Material.LECTERN);
++    public static final TileType BELL = create("bell", Bell.class, Material.BELL);
++    public static final TileType JIGSAW = create("jigsaw", Jigsaw.class, Material.JIGSAW);
++    public static final TileType CAMPFIRE = create("campfire", Campfire.class, Material.CAMPFIRE, Material.SOUL_CAMPFIRE);
++    public static final TileType BEEHIVE = create("beehive", Beehive.class, Material.BEE_NEST, Material.BEEHIVE);
++    @Deprecated
++    public static final TileType UNKNOWN = create("unknown", TileState.class);
++
++    private static final Map<NamespacedKey, TileType> MAP = new LinkedHashMap<>();
++
++    private final @NotNull NamespacedKey key;
++    private final @NotNull Material[] materials;
++    private final @NotNull Class<? extends TileState> state;
++
++    private TileType(@NotNull NamespacedKey key, @NotNull Material... materials) {
++        this(key, TileState.class, materials);
++    }
++    
++    private TileType(@NotNull NamespacedKey key, @NotNull Class<? extends TileState> state, @NotNull Material... materials) {
++        this.key = key;
++        this.materials = materials;
++        this.state = state;
++    }
++
++    @NotNull
++    public Class<? extends TileState> getState() {
++        return state;
++    }
++
++    public final @NotNull
++    List<Material> getMaterials() {
++        return Arrays.asList(materials);
++    }
++
++    public final @NotNull
++    NamespacedKey getKey() {
++        return key;
++    }
++    
++    public static @NotNull
++    TileType get(@NotNull Class<? extends TileState> cls) {
++        for (TileType type : MAP.values()) {
++            if (type.state == cls) return type;
++        }
++        for (TileType type : MAP.values()) {
++            if (cls.isAssignableFrom(type.state)) return type;
++        }
++        return UNKNOWN;
++    }
++
++    public static @NotNull
++    TileType get(@NotNull NamespacedKey key) {
++        return MAP.getOrDefault(key, UNKNOWN);
++    }
++
++    public static @NotNull
++    TileType get(@NotNull String key) {
++        return MAP.getOrDefault(NamespacedKey.minecraft(key), UNKNOWN);
++    }
++
++    public static @NotNull
++    TileType create(@NotNull NamespacedKey key, @NotNull Material... materials) {
++        if (key.isMinecraft() && MAP.containsKey(key)) throw new IllegalArgumentException("A tile type with this key already exists!");
++        TileType tile = new TileType(key, materials);
++        MAP.put(key, tile);
++        return tile;
++    }
++
++    private static @NotNull
++    TileType create(@NotNull String name, @NotNull Class<? extends TileState> state, @NotNull Material... materials) {
++        final NamespacedKey key = NamespacedKey.minecraft(name);
++        TileType tile = new TileType(key, state, materials);
++        MAP.put(key, tile);
++        return tile;
++    }
++
++}
+diff --git a/src/main/java/org/bukkit/Bukkit.java b/src/main/java/org/bukkit/Bukkit.java
+index bfe842364ee0a4bf39dacdbb6972477d57a4ef8a..2d954dd393df85cab958a64b5544a2f65badb767 100644
+--- a/src/main/java/org/bukkit/Bukkit.java
++++ b/src/main/java/org/bukkit/Bukkit.java
+@@ -12,9 +12,18 @@ import java.util.Map;
+ import java.util.Set;
+ import java.util.UUID;
+ import java.util.function.Consumer;
++import java.util.function.Function;
+ import java.util.logging.Logger;
++
++import mx.kenzie.wellspring.nbt.NBTFactory;
++import mx.kenzie.wellspring.packet.PacketFactory;
++import mx.kenzie.wellspring.potion.PotionBuilder;
++import mx.kenzie.wellspring.tile.TileType;
+ import org.bukkit.Warning.WarningState;
+ import org.bukkit.advancement.Advancement;
++import org.bukkit.attachment.Attachable;
++import org.bukkit.attachment.Attachment;
++import org.bukkit.attribute.Attribute;
+ import org.bukkit.block.data.BlockData;
+ import org.bukkit.boss.BarColor;
+ import org.bukkit.boss.BarFlag;
+@@ -26,6 +35,7 @@ import org.bukkit.command.CommandSender;
+ import org.bukkit.command.ConsoleCommandSender;
+ import org.bukkit.command.PluginCommand;
+ import org.bukkit.entity.Entity;
++import org.bukkit.entity.EntityType;
+ import org.bukkit.entity.Player;
+ import org.bukkit.event.inventory.InventoryType;
+ import org.bukkit.event.server.ServerListPingEvent;
+@@ -41,6 +51,7 @@ import org.bukkit.inventory.meta.ItemMeta;
+ import org.bukkit.loot.LootTable;
+ import org.bukkit.map.MapView;
+ import org.bukkit.permissions.Permissible;
++import org.bukkit.plugin.Plugin;
+ import org.bukkit.plugin.PluginManager;
+ import org.bukkit.plugin.ServicesManager;
+ import org.bukkit.plugin.messaging.Messenger;
+@@ -1725,6 +1736,122 @@ public final class Bukkit {
+         return server.getPermissionMessage();
+     }
+ 
++    // Kenzie start - attachments
++
++    /**
++     * Allows the registration of an attachment for specific tile entity types.
++     * The corresponding tile entities will receive a new instance of the attachment
++     * (as per the creator function) upon their creation.
++     *
++     * Attachments ought to be final, due to the need to match their class when
++     * retrieving the attachment instance from the object.
++     * @param plugin The providing plugin.
++     * @param creatorFunction A function to create a new attachment instance.
++     * @param types The tile entity types this attachment should be registered for.
++     */
++    public static void registerAttachment(@NotNull Plugin plugin, @NotNull Function<Entity, Attachment<?>> creatorFunction, @NotNull TileType... types) {
++        server.registerAttachment(plugin, creatorFunction, types);
++    }
++
++    /**
++     * Allows the registration of an attachment for specific entity types.
++     * The corresponding entity types will receive a new instance of the attachment
++     * (as per the creator function) upon their creation.
++     *
++     * Attachments ought to be final, due to the need to match their class when
++     * retrieving the attachment instance from the object.
++     * @param plugin The providing plugin.
++     * @param creatorFunction A function to create a new attachment instance.
++     * @param types The entity types this attachment should be registered for.
++     */
++    public static void registerAttachment(@NotNull Plugin plugin, @NotNull Function<Entity, Attachment<?>> creatorFunction, @NotNull EntityType... types) {
++        server.registerAttachment(plugin, creatorFunction, types);
++    }
++
++    /**
++     * Allows the registration of an attachment for specific entity types.
++     * The corresponding entity types will receive a new instance of the attachment
++     * (as per the creator function) upon their creation.
++     *
++     * Attachments ought to be final, due to the need to match their class when
++     * retrieving the attachment instance from the object.
++     * @param plugin The providing plugin.
++     * @param creatorFunction A function to create a new attachment instance.
++     * @param target The target class.
++     * @param <T> The attachment class.
++     */
++    public static <T extends Attachable> void registerAttachment(@NotNull Plugin plugin, @NotNull Function<? extends T, Attachment<?>> creatorFunction, @NotNull Class<T> target) {
++        server.registerAttachment(plugin, creatorFunction, target);
++    }
++
++    /**
++     * Unregisters the attachments provided by a plugin.
++     * @param plugin The providing plugin.
++     */
++    public static void unregisterAttachments(@NotNull Plugin plugin) {
++        server.unregisterAttachments(plugin);
++    }
++
++    // Kenzie end - attachments
++
++    // Kenzie start - attributes
++
++    /**
++     * Registers a new attribute with the given key and default value.
++     * @param key the key to use
++     * @param defaultValue the default value
++     * @return the new attribute marker
++     */
++    public static @NotNull
++    Attribute registerAttribute(@NotNull NamespacedKey key, double defaultValue) {
++        return server.registerAttribute(key, defaultValue);
++    }
++
++    /**
++     * Registers a new ranged attribute with the given key and values.
++     * @param key the key to use
++     * @param defaultValue the default value
++     * @param min the minimum permitted value
++     * @param max the maximum permitted value
++     * @return the new attribute marker
++     */
++    public static @NotNull
++    Attribute registerAttribute(@NotNull NamespacedKey key, double defaultValue, double min, double max) {
++        return server.registerAttribute(key, defaultValue, min, max);
++    }
++
++    // Kenzie end - attributes
++
++    // Kenzie start - Factories
++    /**
++     * Retrieves the server's NBT factory, used for instantiating compound tags,
++     * NBT lists and other version-dependent types.
++     * @return The factory instance.
++     */
++    public static @NotNull
++    NBTFactory getNBTFactory() {
++        return server.getNBTFactory();
++    }
++
++    public static @NotNull
++    PacketFactory getPacketFactory() {
++        return server.getPacketFactory();
++    }
++    // Kenzie end
++
++    // Kenzie start - Potions
++    /**
++     * Creates a new potion builder.
++     * @param key The namespaced key of the potion.
++     * @param name The name of the potion effect.
++     * @return The builder, to further customise it.
++     */
++    public static @NotNull
++    PotionBuilder createPotionEffect(@NotNull NamespacedKey key, @NotNull String name) {
++        return server.createPotionEffect(key, name);
++    }
++    // Kenzie end
++
+     /**
+      * Creates a PlayerProfile for the specified uuid, with name as null
+      * @param uuid UUID to create profile for
+diff --git a/src/main/java/org/bukkit/Color.java b/src/main/java/org/bukkit/Color.java
+index deae003b7e9a96bbf1c0167d3e1d864e61b07f82..b194b9b23261abd080509cacf81b039f233eb819 100644
+--- a/src/main/java/org/bukkit/Color.java
++++ b/src/main/java/org/bukkit/Color.java
+@@ -163,6 +163,18 @@ public final class Color implements ConfigurationSerializable {
+         return fromBGR(bgr >> 16 & BIT_MASK, bgr >> 8 & BIT_MASK, bgr >> 0 & BIT_MASK);
+     }
+ 
++    // Kenzie start - colour conversion
++    /**
++     * Convert a proper Java colour to Bukkit's type.
++     * @param color the colour to convert
++     * @return the Bukkit colour
++     */
++    public static @NotNull
++    Color from(@NotNull java.awt.Color color) {
++        return new Color(color.getRed(), color.getGreen(), color.getBlue());
++    }
++    // Kenzie end
++
+     private Color(int red, int green, int blue) {
+         Validate.isTrue(red >= 0 && red <= BIT_MASK, "Red is not between 0-255: ", red);
+         Validate.isTrue(green >= 0 && green <= BIT_MASK, "Green is not between 0-255: ", green);
+diff --git a/src/main/java/org/bukkit/NamespacedKey.java b/src/main/java/org/bukkit/NamespacedKey.java
+index 620a962df6d871c7a3b7728030a05ade772135c2..35742db7b26bdc39a13a814c94e838fcb1471839 100644
+--- a/src/main/java/org/bukkit/NamespacedKey.java
++++ b/src/main/java/org/bukkit/NamespacedKey.java
+@@ -141,4 +141,38 @@ public final class NamespacedKey implements com.destroystokyo.paper.Namespaced {
+     public static NamespacedKey minecraft(@NotNull String key) {
+         return new NamespacedKey(MINECRAFT, key);
+     }
++
++    // Kenzie start - namespace checker
++    /**
++     * @return whether the key uses the Minecraft namespace
++     */
++    public boolean isMinecraft() {
++        return key.equals(MINECRAFT);
++    }
++
++    /**
++     * @return whether the key uses the Bukkit namespace
++     */
++    public boolean isBukkit() {
++        return key.equals(BUKKIT);
++    }
++
++    /**
++     * Used for fast internal conversion of MinecraftKeys to NamespacedKeys.
++     * Should generally not be used by plugins.
++     *
++     * @param string the string, in the format "namespace:key"
++     * @return the new key
++     * @deprecated should never be used by plugins, for internal use only!!
++     */
++    public static @NotNull @Deprecated
++    NamespacedKey createFrom(@NotNull String string) {
++        if (string.contains(":")) {
++            String[] parts = string.split(":");
++            return new NamespacedKey(parts[0], parts[1]);
++        } else {
++            return NamespacedKey.minecraft(string);
++        }
++    }
++    // Kenzie end
+ }
+diff --git a/src/main/java/org/bukkit/Registry.java b/src/main/java/org/bukkit/Registry.java
+index d3f346413ed92db46d4b5d8f3437ac0cb55adf37..7b95abeedf29cc253ab47814e01851140279396c 100644
+--- a/src/main/java/org/bukkit/Registry.java
++++ b/src/main/java/org/bukkit/Registry.java
+@@ -57,7 +57,19 @@ public interface Registry<T extends Keyed> extends Iterable<T> {
+      *
+      * @see Attribute
+      */
+-    Registry<Attribute> ATTRIBUTE = new SimpleRegistry<>(Attribute.class);
++    Registry<Attribute> ATTRIBUTE = new Registry<Attribute>() { // Kenzie - Attribute changes
++        @NotNull
++        @Override
++        public Attribute get(@NotNull NamespacedKey key) {
++            return new Attribute(key);
++        }
++
++        @NotNull
++        @Override
++        public Iterator<Attribute> iterator() {
++            return Attribute.attributeIterator();
++        }
++    };
+     /**
+      * Server biomes.
+      *
+diff --git a/src/main/java/org/bukkit/Server.java b/src/main/java/org/bukkit/Server.java
+index 7c0a788900c93c29d14d8c45ac5ae3317cf4a94e..73e1488ff070c29cbdeef9c6584f8353859b699c 100644
+--- a/src/main/java/org/bukkit/Server.java
++++ b/src/main/java/org/bukkit/Server.java
+@@ -12,9 +12,18 @@ import java.util.Map;
+ import java.util.Set;
+ import java.util.UUID;
+ import java.util.function.Consumer;
++import java.util.function.Function;
+ import java.util.logging.Logger;
++
++import mx.kenzie.wellspring.nbt.NBTFactory;
++import mx.kenzie.wellspring.packet.PacketFactory;
++import mx.kenzie.wellspring.potion.PotionBuilder;
++import mx.kenzie.wellspring.tile.TileType;
+ import org.bukkit.Warning.WarningState;
+ import org.bukkit.advancement.Advancement;
++import org.bukkit.attachment.Attachable;
++import org.bukkit.attachment.Attachment;
++import org.bukkit.attribute.Attribute;
+ import org.bukkit.block.data.BlockData;
+ import org.bukkit.boss.BarColor;
+ import org.bukkit.boss.BarFlag;
+@@ -26,6 +35,7 @@ import org.bukkit.command.CommandSender;
+ import org.bukkit.command.ConsoleCommandSender;
+ import org.bukkit.command.PluginCommand;
+ import org.bukkit.entity.Entity;
++import org.bukkit.entity.EntityType;
+ import org.bukkit.entity.Player;
+ import org.bukkit.event.inventory.InventoryType;
+ import org.bukkit.event.server.ServerListPingEvent;
+@@ -41,6 +51,7 @@ import org.bukkit.inventory.meta.ItemMeta;
+ import org.bukkit.loot.LootTable;
+ import org.bukkit.map.MapView;
+ import org.bukkit.permissions.Permissible;
++import org.bukkit.plugin.Plugin;
+ import org.bukkit.plugin.PluginManager;
+ import org.bukkit.plugin.ServicesManager;
+ import org.bukkit.plugin.messaging.Messenger;
+@@ -1420,6 +1431,101 @@ public interface Server extends PluginMessageRecipient {
+     @NotNull
+     List<Entity> selectEntities(@NotNull CommandSender sender, @NotNull String selector) throws IllegalArgumentException;
+ 
++    // Kenzie start - attachments
++
++    /**
++     * Allows the registration of an attachment for specific tile entity types.
++     * The corresponding tile entities will receive a new instance of the attachment
++     * (as per the creator function) upon their creation.
++     *
++     * Attachments ought to be final, due to the need to match their class when
++     * retrieving the attachment instance from the object.
++     * @param plugin The providing plugin.
++     * @param creatorFunction A function to create a new attachment instance.
++     * @param types The tile entity types this attachment should be registered for.
++     */
++    void registerAttachment(@NotNull Plugin plugin, @NotNull Function<Entity, Attachment<?>> creatorFunction, @NotNull TileType... types);
++
++    /**
++     * Allows the registration of an attachment for specific entity types.
++     * The corresponding entity types will receive a new instance of the attachment
++     * (as per the creator function) upon their creation.
++     *
++     * Attachments ought to be final, due to the need to match their class when
++     * retrieving the attachment instance from the object.
++     * @param plugin The providing plugin.
++     * @param creatorFunction A function to create a new attachment instance.
++     * @param types The entity types this attachment should be registered for.
++     */
++    void registerAttachment(@NotNull Plugin plugin, @NotNull Function<Entity, Attachment<?>> creatorFunction, @NotNull EntityType... types);
++
++    /**
++     * Allows the registration of an attachment for specific entity types.
++     * The corresponding entity types will receive a new instance of the attachment
++     * (as per the creator function) upon their creation.
++     *
++     * Attachments ought to be final, due to the need to match their class when
++     * retrieving the attachment instance from the object.
++     * @param <T> The attachment target type.
++     * @param plugin The providing plugin.
++     * @param creatorFunction A function to create a new attachment instance.
++     * @param target The target class.
++     */
++    <T extends Attachable> void registerAttachment(@NotNull Plugin plugin, @NotNull Function<? extends T, Attachment<?>> creatorFunction, @NotNull Class<T> target);
++
++    /**
++     * Unregisters the attachments provided by a plugin.
++     * @param plugin The providing plugin.
++     */
++    void unregisterAttachments(@NotNull Plugin plugin);
++    // Kenzie end
++
++    // Kenzie start - attributes
++    /**
++     * Registers a new attribute with the given key and default value.
++     * @param key the key to use
++     * @param defaultValue the default value
++     * @return the new attribute marker
++     */
++    @NotNull
++    Attribute registerAttribute(@NotNull NamespacedKey key, double defaultValue);
++
++    /**
++     * Registers a new ranged attribute with the given key and values.
++     * @param key the key to use
++     * @param defaultValue the default value
++     * @param min the minimum permitted value
++     * @param max the maximum permitted value
++     * @return the new attribute marker
++     */
++    @NotNull
++    Attribute registerAttribute(@NotNull NamespacedKey key, double defaultValue, double min, double max);
++    // Kenzie end
++
++    // Kenzie start - Factories
++    /**
++     * Retrieves the server's NBT factory, used for instantiating compound tags,
++     * NBT lists and other version-dependent types.
++     * @return The factory instance.
++     */
++    @NotNull
++    NBTFactory getNBTFactory();
++
++    @NotNull
++    PacketFactory getPacketFactory();
++    // Kenzie end
++
++    // Kenzie start - Potions
++    /**
++     * Creates a new potion builder.
++     * @param key The namespaced key of the potion.
++     * @param name The name of the potion effect.
++     * @return The builder, to further customise it.
++     */
++    @NotNull
++    PotionBuilder createPotionEffect(@NotNull NamespacedKey key, @NotNull String name);
++    // Kenzie end
++
+     /**
+      * @see UnsafeValues
+      * @return the unsafe values instance
+diff --git a/src/main/java/org/bukkit/World.java b/src/main/java/org/bukkit/World.java
+index e827e1a6f5c0f8410ed32dda8f17aa769b469999..e800b7c422842667ad751d2c470cc9b196ee3ec8 100644
+--- a/src/main/java/org/bukkit/World.java
++++ b/src/main/java/org/bukkit/World.java
+@@ -2,6 +2,10 @@ package org.bukkit;
+ 
+ import java.io.File;
+ 
++import mx.kenzie.wellspring.nbt.BlockNBTStorage;
++import mx.kenzie.wellspring.nbt.NBTCompound;
++import mx.kenzie.wellspring.nbt.NBTHolder;
++import org.bukkit.attachment.Attachable;
+ import org.bukkit.event.entity.CreatureSpawnEvent;
+ import org.bukkit.generator.ChunkGenerator;
+ 
+@@ -43,7 +47,7 @@ import org.jetbrains.annotations.Nullable;
+ /**
+  * Represents a world, which may contain entities, chunks and blocks
+  */
+-public interface World extends PluginMessageRecipient, Metadatable {
++public interface World extends PluginMessageRecipient, Metadatable, Attachable, BlockNBTStorage { // Kenzie
+ 
+     // Paper start
+     /**
+@@ -3536,4 +3540,27 @@ public interface World extends PluginMessageRecipient, Metadatable {
+             }
+         }
+     }
++
++    // Kenzie start - dragon fight and boss NBT
++    @NotNull NBTCompound getDragonFightNBT();
++
++    default void mergeDragonFightNBT(@NotNull NBTCompound compound) {
++        NBTCompound nbt = getDragonFightNBT();
++        nbt.merge(compound);
++        setDragonFightNBT(nbt);
++    }
++
++    void setDragonFightNBT(@NotNull NBTCompound compound);
++
++    @NotNull NBTCompound getCustomBossNBT();
++
++    default void mergeCustomBossNBT(@NotNull NBTCompound compound) {
++        NBTCompound nbt = getCustomBossNBT();
++        nbt.merge(compound);
++        setCustomBossNBT(nbt);
++    }
++
++    void setCustomBossNBT(@NotNull NBTCompound compound);
++    // Kenzie end
++
+ }
+diff --git a/src/main/java/org/bukkit/attachment/Attachable.java b/src/main/java/org/bukkit/attachment/Attachable.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..672b53ec9c803d702f257df28faa6308900a0abe
+--- /dev/null
++++ b/src/main/java/org/bukkit/attachment/Attachable.java
+@@ -0,0 +1,44 @@
++package org.bukkit.attachment;
++
++import org.jetbrains.annotations.NotNull;
++
++import java.util.function.Consumer;
++
++/**
++ * This allows objects to have unique attachments added to them.
++ */
++public interface Attachable {
++
++    /**
++     * Retrieve an attachment instance.
++     * throws NullPointerException - if the attachment is not present. Use {@link this#hasAttachment(Class)} first.
++     * @param attachmentClass The class that the attachment belongs to.
++     * @param <T> The specific attachment type.
++     * @return The attachment instance unique to this object.
++     */
++    @NotNull
++    <T extends Attachment<?>> T getAttachment(@NotNull Class<T> attachmentClass) throws NullPointerException;
++
++    /**
++     * Check whether this object has an attachment of a specific type.
++     * @param attachmentClass The class that the attachment belongs to.
++     * @param <T> The specific attachment type.
++     * @return True if present, otherwise false.
++     */
++    <T extends Attachment<?>> boolean hasAttachment(@NotNull Class<T> attachmentClass);
++
++    /**
++     * Run a consumer on the attachment if and only if it is present.
++     * @param attachmentClass The class that the attachment belongs to.
++     * @param consumer The action to be run on the attachment.
++     * @param <T> The specific attachment type.
++     * @return True if the attachment was present, otherwise false.
++     */
++    default <T extends Attachment<?>> boolean ifAttachmentPresent(@NotNull Class<T> attachmentClass, @NotNull Consumer<T> consumer) {
++        boolean present;
++        if (present = hasAttachment(attachmentClass))
++            consumer.accept(getAttachment(attachmentClass));
++        return present;
++    }
++
++}
+diff --git a/src/main/java/org/bukkit/attachment/Attachment.java b/src/main/java/org/bukkit/attachment/Attachment.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..6d3dbe01c0d29a7fa0e44b88a836910a959f12fa
+--- /dev/null
++++ b/src/main/java/org/bukkit/attachment/Attachment.java
+@@ -0,0 +1,98 @@
++package org.bukkit.attachment;
++
++import mx.kenzie.wellspring.nbt.NBTCompound;
++import org.bukkit.plugin.Plugin;
++import org.bukkit.plugin.java.JavaPlugin;
++import org.jetbrains.annotations.NotNull;
++
++public abstract class Attachment<T extends Attachable> {
++
++    private final @NotNull T subject;
++
++    /**
++     * This constructor will be used by the attachment during
++     * creation.
++     *
++     * WARNING!!! The subject will likely not be fully initialised
++     * at this point!
++     * Referencing the subject here may cause unintended behaviour
++     * in some cases.
++     *
++     * E.g. tile entities will be typeless and located at x0, y0, z0
++     * during construction since their metadata is given post-construction.
++     *
++     * @param subject the object this is attached to
++     */
++    public Attachment(@NotNull T subject) {
++        this.subject = subject;
++    }
++
++    /**
++     * This can be overridden if a particular implementation
++     * requires that the attachment belong to a different plugin
++     * from the one that provided the class.
++     * For example, if a plugin happened to use an attachment from
++     * an external library, but the attachment referenced data from
++     * the plugin instance, then this should return the provider.
++     * @return The providing plugin.
++     */
++    public @NotNull Plugin getOwningPlugin() {
++        return JavaPlugin.getProvidingPlugin(getClass());
++    }
++
++    /**
++     * @return The subject of this attachment.
++     */
++    public @NotNull T getSubject() {
++        return subject;
++    }
++
++    /**
++     * Called before the attachment is disposed of, allowing the provider
++     * to potentially save or otherwise deal with the data.
++     * This will occur before the owning plugin is disabled, or
++     * pre-destruction of the attachment's subject.
++     * It may not be called in all cases (for example if the subject is
++     * removed from memory silently!)
++     *
++     * Some attachments cannot be notified properly pre-disposal.
++     * This is due to there being no simple way to tell when they are
++     * to be garbage-collected without interrupting the process.
++     */
++    public synchronized void onDisposal() {
++
++    }
++
++    /**
++     * This will to be called if and when the holder's data is requested, for example
++     * during the saving process. It should not be thought of as a catch-all,
++     * but it allows for basic storage.
++     *
++     * It is also called whenever the holder's NBT compound is requested, such
++     * as by commands or plugins.
++     *
++     * This can be used to store your own data within the entity's NBT over
++     * restarts - so long as your plugin is loaded before the entity is.
++     * @param compound The mutable NBT compound to be saved.
++     */
++    public synchronized void onDataRequest(@NotNull NBTCompound compound) {
++
++    }
++
++    /**
++     * This will to be called if and when the holder's NBT data is requested, for example
++     * during the loading process. It should not be thought of as a catch-all,
++     * but it might help to be able to store simple primitive data.
++     *
++     * It is also called whenever the holder's NBT compound is edited, such
++     * as by commands or plugins.
++     *
++     * This can be used to store your own data within the entity's NBT over
++     * restarts - so long as your plugin is loaded before the entity is.
++     * @param compound The mutable NBT compound to be loaded.
++     */
++    public synchronized void onDataLoad(@NotNull NBTCompound compound) {
++
++    }
++
++}
+diff --git a/src/main/java/org/bukkit/attribute/Attributable.java b/src/main/java/org/bukkit/attribute/Attributable.java
+index 0ed96b5af0e6e93590882e0ad8239221bcc3f688..3cdd56db28d08a9081945500a1513b96e6bdd175 100644
+--- a/src/main/java/org/bukkit/attribute/Attributable.java
++++ b/src/main/java/org/bukkit/attribute/Attributable.java
+@@ -17,4 +17,43 @@ public interface Attributable {
+      */
+     @Nullable
+     AttributeInstance getAttribute(@NotNull Attribute attribute);
++
++    // Kenzie start - easy acquisition and no pointless null-checks
++
++    /**
++     * This allows quick access to the value of an attribute from the instance.
++     * It defaults to 0 if the attribute is not present.
++     * @param attribute the attribute to get
++     * @return the attribute value post-modifiers otherwise 0.0
++     */
++    default double getValue(@NotNull Attribute attribute) {
++        return getValue(attribute, 0.0D);
++    }
++
++    /**
++     * This allows quick access to the value of an attribute from the instance.
++     * @param attribute the attribute to get
++     * @param def the value to return if the attribute is not present
++     * @return the attribute value post-modifiers otherwise def
++     */
++    default double getValue(@NotNull Attribute attribute, double def) {
++        @Nullable AttributeInstance instance;
++        if ((instance = getAttribute(attribute)) != null) {
++            return instance.getValue();
++        }
++        return def;
++    }
++
++    /**
++     * Quickly check whether an attribute is present on this instance.
++     * This is equivalent to null-checking {@link Attributable#getAttribute(Attribute)}
++     * but exists as a QoL method.
++     *
++     * @param attribute the attrubute to check
++     * @return true if present, otherwise false
++     */
++    default boolean hasAttribute(@NotNull Attribute attribute) {
++        return getAttribute(attribute) != null;
++    }
++    // Kenzie end
+ }
+diff --git a/src/main/java/org/bukkit/attribute/Attribute.java b/src/main/java/org/bukkit/attribute/Attribute.java
+index 13eac9ad2c1672051635d1c35cc49239252e7a61..4dde6fe1d3cba668f01b18c1cc5a0e5fdf42d0ed 100644
+--- a/src/main/java/org/bukkit/attribute/Attribute.java
++++ b/src/main/java/org/bukkit/attribute/Attribute.java
+@@ -3,74 +3,155 @@ package org.bukkit.attribute;
+ import org.bukkit.Keyed;
+ import org.bukkit.NamespacedKey;
+ import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
++
++import java.util.HashMap;
++import java.util.Iterator;
++import java.util.Objects;
+ 
+ /**
+  * Types of attributes which may be present on an {@link Attributable}.
+  */
+-public enum Attribute implements Keyed {
++public final class Attribute implements Keyed {
+ 
+     /**
+      * Maximum health of an Entity.
+      */
+-    GENERIC_MAX_HEALTH("generic.max_health"),
++    public static final Attribute GENERIC_MAX_HEALTH = new Attribute("generic.max_health");
+     /**
+      * Range at which an Entity will follow others.
+      */
+-    GENERIC_FOLLOW_RANGE("generic.follow_range"),
++    public static final Attribute GENERIC_FOLLOW_RANGE = new Attribute("generic.follow_range");
+     /**
+      * Resistance of an Entity to knockback.
+      */
+-    GENERIC_KNOCKBACK_RESISTANCE("generic.knockback_resistance"),
++    public static final Attribute GENERIC_KNOCKBACK_RESISTANCE = new Attribute("generic.knockback_resistance");
+     /**
+      * Movement speed of an Entity.
+      */
+-    GENERIC_MOVEMENT_SPEED("generic.movement_speed"),
++    public static final Attribute GENERIC_MOVEMENT_SPEED = new Attribute("generic.movement_speed");
+     /**
+      * Flying speed of an Entity.
+      */
+-    GENERIC_FLYING_SPEED("generic.flying_speed"),
++    public static final Attribute GENERIC_FLYING_SPEED = new Attribute("generic.flying_speed");
+     /**
+      * Attack damage of an Entity.
+      */
+-    GENERIC_ATTACK_DAMAGE("generic.attack_damage"),
++    public static final Attribute GENERIC_ATTACK_DAMAGE = new Attribute("generic.attack_damage");
+     /**
+      * Attack knockback of an Entity.
+      */
+-    GENERIC_ATTACK_KNOCKBACK("generic.attack_knockback"),
++    public static final Attribute GENERIC_ATTACK_KNOCKBACK = new Attribute("generic.attack_knockback");
+     /**
+      * Attack speed of an Entity.
+      */
+-    GENERIC_ATTACK_SPEED("generic.attack_speed"),
++    public static final Attribute GENERIC_ATTACK_SPEED = new Attribute("generic.attack_speed");
+     /**
+      * Armor bonus of an Entity.
+      */
+-    GENERIC_ARMOR("generic.armor"),
++    public static final Attribute GENERIC_ARMOR = new Attribute("generic.armor");
+     /**
+      * Armor durability bonus of an Entity.
+      */
+-    GENERIC_ARMOR_TOUGHNESS("generic.armor_toughness"),
++    public static final Attribute GENERIC_ARMOR_TOUGHNESS = new Attribute("generic.armor_toughness");
+     /**
+      * Luck bonus of an Entity.
+      */
+-    GENERIC_LUCK("generic.luck"),
++    public static final Attribute GENERIC_LUCK = new Attribute("generic.luck");
+     /**
+      * Strength with which a horse will jump.
+      */
+-    HORSE_JUMP_STRENGTH("horse.jump_strength"),
++    public static final Attribute HORSE_JUMP_STRENGTH = new Attribute("horse.jump_strength");
+     /**
+      * Chance of a zombie to spawn reinforcements.
+      */
+-    ZOMBIE_SPAWN_REINFORCEMENTS("zombie.spawn_reinforcements");
++    public static final Attribute ZOMBIE_SPAWN_REINFORCEMENTS = new Attribute("zombie.spawn_reinforcements");
++
++    private static HashMap<String, Attribute> minecraftValues = new HashMap<>();
++
++    static {
++        minecraftValues.put("GENERIC_MAX_HEALTH", GENERIC_MAX_HEALTH);
++        minecraftValues.put("GENERIC_FOLLOW_RANGE", GENERIC_FOLLOW_RANGE);
++        minecraftValues.put("GENERIC_KNOCKBACK_RESISTANCE", GENERIC_KNOCKBACK_RESISTANCE);
++        minecraftValues.put("GENERIC_MOVEMENT_SPEED", GENERIC_MOVEMENT_SPEED);
++        minecraftValues.put("GENERIC_FLYING_SPEED", GENERIC_FLYING_SPEED);
++        minecraftValues.put("GENERIC_ATTACK_DAMAGE", GENERIC_ATTACK_DAMAGE);
++        minecraftValues.put("GENERIC_ATTACK_KNOCKBACK", GENERIC_ATTACK_KNOCKBACK);
++        minecraftValues.put("GENERIC_ATTACK_SPEED", GENERIC_ATTACK_SPEED);
++        minecraftValues.put("GENERIC_ARMOR", GENERIC_ARMOR);
++        minecraftValues.put("GENERIC_ARMOR_TOUGHNESS", GENERIC_ARMOR_TOUGHNESS);
++        minecraftValues.put("GENERIC_LUCK", GENERIC_LUCK);
++    }
+ 
+     private final NamespacedKey key;
+ 
+-    private Attribute(String key) {
++    public Attribute(@NotNull NamespacedKey key) {
++        this.key = key;
++    }
++
++    private Attribute(@NotNull String key) {
+         this.key = NamespacedKey.minecraft(key);
+     }
+ 
++    /**
++     * Whether this attribute is built-in, and found in "vanilla" Minecraft.
++     * @return True if this is a built-in attribute, false if it was added in a custom implementation.
++     */
++    public boolean isVanilla() {
++        return minecraftValues.containsValue(this);
++    }
++
+     @NotNull
+     @Override
+     public NamespacedKey getKey() {
+         return key;
+     }
++
++    /**
++     * @return The string key of this attribute, without the namespace.
++     */
++    @NotNull
++    public String name() {
++        return getKey().getKey();
++    }
++
++    @NotNull
++    public static Iterator<Attribute> attributeIterator() {
++        return minecraftValues.values().iterator();
++    }
++
++    /**
++     * Provides backwards compatibility for the old enum system.
++     *
++     * @return An array of the built-in Minecraft attributes.
++     */
++    @NotNull
++    public static Attribute[] values() {
++        return minecraftValues.values().toArray(new Attribute[0]);
++    }
++
++    /**
++     * Provides backwards compatibility for the old enum system.
++     *
++     * @param name The field-name of the attribute.
++     * @return The attribute.
++     */
++    @Nullable
++    public static Attribute valueOf(@NotNull String name) {
++        return minecraftValues.get(name);
++    }
++
++    @Override
++    public boolean equals(Object o) {
++        if (this == o) return true;
++        if (!(o instanceof Attribute)) return false;
++        Attribute attribute = (Attribute) o;
++        return Objects.equals(key, attribute.key);
++    }
++
++    @Override
++    public int hashCode() {
++        return Objects.hash(key);
++    }
++
+ }
+diff --git a/src/main/java/org/bukkit/attribute/AttributeInstance.java b/src/main/java/org/bukkit/attribute/AttributeInstance.java
+index f08ee26cc4d479e1bfc5264b8cbe721315de91f2..18bafb04e6e946c05be27a6f71ed75a4bb80db7c 100644
+--- a/src/main/java/org/bukkit/attribute/AttributeInstance.java
++++ b/src/main/java/org/bukkit/attribute/AttributeInstance.java
+@@ -1,8 +1,9 @@
+ package org.bukkit.attribute;
+ 
+-import java.util.Collection;
+ import org.jetbrains.annotations.NotNull;
+ 
++import java.util.Collection;
++
+ /**
+  * Represents a mutable instance of an attribute and its associated modifiers
+  * and values.
+diff --git a/src/main/java/org/bukkit/attribute/AttributeModifier.java b/src/main/java/org/bukkit/attribute/AttributeModifier.java
+index ff8f1231f3e2e71740fd24fa8d4dac5d0e550ae7..65bdf3ddd25bae0905970343358c4daf013cc480 100644
+--- a/src/main/java/org/bukkit/attribute/AttributeModifier.java
++++ b/src/main/java/org/bukkit/attribute/AttributeModifier.java
+@@ -1,9 +1,5 @@
+ package org.bukkit.attribute;
+ 
+-import java.util.HashMap;
+-import java.util.Map;
+-import java.util.Objects;
+-import java.util.UUID;
+ import org.apache.commons.lang.Validate;
+ import org.bukkit.configuration.serialization.ConfigurationSerializable;
+ import org.bukkit.inventory.EquipmentSlot;
+@@ -11,6 +7,11 @@ import org.bukkit.util.NumberConversions;
+ import org.jetbrains.annotations.NotNull;
+ import org.jetbrains.annotations.Nullable;
+ 
++import java.util.HashMap;
++import java.util.Map;
++import java.util.Objects;
++import java.util.UUID;
++
+ /**
+  * Concrete implementation of an attribute modifier.
+  */
+@@ -148,19 +149,25 @@ public class AttributeModifier implements ConfigurationSerializable {
+     /**
+      * Enumerable operation to be applied.
+      */
+-    public enum Operation {
++    public enum Operation { // Kenzie start - ordinals
+ 
+         /**
+          * Adds (or subtracts) the specified amount to the base value.
+          */
+-        ADD_NUMBER,
++        ADD_NUMBER(0),
+         /**
+          * Adds this scalar of amount to the base value.
+          */
+-        ADD_SCALAR,
++        ADD_SCALAR(1),
+         /**
+          * Multiply amount by this value, after adding 1 to it.
+          */
+-        MULTIPLY_SCALAR_1;
+-    }
++        MULTIPLY_SCALAR_1(2);
++
++        public final int ordinal;
++
++        Operation(int ordinal) {
++            this.ordinal = ordinal;
++        }
++    } // Kenzie end
+ }
+diff --git a/src/main/java/org/bukkit/block/Block.java b/src/main/java/org/bukkit/block/Block.java
+index 7616c5601adee3cbe0e5f722646a2458b535ab77..1b13d8d86a32b16cf6db97dc9a7f81346da387bb 100644
+--- a/src/main/java/org/bukkit/block/Block.java
++++ b/src/main/java/org/bukkit/block/Block.java
+@@ -2,6 +2,8 @@ package org.bukkit.block;
+ 
+ import java.util.Collection;
+ 
++import mx.kenzie.wellspring.nbt.NBTCompound;
++import mx.kenzie.wellspring.nbt.NBTHolder;
+ import org.bukkit.Chunk;
+ import org.bukkit.FluidCollisionMode;
+ import org.bukkit.Location;
+@@ -30,7 +32,7 @@ import org.jetbrains.annotations.Nullable;
+  * (i.e. lighting and power) may not be able to be safely accessed during world
+  * generation when used in cases like BlockPhysicsEvent!!!!
+  */
+-public interface Block extends Metadatable {
++public interface Block extends Metadatable, NBTHolder { // Kenzie
+ 
+     /**
+      * Gets the metadata for this block
+@@ -582,4 +584,24 @@ public interface Block extends Metadatable {
+     @NotNull
+     String getTranslationKey();
+     // Paper end
++
++    // Kenzie start
++    /**
++     * Allows NBT to be stored directly on a block. This is
++     * saved internally within the ChunkSection's storage.
++     *
++     * Note: unlike other cases, this is not a copy of the
++     * NBT. It is backed by the actual copy in memory.
++     * Edits to this compound are already stored, you do not
++     * need to load or merge it.
++     *
++     * Please note - storing excessive amounts of block NBT
++     * will increase the size of your world files and consume RAM while.
++     * @return the block's NBT, creating one if absent
++     */
++    @NotNull
++    @Override
++    NBTCompound getNBT();
++    // Kenzie end
++    
+ }
+diff --git a/src/main/java/org/bukkit/block/Structure.java b/src/main/java/org/bukkit/block/Structure.java
+index bce0947d39e2ded312c1c3cd6e77d4e0764ef6b4..99a949c1bc54f87aca22e46b353cc2d5d933cafe 100644
+--- a/src/main/java/org/bukkit/block/Structure.java
++++ b/src/main/java/org/bukkit/block/Structure.java
+@@ -1,5 +1,6 @@
+ package org.bukkit.block;
+ 
++import mx.kenzie.wellspring.structure.StructureInfo;
+ import org.bukkit.block.structure.Mirror;
+ import org.bukkit.block.structure.StructureRotation;
+ import org.bukkit.block.structure.UsageMode;
+@@ -240,4 +241,15 @@ public interface Structure extends TileState {
+      */
+     @NotNull
+     String getMetadata();
++
++    // Kenzie start
++    default @NotNull StructureInfo getInfo() {
++        StructureInfo info = StructureInfo.create();
++        info.setSeed(getSeed());
++        info.setRotation(getRotation());
++        info.setMirror(getMirror());
++        info.ignoreEntities(isIgnoreEntities());
++        return info;
++    }
++    // Kenzie end
+ }
+diff --git a/src/main/java/org/bukkit/block/TileState.java b/src/main/java/org/bukkit/block/TileState.java
+index 3b10fcc13893403b29f0260b8605144679e89b82..5397a405eff251092d2960dc9569311131a471c8 100644
+--- a/src/main/java/org/bukkit/block/TileState.java
++++ b/src/main/java/org/bukkit/block/TileState.java
+@@ -1,5 +1,9 @@
+ package org.bukkit.block;
+ 
++import mx.kenzie.wellspring.nbt.NBTHolder;
++import mx.kenzie.wellspring.tile.TileEntity;
++import org.bukkit.attachment.Attachable;
++import org.bukkit.attachment.Attachment;
+ import org.bukkit.persistence.PersistentDataContainer;
+ import org.bukkit.persistence.PersistentDataHolder;
+ import org.jetbrains.annotations.NotNull;
+@@ -14,8 +18,13 @@ import org.jetbrains.annotations.NotNull;
+  *
+  * After modifying the data provided by a TileState, {@link #update()} needs to
+  * be called to store the data.
++ *
++ * Wellspring NOTE: Although TileStates are technically "attachable" they do not
++ * hold attachments of their own (since they are fleeting snapshots) - instead
++ * the attachment is stored by the linked {@link TileEntity} using a contingent TileState
++ * snapshot as a placeholder.
+  */
+-public interface TileState extends BlockState, PersistentDataHolder {
++public interface TileState extends BlockState, PersistentDataHolder, NBTHolder, Attachable { // Kenzie
+ 
+     /**
+      * Returns a custom tag container capable of storing tags on the object.
+@@ -36,4 +45,7 @@ public interface TileState extends BlockState, PersistentDataHolder {
+     @NotNull
+     @Override
+     PersistentDataContainer getPersistentDataContainer();
++
++    @NotNull <T extends TileEntity> T getTileEntity(); // Kenzie
++
+ }
+diff --git a/src/main/java/org/bukkit/enchantments/Enchantment.java b/src/main/java/org/bukkit/enchantments/Enchantment.java
+index b833ef63fbe01271ceb2bd83a9eb4a84c9912761..f530af9ddc6082b89d4231d4b3c8a02d0dfc2e1b 100644
+--- a/src/main/java/org/bukkit/enchantments/Enchantment.java
++++ b/src/main/java/org/bukkit/enchantments/Enchantment.java
+@@ -2,6 +2,8 @@ package org.bukkit.enchantments;
+ 
+ import java.util.HashMap;
+ import java.util.Map;
++
++import mx.kenzie.wellspring.enchantment.EnchantmentBuilder;
+ import org.bukkit.Keyed;
+ import org.bukkit.NamespacedKey;
+ import org.bukkit.inventory.ItemStack;
+@@ -338,6 +340,25 @@ public abstract class Enchantment implements Keyed {
+         byName.put(enchantment.getName(), enchantment);
+     }
+ 
++    // Kenzie start - registration
++
++    /**
++     * This method is practically the same as the above, except that it allows for overrides and
++     * replacements as well as registration at runtime.
++     * It is far simpler for us to use our own method rather than to try and interfere with Bukkit.
++     *
++     * This should be used by internal services only.
++     * You may be looking for {@link EnchantmentBuilder#create()} instead.
++     *
++     * @param enchantment the pre-registered enchantment wrapper
++     */
++    @Deprecated // I.U.O
++    public static void registerCustomEnchantment(@NotNull Enchantment enchantment) {
++        byKey.put(enchantment.key, enchantment);
++        byName.put(enchantment.getName(), enchantment);
++    }
++    // Kenzie end
++
+     /**
+      * Checks if this is accepting Enchantment registrations.
+      *
+diff --git a/src/main/java/org/bukkit/entity/Entity.java b/src/main/java/org/bukkit/entity/Entity.java
+index 4d1970bec04c5a3cf01d214f583efb0e1d08380d..f292bd38342a202212d6b9557af2f804b15e8862 100644
+--- a/src/main/java/org/bukkit/entity/Entity.java
++++ b/src/main/java/org/bukkit/entity/Entity.java
+@@ -3,12 +3,16 @@ package org.bukkit.entity;
+ import java.util.List;
+ import java.util.Set;
+ import java.util.UUID;
++
++import mx.kenzie.wellspring.enchantment.EnchantmentHolder;
++import mx.kenzie.wellspring.nbt.NBTHolder;
+ import org.bukkit.Chunk; // Paper
+ import org.bukkit.EntityEffect;
+ import org.bukkit.Location;
+ import org.bukkit.Nameable;
+ import org.bukkit.Server;
+ import org.bukkit.World;
++import org.bukkit.attachment.Attachable;
+ import org.bukkit.block.BlockFace;
+ import org.bukkit.block.PistonMoveReaction;
+ import org.bukkit.command.CommandSender;
+@@ -26,7 +30,7 @@ import org.jetbrains.annotations.Nullable;
+ /**
+  * Represents a base entity in the world
+  */
+-public interface Entity extends Metadatable, CommandSender, Nameable, PersistentDataHolder {
++public interface Entity extends Metadatable, CommandSender, Nameable, PersistentDataHolder, Attachable, NBTHolder, EnchantmentHolder { // Kenzie
+ 
+     /*
+      * Gets the entity's current position
+@@ -696,4 +700,16 @@ public interface Entity extends Metadatable, CommandSender, Nameable, Persistent
+      */
+     public boolean isTicking();
+     // Paper end
++
++    // Kenzie start
++
++    /**
++     * If an entity is marked as being 'fake' by an implementation.
++     *
++     * Note that this might not actually mean the entity 'is' fake, simply that
++     * plugins ought to treat it as such.
++     */
++    public boolean isFake();
++
++    // Kenzie end
+ }
+diff --git a/src/main/java/org/bukkit/entity/EntityType.java b/src/main/java/org/bukkit/entity/EntityType.java
+index 692b75eb78405874077c850bfc72e247ccc80860..d0f94818cf0b764055cf4b8cd422152c38618713 100644
+--- a/src/main/java/org/bukkit/entity/EntityType.java
++++ b/src/main/java/org/bukkit/entity/EntityType.java
+@@ -3,6 +3,8 @@ package org.bukkit.entity;
+ import com.google.common.base.Preconditions;
+ import java.util.HashMap;
+ import java.util.Map;
++
++import mx.kenzie.wellspring.attribute.AttributeProvider;
+ import org.bukkit.Keyed;
+ import org.bukkit.Location;
+ import org.bukkit.NamespacedKey;
+@@ -20,7 +22,7 @@ import org.jetbrains.annotations.Contract;
+ import org.jetbrains.annotations.NotNull;
+ import org.jetbrains.annotations.Nullable;
+ 
+-public enum EntityType implements Keyed {
++public enum EntityType implements Keyed, AttributeProvider { // Kenzie - attributes
+ 
+     // These strings MUST match the strings in nms.EntityTypes and are case sensitive.
+     /**
+diff --git a/src/main/java/org/bukkit/entity/Item.java b/src/main/java/org/bukkit/entity/Item.java
+index acd80d812fe88dee3978d19b24149e9fe0ac596b..c404a5b8efea7c780db5ddae19456753808abb3d 100644
+--- a/src/main/java/org/bukkit/entity/Item.java
++++ b/src/main/java/org/bukkit/entity/Item.java
+@@ -1,12 +1,9 @@
+ package org.bukkit.entity;
+ 
++import java.util.UUID;
+ import org.bukkit.inventory.ItemStack;
+ import org.jetbrains.annotations.NotNull;
+-
+-// Paper start
+ import org.jetbrains.annotations.Nullable;
+-import java.util.UUID;
+-// Paper end
+ 
+ /**
+  * Represents a dropped item.
+@@ -42,49 +39,56 @@ public interface Item extends Entity {
+      */
+     public void setPickupDelay(int delay);
+ 
+-    // Paper Start
+     /**
+-     * Gets if non-player entities can pick this Item up
++     * Sets the owner of this item.
+      *
+-     * @return True if non-player entities can pickup
+-     */
+-     public boolean canMobPickup();
+-
+-    /**
+-     * Sets if non-player entities can pick this Item up
++     * Other entities will not be able to pickup this item when an owner is set.
+      *
+-     * @param canMobPickup True to allow non-player entity pickup
++     * @param owner UUID of new owner
+      */
+-    public void setCanMobPickup(boolean canMobPickup);
++    public void setOwner(@Nullable UUID owner);
+ 
+     /**
+-     * The owner of this item. Only the owner can pick up the item until it is within 10 seconds of despawning
++     * Get the owner of this item.
+      *
+-     * @return The owner's UUID
++     * @return UUID of owner
+      */
+     @Nullable
+     public UUID getOwner();
+ 
+     /**
+-     * Set the owner of this item. Only the owner can pick up the item until it is within 10 seconds of despawning
++     * Set the thrower of this item.
+      *
+-     * @param owner The owner's UUID
++     * The thrower is the entity which dropped the item. This affects the
++     * trigger criteria for item pickups, for things such as advancements.
++     *
++     * @param uuid UUID of thrower
+      */
+-    public void setOwner(@Nullable UUID owner);
++    public void setThrower(@Nullable UUID uuid);
+ 
+     /**
+      * Get the thrower of this item.
+      *
+-     * @return The thrower's UUID
++     * The thrower is the entity which dropped the item.
++     *
++     * @return UUID of thrower
+      */
+     @Nullable
+     public UUID getThrower();
+ 
++    // Paper Start
+     /**
+-     * Set the thrower of this item.
++     * Gets if non-player entities can pick this Item up
+      *
+-     * @param thrower The thrower's UUID
++     * @return True if non-player entities can pickup
+      */
+-    public void setThrower(@Nullable UUID thrower);
++     public boolean canMobPickup();
++
++    /**
++     * Sets if non-player entities can pick this Item up
++     *
++     * @param canMobPickup True to allow non-player entity pickup
++     */
++    public void setCanMobPickup(boolean canMobPickup);
+     // Paper end
+ }
+diff --git a/src/main/java/org/bukkit/entity/minecart/PoweredMinecart.java b/src/main/java/org/bukkit/entity/minecart/PoweredMinecart.java
+index 57e8b1d59db3bbb5c0b92a0f9345b87115149f3c..2076af6c029027d3243ebfa518f4d69b716de7fe 100644
+--- a/src/main/java/org/bukkit/entity/minecart/PoweredMinecart.java
++++ b/src/main/java/org/bukkit/entity/minecart/PoweredMinecart.java
+@@ -7,4 +7,18 @@ import org.bukkit.entity.Minecart;
+  * player deposits {@link org.bukkit.Material#COAL fuel}.
+  */
+ public interface PoweredMinecart extends Minecart {
++
++    /**
++     * Get the number of ticks until the minecart runs out of fuel.
++     *
++     * @return Number of ticks until the minecart runs out of fuel
++     */
++    public int getFuel();
++
++    /**
++     * Set the number of ticks until the minecart runs out of fuel.
++     *
++     * @param fuel Number of ticks until the minecart runs out of fuel
++     */
++    public void setFuel(int fuel);
+ }
+diff --git a/src/main/java/org/bukkit/event/EventHandler.java b/src/main/java/org/bukkit/event/EventHandler.java
+index cc06f480b788b19d4799ba0dcf53b3640059f023..d4a43f2972587ac3c4c79e3ee6c8b8c98bb237e0 100644
+--- a/src/main/java/org/bukkit/event/EventHandler.java
++++ b/src/main/java/org/bukkit/event/EventHandler.java
+@@ -1,15 +1,13 @@
+ package org.bukkit.event;
+ 
+-import java.lang.annotation.ElementType;
+-import java.lang.annotation.Retention;
+-import java.lang.annotation.RetentionPolicy;
+-import java.lang.annotation.Target;
++import java.lang.annotation.*;
+ 
+ /**
+  * An annotation to mark methods as being event handler methods
+  */
+-@Target(ElementType.METHOD)
++@Target({ElementType.METHOD, ElementType.TYPE}) // Kenzie - class-wide event listeners
+ @Retention(RetentionPolicy.RUNTIME)
++@Inherited // Kenzie - class-wide event listeners
+ public @interface EventHandler {
+ 
+     /**
+diff --git a/src/main/java/org/bukkit/inventory/Inventory.java b/src/main/java/org/bukkit/inventory/Inventory.java
+index 6386206188e820206bb1a9f516b5e194fdc9d952..8ba67269f62a2c130c6327797220f192f3643467 100644
+--- a/src/main/java/org/bukkit/inventory/Inventory.java
++++ b/src/main/java/org/bukkit/inventory/Inventory.java
+@@ -3,6 +3,8 @@ package org.bukkit.inventory;
+ import java.util.HashMap;
+ import java.util.List;
+ import java.util.ListIterator;
++
++import mx.kenzie.wellspring.nbt.NBTHolder;
+ import org.bukkit.Location;
+ import org.bukkit.Material;
+ import org.bukkit.entity.HumanEntity;
+@@ -25,7 +27,7 @@ import org.jetbrains.annotations.Nullable;
+  * @see #getContents()
+  * @see #getStorageContents()
+  */
+-public interface Inventory extends Iterable<ItemStack> {
++public interface Inventory extends Iterable<ItemStack>, NBTHolder { // Kenzie - storage
+ 
+     /**
+      * Returns the size of the inventory
+diff --git a/src/main/java/org/bukkit/inventory/ItemStack.java b/src/main/java/org/bukkit/inventory/ItemStack.java
+index ccd81fca25233c2a9c2a8c3f4dda3053d7b2e723..5c8ca4ea19c49f5d211136f83244e196eb307991 100644
+--- a/src/main/java/org/bukkit/inventory/ItemStack.java
++++ b/src/main/java/org/bukkit/inventory/ItemStack.java
+@@ -5,6 +5,12 @@ import java.util.LinkedHashMap;
+ import java.util.List; // Paper
+ import java.util.Map;
+ import java.util.Set; // Paper
++
++import mx.kenzie.wellspring.enchantment.EnchantmentBuilder;
++import mx.kenzie.wellspring.enchantment.EnchantmentHolder;
++import mx.kenzie.wellspring.nbt.NBT;
++import mx.kenzie.wellspring.nbt.NBTCompound;
++import mx.kenzie.wellspring.nbt.NBTHolder;
+ import org.apache.commons.lang.Validate;
+ import org.bukkit.Bukkit;
+ import org.bukkit.Material;
+@@ -25,7 +31,7 @@ import org.jetbrains.annotations.Nullable;
+  * use this class to encapsulate Materials for which {@link Material#isItem()}
+  * returns false.</b>
+  */
+-public class ItemStack implements Cloneable, ConfigurationSerializable {
++public class ItemStack implements Cloneable, ConfigurationSerializable, NBTHolder, EnchantmentHolder { // Kenzie
+     private Material type = Material.AIR;
+     private int amount = 0;
+     private MaterialData data = null;
+@@ -790,5 +796,86 @@ public class ItemStack implements Cloneable, ConfigurationSerializable {
+         ItemMeta itemMeta = getItemMeta();
+         return itemMeta.hasItemFlag(flag);
+     }
++
++    // Kenzie start
++
++    /**
++     * Creates an itemstack from an NBT compound. This must be a valid, fully-
++     * serialised item compound containing the ID and count.
++     *
++     * @param compound a serialised item's NBT compound
++     * @return a new ItemStack
++     */
++    public static @NotNull ItemStack create(@NotNull NBTCompound compound) {
++        return Bukkit.getNBTFactory().createItem(compound);
++    }
++
++    /**
++     * Creates an itemstack from an NBT compound. This must be a valid, fully-
++     * serialised item compound containing the ID and count.
++     *
++     * Note that this internally creates a clonal copy, so using
++     * {@link mx.kenzie.wellspring.nbt.NBTFactory#createItem(NBTCompound)} is the
++     * better option.
++     * @param compound a serialised item's NBT compound
++     */
++    public ItemStack(@NotNull NBTCompound compound) {
++        try {
++            ItemStack clonalCopy = Bukkit.getNBTFactory().createItem(compound);
++            this.type = clonalCopy.type;
++            this.amount = clonalCopy.amount;
++            if (clonalCopy.getDurability() != 0) {
++                setDurability(clonalCopy.getDurability());
++            }
++            if (clonalCopy.data != null) {
++                data = clonalCopy.data;
++            }
++            this.setItemMeta(clonalCopy.getItemMeta());
++        } catch (Throwable ex) {
++            throw new IllegalArgumentException("Invalid NBT compound!", ex);
++        }
++    }
++
++    /**
++     * This gets the "tag" of the itemstack, containing any unique data.
++     * This is NOT the complete tag - the item's ID and amount are not contained within it.
++     *
++     * If you would like the entire serialised item, see {@link ItemStack#getAsCompound()} instead.
++     *
++     * @return The NBT "Tag" of the item
++     */
++    @NotNull
++    @Override
++    public NBTCompound getNBT() {
++        return Bukkit.getNBTFactory().getNBT(this);
++    }
++
++    @Override
++    public void mergeNBT(@NotNull NBTCompound compound) {
++        Bukkit.getNBTFactory().mergeNBT(this, compound);
++    }
++
++    @Override
++    public void loadNBT(@NotNull NBTCompound compound) {
++        Bukkit.getNBTFactory().setNBT(this, compound);
++    }
++
++    /**
++     * This produces the entire itemstack serialised to an NBT compound.
++     * This is the same feature as is used to store items. It contains all of the
++     * necessary data to re-create the item, and as such can be used to store
++     * the item.
++     * @return The item, as NBT
++     */
++    public @NotNull NBTCompound getAsCompound() {
++        return Bukkit.getNBTFactory().getAsCompound(this);
++    }
++
++    @Override
++    public int getMaxPresentLevel(@NotNull Enchantment enchantment) {
++        return getItemMeta().getEnchantLevel(enchantment);
++    }
++
++    // Kenzie end
+     // Paper end
+ }
+diff --git a/src/main/java/org/bukkit/plugin/java/JavaPluginLoader.java b/src/main/java/org/bukkit/plugin/java/JavaPluginLoader.java
+index 384edf9890dfbd1cddfdcac4db1ebe9a4d761f78..4faaab6bb2f17475e82acf5b01c8cff1cc603087 100644
+--- a/src/main/java/org/bukkit/plugin/java/JavaPluginLoader.java
++++ b/src/main/java/org/bukkit/plugin/java/JavaPluginLoader.java
+@@ -6,12 +6,7 @@ import java.io.IOException;
+ import java.io.InputStream;
+ import java.lang.reflect.InvocationTargetException;
+ import java.lang.reflect.Method;
+-import java.util.Arrays;
+-import java.util.HashMap;
+-import java.util.HashSet;
+-import java.util.List;
+-import java.util.Map;
+-import java.util.Set;
++import java.util.*;
+ import java.util.concurrent.ConcurrentHashMap;
+ import java.util.concurrent.CopyOnWriteArrayList;
+ import java.util.jar.JarEntry;
+@@ -289,19 +284,17 @@ public final class JavaPluginLoader implements PluginLoader {
+             Method[] publicMethods = listener.getClass().getMethods();
+             Method[] privateMethods = listener.getClass().getDeclaredMethods();
+             methods = new HashSet<Method>(publicMethods.length + privateMethods.length, 1.0f);
+-            for (Method method : publicMethods) {
+-                methods.add(method);
+-            }
+-            for (Method method : privateMethods) {
+-                methods.add(method);
+-            }
++            Collections.addAll(methods, publicMethods);
++            Collections.addAll(methods, privateMethods);
+         } catch (NoClassDefFoundError e) {
+             plugin.getLogger().severe("Plugin " + plugin.getDescription().getFullName() + " has failed to register events for " + listener.getClass() + " because " + e.getMessage() + " does not exist.");
+             return ret;
+         }
+ 
++        final @Nullable EventHandler classHandler = listener.getClass().getAnnotation(EventHandler.class); // Kenzie - avoid repetition
++        @Nullable EventHandler mh; // Kenzie - Cut down on annotation grabbing
+         for (final Method method : methods) {
+-            final EventHandler eh = method.getAnnotation(EventHandler.class);
++            final EventHandler eh = (mh = method.getAnnotation(EventHandler.class)) != null ? mh : classHandler; // Kenzie - class-wide handlers
+             if (eh == null) continue;
+             // Do not register bridge or synthetic methods to avoid event duplication
+             // Fixes SPIGOT-893
+@@ -310,6 +303,7 @@ public final class JavaPluginLoader implements PluginLoader {
+             }
+             final Class<?> checkClass;
+             if (method.getParameterTypes().length != 1 || !Event.class.isAssignableFrom(checkClass = method.getParameterTypes()[0])) {
++                if (classHandler == null) // Kenzie - skip over any non-listeners from class-wide annotations
+                 plugin.getLogger().severe(plugin.getDescription().getFullName() + " attempted to register an invalid EventHandler method signature \"" + method.toGenericString() + "\" in " + listener.getClass());
+                 continue;
+             }
+diff --git a/src/main/java/org/bukkit/potion/PotionEffectType.java b/src/main/java/org/bukkit/potion/PotionEffectType.java
+index b5790aaac67f5b73f941147008d21a92d716b254..9613e3df8cf1d0b3cf088102418e451b82b2a66f 100644
+--- a/src/main/java/org/bukkit/potion/PotionEffectType.java
++++ b/src/main/java/org/bukkit/potion/PotionEffectType.java
+@@ -1,10 +1,11 @@
+ package org.bukkit.potion;
+ 
+-import java.util.Arrays;
+-import java.util.HashMap;
+-import java.util.Map;
++import java.util.*;
++
+ import org.apache.commons.lang.Validate;
+ import org.bukkit.Color;
++import org.bukkit.NamespacedKey;
++import org.bukkit.plugin.Plugin;
+ import org.jetbrains.annotations.NotNull;
+ import org.jetbrains.annotations.Nullable;
+ 
+@@ -262,10 +263,14 @@ public abstract class PotionEffectType {
+         return "PotionEffectType[" + id + ", " + getName() + "]";
+     }
+ 
+-    private static final PotionEffectType[] byId = new PotionEffectType[33];
+-    private static final Map<String, PotionEffectType> byName = new HashMap<String, PotionEffectType>();
++    public static final int MINECRAFT_SIZE = 33;
++    private static final Map<Integer, PotionEffectType> byId = new HashMap<>(); // Kenzie - expand registry size
++    // The cap is arbitrary.
++    private static final Map<String, PotionEffectType> byName = new HashMap<>();
+     // will break on updates.
+-    private static boolean acceptingNew = true;
++    private static boolean acceptingNew = true; // Kenzie - we actually ignore this
++    private static final Map<PotionEffectType, Plugin> byPlugin = new WeakHashMap<>(); // Kenzie - tracking
++    private static final Map<NamespacedKey, PotionEffectType> byKey = new HashMap<>(); // Kenzie - key tracking
+ 
+     /**
+      * Gets the effect type specified by the unique id.
+@@ -277,9 +282,9 @@ public abstract class PotionEffectType {
+     @Deprecated
+     @Nullable
+     public static PotionEffectType getById(int id) {
+-        if (id >= byId.length || id < 0)
++        if (id < 0)
+             return null;
+-        return byId[id];
++        return byId.get(id);
+     }
+ 
+     /**
+@@ -295,23 +300,99 @@ public abstract class PotionEffectType {
+     }
+ 
+     /**
++     * INTERNAL USE ONLY!
++     * Plugins should see {@link mx.kenzie.wellspring.potion.PotionBuilder}
++     *
+      * Registers an effect type with the given object.
+      * <p>
+      * Generally not to be used from within a plugin.
+      *
+      * @param type PotionType to register
+      */
++    @Deprecated
+     public static void registerPotionEffectType(@NotNull PotionEffectType type) {
+-        if (byId[type.id] != null || byName.containsKey(type.getName().toLowerCase(java.util.Locale.ENGLISH))) {
++        if (byId.get(type.id) != null || byName.containsKey(type.getName().toLowerCase(java.util.Locale.ENGLISH))) {
+             throw new IllegalArgumentException("Cannot set already-set type");
+         } else if (!acceptingNew) {
+             throw new IllegalStateException(
+                     "No longer accepting new potion effect types (can only be done by the server implementation)");
+         }
++        byId.put(type.id, type);
++        byName.put(type.getName().toLowerCase(java.util.Locale.ENGLISH), type);
++        byKey.put(NamespacedKey.minecraft(type.getName().toLowerCase(java.util.Locale.ENGLISH)), type); // Kenzie - tracking
++    }
+ 
+-        byId[type.id] = type;
++    // Kenzie start
++    public static void registerPotion(@NotNull NamespacedKey key, @NotNull PotionEffectType type, @NotNull Plugin plugin) {
++        Validate.notNull(type);
++        if (type.id <= MINECRAFT_SIZE) throw new IllegalArgumentException("Cannot override vanilla potion types!");
++        if (byKey.containsKey(key)) { // Deals with re-registering, because we shouldn't remove them on plugin disable
++            PotionEffectType original = byKey.get(key);
++            unregisterPotion(original);
++        }
++        byId.put(type.id, type);
+         byName.put(type.getName().toLowerCase(java.util.Locale.ENGLISH), type);
++        byPlugin.put(type, plugin);
++        byKey.put(key, type);
++    }
++
++    public static void unregisterPotion(@NotNull PotionEffectType type) {
++        if (type.id <= MINECRAFT_SIZE) throw new IllegalArgumentException("Cannot unregister vanilla potion types!");
++        Validate.notNull(type);
++        byId.remove(type.id);
++        byName.remove(type.getName().toLowerCase(java.util.Locale.ENGLISH));
++        byPlugin.remove(type);
++        byKey.entrySet().removeIf(entry -> entry.getValue().equals(type));
++    }
++
++    public static void unregister(@NotNull Plugin plugin) {
++        Validate.notNull(plugin);
++        byPlugin.entrySet().removeIf(entry -> {
++            if (entry.getValue().equals(plugin)) {
++                PotionEffectType type = entry.getKey();
++                byId.remove(type.id);
++                byName.remove(type.getName());
++                byKey.entrySet().removeIf(e -> e.getValue().equals(type));
++                return true;
++            }
++            return false;
++        });
++    }
++
++    public static void unregister(@NotNull NamespacedKey key) {
++        Validate.notNull(key);
++        byKey.entrySet().removeIf(entry -> {
++            if (entry.getKey().equals(key)) {
++                PotionEffectType type = entry.getValue();
++                byId.remove(type.id);
++                byName.remove(type.getName());
++                byPlugin.remove(type);
++                return true;
++            }
++            return false;
++        });
++    }
++
++    /**
++     * Internal use only!
++     * Improper usage of this can desync it from the NMS potion registry which would cause
++     * mismatched types and a whole host of errors.
++     *
++     * @return the next available potion index
++     */
++    @Deprecated
++    public static int nextAvailableIndex() {
++        int i = MINECRAFT_SIZE + 1;
++        while (byId.containsKey(i)) i++;
++        return i;
++    }
++
++    public static int nextAvailableIndex(@NotNull Plugin plugin) {
++        int i = plugin.getName().hashCode();
++        while (byId.containsKey(i)) i++;
++        return i;
+     }
++    // Kenzie end
+ 
+     /**
+      * Stops accepting any effect type registrations.
+@@ -328,6 +409,6 @@ public abstract class PotionEffectType {
+      */
+     @NotNull
+     public static PotionEffectType[] values() {
+-        return Arrays.copyOfRange(byId, 1, byId.length);
++        return byId.values().toArray(new PotionEffectType[0]);
+     }
+ }

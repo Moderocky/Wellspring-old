@@ -1,11 +1,11 @@
 <project>
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.tuinity</groupId>
-    <artifactId>tuinity-parent</artifactId>
+    <groupId>mx.kenzie.wellspring</groupId>
+    <artifactId>wellspring-parent</artifactId>
     <version>dev-SNAPSHOT</version>
     <packaging>pom</packaging>
-    <name>Tuinity (Parent)</name>
+    <name>Wellspring (Parent)</name>
 
     <repositories>
         <repository>
@@ -19,8 +19,8 @@
         <finalName>${project.artifactId}</finalName>
     </build>
     <modules>
-        <module>Tuinity-API</module>
-        <module>Tuinity-Server</module>
+        <module>Wellspring-API</module>
+        <module>Wellspring-Server</module>
         <module>Paper${file.separator}Paper-MojangAPI</module> <!-- We don't plan on patching this, so this hack is good enough. -->
     </modules>
 </project>

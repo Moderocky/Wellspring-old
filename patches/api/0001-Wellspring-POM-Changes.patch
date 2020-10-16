@@ -1,11 +1,11 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
-From: Spottedleaf <Spottedleaf@users.noreply.github.com>
+From: Moderocky <Moderocky@users.noreply.github.com>
 Date: Fri, 14 Dec 2018 21:52:29 -0800
-Subject: [PATCH] Tuinity POM Changes
+Subject: [PATCH] Wellspring POM Changes
 
 
 diff --git a/pom.xml b/pom.xml
-index 29dafd4b937e635bcce7b3712122ad3452fedfc2..3b5dcb434f3357183859281941139a1c86d9cb1b 100644
+index 29dafd4b937e635bcce7b3712122ad3452fedfc2..3b28efedcbf7eba68f9a0dc68692aa8920ca5b53 100644
 --- a/pom.xml
 +++ b/pom.xml
 @@ -3,18 +3,18 @@
@@ -14,22 +14,22 @@ index 29dafd4b937e635bcce7b3712122ad3452fedfc2..3b5dcb434f3357183859281941139a1c
      <parent>
 -        <groupId>com.destroystokyo.paper</groupId>
 -        <artifactId>paper-parent</artifactId>
-+        <groupId>com.tuinity</groupId>
-+        <artifactId>tuinity-parent</artifactId>
++        <groupId>mx.kenzie.wellspring</groupId>
++        <artifactId>wellspring-parent</artifactId>
          <version>dev-SNAPSHOT</version>
 +        <relativePath>../pom.xml</relativePath>
      </parent>
  
 -    <groupId>com.destroystokyo.paper</groupId>
 -    <artifactId>paper-api</artifactId>
-+    <artifactId>tuinity-api</artifactId>
++    <artifactId>wellspring-api</artifactId>
      <version>1.16.3-R0.1-SNAPSHOT</version>
      <packaging>jar</packaging>
  
 -    <name>Paper-API</name>
 -    <url>https://github.com/PaperMC/Paper</url>
-+    <name>Tuinity-API</name>
-+    <url>https://github.com/Spottedleaf/Tuinity</url>
++    <name>Wellspring-API</name>
++    <url>https://github.com/Moderocky/Wellspring</url>
      <description>An enhanced plugin API for Minecraft servers.</description>
  
      <properties>

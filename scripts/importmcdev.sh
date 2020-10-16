@@ -67,7 +67,7 @@ function importLibrary {
 (
     cd Paper/Paper-Server/
     lastlog=$(git log -1 --oneline)
-    if [[ "$lastlog" = *"Tuinity-Extra mc-dev Imports"* ]]; then
+    if [[ "$lastlog" = *"Wellspring-Extra mc-dev Imports"* ]]; then
         git reset --hard HEAD^
     fi
 )
@@ -97,6 +97,19 @@ done
 ###############################################################################################
 
 # import Foo
+import net.minecraft.server.AttributeDefaults
+import net.minecraft.server.AttributeProvider
+import net.minecraft.server.AutoRecipe
+import net.minecraft.server.DefinedStructureInfo
+import net.minecraft.server.Enchantment
+import net.minecraft.server.EntityMinecartFurnace
+import net.minecraft.server.Fluid
+import net.minecraft.server.IBlockData
+import net.minecraft.server.PacketPlayOutSpawnEntity
+import net.minecraft.server.PacketPlayOutSpawnEntityLiving
+import net.minecraft.server.StructurePiece
+import net.minecraft.server.StructureStart
+import net.minecraft.server.TileEntityTypes
 
 ########################################################
 ########################################################
@@ -116,6 +129,6 @@ importLibrary com.mojang brigadier  com/mojang/brigadier/arguments BoolArgumentT
     cd Paper/Paper-Server/
     rm -rf nms-patches
     git add src -A
-    echo -e "Tuinity-Extra mc-dev Imports\n\n$MODLOG" | git commit src -F -
+    echo -e "Wellspring-Extra mc-dev Imports\n\n$MODLOG" | git commit src -F -
     exit 0
 )
