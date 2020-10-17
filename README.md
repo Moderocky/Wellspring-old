@@ -118,5 +118,6 @@ That said-- I cannot possibly check every potential use case by myself, so I wou
 
 
 This project forms part of the base for KenzieServer. Additions may be inconsistent, but it will generally be maintained as it is used in live production servers.
+The current formations of the build scripts and fork framework were borrowed from Tuinity/byof. Any changes hereafter are by Wellspring.
 
-See [Paper](https://github.com/PaperMC/Paper) for more information about the parent fork, and for compiling instructions.
+See [here]((https://github.com/Moderocky/Wellspring/blob/master/guides/contributing.md)) for more information about contributing, and for compiling instructions.

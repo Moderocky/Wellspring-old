@@ -1,0 +1,38 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Fri, 16 Oct 2020 20:05:33 +0100
+Subject: [PATCH] Find 'empty' WorldStructures.
+
+
+diff --git a/src/main/java/mx/kenzie/server/CraftBridge.java b/src/main/java/mx/kenzie/server/CraftBridge.java
+index caa4d73bc7914bd4b5ed1a731771077462eb0d12..f90c229c4bd91f929c290e509ed773b64398f128 100644
+--- a/src/main/java/mx/kenzie/server/CraftBridge.java
++++ b/src/main/java/mx/kenzie/server/CraftBridge.java
+@@ -26,6 +26,11 @@ public class CraftBridge extends Wellspring.Bridge {
+         return str != null && str != StructureStart.a;
+     }
+ 
++    @Override
++    public WorldStructure emptyStructureInstance() {
++        return StructureStart.a;
++    }
++
+     @Override
+     public WorldStructure getStructure(WorldStructureType structure, Location location) {
+         final WorldServer world = ((CraftWorld) location.getWorld()).getHandle();
+diff --git a/src/main/java/net/minecraft/server/StructureStart.java b/src/main/java/net/minecraft/server/StructureStart.java
+index e3ddcf9fc41da4969d017ec9548a25dd5647aaa2..f651204bc29337dc64239879702ab78c220bc966 100644
+--- a/src/main/java/net/minecraft/server/StructureStart.java
++++ b/src/main/java/net/minecraft/server/StructureStart.java
+@@ -36,6 +36,11 @@ public abstract class StructureStart<C extends WorldGenFeatureConfiguration> imp
+     public NamespacedKey getKey() {
+         return NamespacedKey.createFrom(IRegistry.STRUCTURE_FEATURE.getKey(e).toString());
+     }
++
++    @Override
++    public boolean isEmpty() {
++        return this == a;
++    }
+     // Kenzie end
+ 
+     public StructureStart(StructureGenerator<C> var0, int var1, int var2, StructureBoundingBox var3, int var4, long var5) {
