@@ -97,20 +97,20 @@ done
 ###############################################################################################
 
 # import Foo
-import net.minecraft.server.AttributeDefaults
-import net.minecraft.server.AttributeProvider
-import net.minecraft.server.AutoRecipe
-import net.minecraft.server.DefinedStructureInfo
-import net.minecraft.server.Enchantment
-import net.minecraft.server.EntityMinecartFurnace
-import net.minecraft.server.Fluid
-import net.minecraft.server.IBlockData
-import net.minecraft.server.PacketPlayOutSpawnEntity
-import net.minecraft.server.PacketPlayOutSpawnEntityLiving
-import net.minecraft.server.StructurePiece
-import net.minecraft.server.StructureStart
-import net.minecraft.server.TileEntityTypes
-import net.minecraft.server.PacketPlayOutEntityTeleport
+import AttributeDefaults
+import AttributeProvider
+import AutoRecipe
+import DefinedStructureInfo
+import Enchantment
+import EntityMinecartFurnace
+import Fluid
+import IBlockData
+import PacketPlayOutEntityTeleport
+import PacketPlayOutSpawnEntity
+import PacketPlayOutSpawnEntityLiving
+import StructurePiece
+import StructureStart
+import TileEntityTypes
 
 ########################################################
 ########################################################

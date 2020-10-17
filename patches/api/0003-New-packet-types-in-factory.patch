@@ -1,0 +1,53 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Sat, 17 Oct 2020 12:22:18 +0100
+Subject: [PATCH] New packet types in factory.
+
+
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java b/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java
+index 2b8cd89c44044a747f494ed8b5282065461d367e..7244369740424ec63ad56037c0655f10c70bb327 100644
+--- a/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java
++++ b/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java
+@@ -3,6 +3,7 @@ package mx.kenzie.wellspring.packet;
+ import com.destroystokyo.paper.network.NetworkClient;
+ import mx.kenzie.wellspring.conversion.BiConverter;
+ import mx.kenzie.wellspring.conversion.Converter;
++import mx.kenzie.wellspring.nbt.NBTCompound;
+ import net.md_5.bungee.api.chat.BaseComponent;
+ import org.bukkit.Location;
+ import org.bukkit.NamespacedKey;
+@@ -93,8 +94,33 @@ public abstract class PacketFactory {
+     public abstract @NotNull
+     Packet playOutSpawnLivingEntity(@NotNull EntityType type, @NotNull Location location, int id, @NotNull UUID uuid, float yaw, float pitch, float headRotation);
+ 
+-    public abstract void send(@NotNull Packet packet, @NotNull NetworkClient... recipients) throws IllegalArgumentException;
++    public @NotNull
++    Packet playOutEntityTeleport(@NotNull Entity entity, @NotNull Location location) {
++        return playOutEntityTeleport(entity.getEntityId(), location);
++    }
++
++    public abstract @NotNull
++    Packet playOutEntityTeleport(int id, @NotNull Location location);
++
++    public abstract @NotNull
++    Packet playOutRelEntityMove(int id, @NotNull Location from, @NotNull Location to);
++
++    public @NotNull
++    Packet playOutRelEntityMove(@NotNull Entity entity, @NotNull Location target) {
++        return playOutRelEntityMove(entity.getEntityId(), entity.getLocation(), target);
++    }
+ 
++    @Deprecated
++    public abstract @NotNull
++    Packet playOutEntityMetadata(@NotNull Entity entity, @NotNull NBTCompound compound);
++
++    public abstract @NotNull
++    Packet playOutEntityDestroy(@NotNull Entity entity);
++
++    public abstract @NotNull
++    Packet playOutEntityDestroy(@NotNull int id);
++
++    public abstract void send(@NotNull Packet packet, @NotNull NetworkClient... recipients) throws IllegalArgumentException;
+ 
+     protected static class ConversionEntry<X, Y> {
+         @NotNull

@@ -1,0 +1,86 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Sat, 17 Oct 2020 12:22:24 +0100
+Subject: [PATCH] New packet types in factory.
+
+
+diff --git a/src/main/java/mx/kenzie/server/packet/PacketFactoryImpl.java b/src/main/java/mx/kenzie/server/packet/PacketFactoryImpl.java
+index 141c2ad5b634a282b7092dae50661f17d95ff401..7692ac665339f460cde628131a3d9e63fefed653 100644
+--- a/src/main/java/mx/kenzie/server/packet/PacketFactoryImpl.java
++++ b/src/main/java/mx/kenzie/server/packet/PacketFactoryImpl.java
+@@ -3,6 +3,7 @@ package mx.kenzie.server.packet;
+ import com.destroystokyo.paper.network.NetworkClient;
+ import com.destroystokyo.paper.network.PaperNetworkClient;
+ import mx.kenzie.wellspring.conversion.Converter;
++import mx.kenzie.wellspring.nbt.NBTCompound;
+ import mx.kenzie.wellspring.packet.PacketFactory;
+ import mx.kenzie.wellspring.packet.PacketType;
+ import net.md_5.bungee.api.chat.BaseComponent;
+@@ -304,6 +305,36 @@ public class PacketFactoryImpl extends PacketFactory {
+         return new PacketPlayOutSpawnEntityLiving(id, uuid, typeId, location.getX(), location.getY(), location.getZ(), new Vec3D(0, 0, 0), yaw, pitch, headRotation);
+     }
+ 
++    @Override
++    public mx.kenzie.wellspring.packet.Packet playOutEntityTeleport(int id, Location location) {
++        return new PacketPlayOutEntityTeleport(id, location);
++    }
++
++    @Override
++    public mx.kenzie.wellspring.packet.Packet playOutRelEntityMove(int id, Location from, Location to) {
++          if (from.distanceSquared(to) > 64)
++              return playOutEntityTeleport(id, to);
++          short x = (short) ((to.getX() * 32 - from.getX() * 32) * 128);
++          short y = (short) ((to.getY() * 32 - from.getY() * 32) * 128);
++          short z = (short) ((to.getZ() * 32 - from.getZ() * 32) * 128);
++          return new PacketPlayOutEntity.PacketPlayOutRelEntityMove(id, x, y, z, false);
++    }
++
++    @Override
++    public mx.kenzie.wellspring.packet.Packet playOutEntityMetadata(Entity entity, NBTCompound compound) {
++        return new PacketPlayOutEntityMetadata();
++    }
++
++    @Override
++    public mx.kenzie.wellspring.packet.Packet playOutEntityDestroy(Entity entity) {
++        return playOutEntityDestroy(entity.getEntityId());
++    }
++
++    @Override
++    public mx.kenzie.wellspring.packet.Packet playOutEntityDestroy(int id) {
++        return new PacketPlayOutEntityDestroy(id);
++    }
++
+     @Override
+     public mx.kenzie.wellspring.packet.Packet createFrom(PacketType type, Object... fieldInputs) {
+         try {
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutEntityTeleport.java b/src/main/java/net/minecraft/server/PacketPlayOutEntityTeleport.java
+index 6a815c11f0c84596a9eff0cf51cee46cd08defa3..84935fb81d05b8bf36bb81cb0ac6dde0981c9e82 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutEntityTeleport.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutEntityTeleport.java
+@@ -1,5 +1,7 @@
+ package net.minecraft.server;
+ 
++import org.bukkit.Location;
++
+ import java.io.IOException;
+ 
+ public class PacketPlayOutEntityTeleport implements Packet<PacketListenerPlayOut> {
+@@ -14,6 +16,18 @@ public class PacketPlayOutEntityTeleport implements Packet<PacketListenerPlayOut
+ 
+     public PacketPlayOutEntityTeleport() {}
+ 
++    // Kenzie start
++    public PacketPlayOutEntityTeleport(int id, Location location) {
++        this.a = id;
++        this.b = location.getBlockX();
++        this.c = location.getBlockY();
++        this.d = location.getBlockZ();
++        this.e = (byte) ((int) (location.getYaw() * 256.0F / 360.0F));
++        this.f = (byte) ((int) (location.getPitch() * 256.0F / 360.0F));
++        this.g = false;
++    }
++    // Kenzie end
++
+     public PacketPlayOutEntityTeleport(Entity entity) {
+         this.a = entity.getId();
+         this.b = entity.locX();
