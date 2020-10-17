@@ -110,6 +110,7 @@ import net.minecraft.server.PacketPlayOutSpawnEntityLiving
 import net.minecraft.server.StructurePiece
 import net.minecraft.server.StructureStart
 import net.minecraft.server.TileEntityTypes
+import net.minecraft.server.PacketPlayOutEntityTeleport
 
 ########################################################
 ########################################################
