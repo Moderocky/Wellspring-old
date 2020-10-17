@@ -97,20 +97,6 @@ done
 ###############################################################################################
 
 # import Foo
-import AttributeDefaults
-import AttributeProvider
-import AutoRecipe
-import DefinedStructureInfo
-import Enchantment
-import EntityMinecartFurnace
-import Fluid
-import IBlockData
-import PacketPlayOutEntityTeleport
-import PacketPlayOutSpawnEntity
-import PacketPlayOutSpawnEntityLiving
-import StructurePiece
-import StructureStart
-import TileEntityTypes
 
 ########################################################
 ########################################################
