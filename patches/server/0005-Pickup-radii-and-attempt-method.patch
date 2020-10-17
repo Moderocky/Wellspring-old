@@ -1,0 +1,78 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Sat, 17 Oct 2020 13:36:58 +0100
+Subject: [PATCH] Pickup radii and attempt method.
+
+
+diff --git a/src/main/java/net/minecraft/server/EntityHuman.java b/src/main/java/net/minecraft/server/EntityHuman.java
+index ce4ebc96c01f3dacf4e4d0569d86f52140440d43..9502d72f3a2b376302f75d17d16c08eac43c37f7 100644
+--- a/src/main/java/net/minecraft/server/EntityHuman.java
++++ b/src/main/java/net/minecraft/server/EntityHuman.java
+@@ -78,6 +78,9 @@ public abstract class EntityHuman extends EntityLiving {
+     public boolean fauxSleeping;
+     public int oldLevel = -1;
+ 
++    public double pickupRadH = 1.0; // Kenzie
++    public double pickupRadV = 0.5; // Kenzie
++
+     @Override
+     public CraftHumanEntity getBukkitEntity() {
+         return (CraftHumanEntity) super.getBukkitEntity();
+@@ -424,9 +427,9 @@ public abstract class EntityHuman extends EntityLiving {
+             AxisAlignedBB axisalignedbb;
+ 
+             if (this.isPassenger() && !this.getVehicle().dead) {
+-                axisalignedbb = this.getBoundingBox().b(this.getVehicle().getBoundingBox()).grow(1.0D, 0.0D, 1.0D);
++                axisalignedbb = this.getBoundingBox().b(this.getVehicle().getBoundingBox()).grow(pickupRadH, pickupRadV-0.5D, pickupRadH); // Kenzie
+             } else {
+-                axisalignedbb = this.getBoundingBox().grow(1.0D, 0.5D, 1.0D);
++                axisalignedbb = this.getBoundingBox().grow(pickupRadH, pickupRadV, pickupRadH); // Kenzie
+             }
+ 
+             List<Entity> list = this.world.getEntities(this, axisalignedbb);
+diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftHumanEntity.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftHumanEntity.java
+index 53917d3b381730efb079113fdffecdc29939d6ea..dbfa983c401cdacef06f79bb41dd47416eb27318 100644
+--- a/src/main/java/org/bukkit/craftbukkit/entity/CraftHumanEntity.java
++++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftHumanEntity.java
+@@ -78,6 +78,34 @@ public class CraftHumanEntity extends CraftLivingEntity implements HumanEntity {
+         enderChest = new CraftInventory(entity.getEnderChest());
+     }
+ 
++    // Kenzie start
++    @Override
++    public double getHorizontalPickupRadius() {
++        return getHandle().pickupRadH;
++    }
++
++    @Override
++    public void setHorizontalPickupRadius(double radius) {
++        getHandle().pickupRadH = radius;
++    }
++
++    @Override
++    public double getVerticalPickupRadius() {
++        return getHandle().pickupRadV;
++    }
++
++    @Override
++    public void setVerticalPickupRadius(double radius) {
++        getHandle().pickupRadV = radius;
++    }
++
++    @Override
++    public void attemptPickup(org.bukkit.entity.Entity entity) {
++        Entity nms = ((CraftEntity) entity).getHandle();
++        nms.pickup(getHandle());
++    }
++    // Kenzie end
++
+     @Override
+     public PlayerInventory getInventory() {
+         return inventory;
+@@ -697,4 +725,6 @@ public class CraftHumanEntity extends CraftLivingEntity implements HumanEntity {
+     public boolean dropItem(boolean dropAll) {
+         return getHandle().dropItem(dropAll);
+     }
++
++
+ }

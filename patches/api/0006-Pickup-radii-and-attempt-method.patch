@@ -1,0 +1,69 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Sat, 17 Oct 2020 13:36:50 +0100
+Subject: [PATCH] Pickup radii and attempt method.
+
+
+diff --git a/src/main/java/org/bukkit/entity/HumanEntity.java b/src/main/java/org/bukkit/entity/HumanEntity.java
+index 77bff8fb6bfdf739e413084e13677a83e723c71e..6bf78d0baf2159fe1ac67f2d53a287a1402f9dfb 100644
+--- a/src/main/java/org/bukkit/entity/HumanEntity.java
++++ b/src/main/java/org/bukkit/entity/HumanEntity.java
+@@ -588,4 +588,58 @@ public interface HumanEntity extends LivingEntity, AnimalTamer, InventoryHolder
+      * @return True if item was dropped successfully
+      */
+     public boolean dropItem(boolean dropAll);
++
++    // Kenzie start
++    /**
++     *
++     * @return the horizontal pickup radius for items - defaults to 1.0
++     */
++    double getHorizontalPickupRadius();
++
++    /**
++     * Sets the horizontal pickup radius for items - defaults to 1.0.
++     * Note: this is ADDED to the bounding box of the entity.
++     *
++     * Setting this to 0 would mean a player needs to stand on top of
++     * an item to pick it up.
++     *
++     * @param radius the pickup radius
++     */
++    void setHorizontalPickupRadius(double radius);
++
++    /**
++     *
++     * @return the vertical pickup radius for items - defaults to 0.5
++     */
++    double getVerticalPickupRadius();
++
++    /**
++     * Sets the vertical pickup radius for items - defaults to 0.5.
++     * Note: this is ADDED to the bounding box of the entity.
++     *
++     * While riding a vehicle, this is automatically REDUCED by 0.5.
++     *
++     * Enlarging this will allow players to pick up items lower or higher
++     * than them. By default they can pick up items that are up to a
++     * half-slab below (or above) them.
++     *
++     * @param radius the pickup radius
++     */
++    void setVerticalPickupRadius(double radius);
++
++    /**
++     * This human will attempt to pick up the given entity.
++     * This is only applicable to dropped items, arrows and
++     * tridents.
++     *
++     * For any non-applicable entity this method will fail
++     * silently.
++     *
++     * The pick-up event will be triggered as usual, and the
++     * corresponding statistics will be incremented.
++     *
++     * @param entity the entity to pick up
++     */
++    void attemptPickup(@NotNull Entity entity);
++    // Kenzie end
+ }
