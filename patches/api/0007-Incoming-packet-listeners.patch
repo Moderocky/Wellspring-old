@@ -1,0 +1,518 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Tue, 20 Oct 2020 17:06:21 +0100
+Subject: [PATCH] Incoming packet listeners.
+
+Squash
+
+Implementation testing.
+
+Velocity and new packet types.
+
+diff --git a/src/main/java/com/destroystokyo/paper/network/NetworkClient.java b/src/main/java/com/destroystokyo/paper/network/NetworkClient.java
+index a3758cc0d897139c7b89391a6647c42d3093c963..d9eeaecf6817067664ed94a7c5c1956701f0e2e6 100644
+--- a/src/main/java/com/destroystokyo/paper/network/NetworkClient.java
++++ b/src/main/java/com/destroystokyo/paper/network/NetworkClient.java
+@@ -3,13 +3,14 @@ package com.destroystokyo.paper.network;
+ import java.net.InetSocketAddress;
+ 
+ import mx.kenzie.wellspring.packet.Packet;
++import mx.kenzie.wellspring.packet.receiving.PacketSender;
+ import org.jetbrains.annotations.NotNull;
+ import org.jetbrains.annotations.Nullable;
+ 
+ /**
+  * Represents a client connected to the server.
+  */
+-public interface NetworkClient {
++public interface NetworkClient extends PacketSender {
+ 
+     /**
+      * Returns the socket address of the client.
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java b/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java
+index 7244369740424ec63ad56037c0655f10c70bb327..39dc4576ffee7f11132841207f4ca399ac31afd7 100644
+--- a/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java
++++ b/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java
+@@ -13,6 +13,8 @@ import org.bukkit.block.data.BlockData;
+ import org.bukkit.entity.Entity;
+ import org.bukkit.entity.EntityType;
+ import org.bukkit.entity.Player;
++import org.bukkit.util.Vector;
++import org.jetbrains.annotations.Contract;
+ import org.jetbrains.annotations.NotNull;
+ import org.jetbrains.annotations.Nullable;
+ 
+@@ -51,72 +53,122 @@ public abstract class PacketFactory {
+      * @param fieldInputs The field values, in order. These will be set via reflection
+      * @return The complete packet, if possible
+      */
++    @Contract(pure = true)
+     public abstract @NotNull
+     Packet createFrom(@NotNull PacketType type, @NotNull Object... fieldInputs) throws IllegalArgumentException;
+ 
++    @Contract(pure = true)
+     public abstract @NotNull Packet statusOutPong(long ms);
+ 
++    @Contract(pure = true)
+     public abstract @NotNull Packet statusOutOutServerInfo(@NotNull BaseComponent[] motd, int online, int maxPlayers, @NotNull String version, int protocol, @Nullable String icon);
+ 
++    @Contract(pure = true)
+     public abstract @NotNull
+     Packet loginOutCustomPayload();
+ 
++    @Contract(pure = true)
+     public abstract @NotNull
+     Packet playOutAbilities(boolean invulnerable, boolean flying, boolean canFly, boolean canInstantlyBuild, float flySpeed, float walkSpeed);
+ 
++    @Contract(pure = true)
+     public abstract @NotNull
+     Packet playOutAdvancements(boolean reset, @NotNull Collection<Advancement> toAdd, @NotNull Set<NamespacedKey> toRemove, @NotNull Map<NamespacedKey, AdvancementProgress> progress);
+ 
++    @Contract(pure = true)
+     public abstract @NotNull
+     Packet playOutAnimation(@NotNull Entity entity, int animationId);
+ 
++    @Contract(pure = true)
+     public abstract @NotNull
+     Packet playOutAttachEntity(@NotNull Entity target, @NotNull Entity holder);
+ 
++    @Contract(pure = true)
+     public abstract @NotNull
+     Packet playOutAutoRecipe(int container, @NotNull NamespacedKey recipe);
+ 
++    @Contract(pure = true)
+     public abstract @NotNull
+     Packet playOutBlockAction(@NotNull Location location, @NotNull BlockData data, int action, int parameter);
+ 
++    @Contract(pure = true)
+     public abstract @NotNull
+     Packet playOutSpawnEntity(@NotNull EntityType type, @NotNull Location location);
+ 
++    @Contract(pure = true)
+     public abstract @NotNull
+     Packet playOutSpawnEntity(@NotNull EntityType type, @NotNull Location location, int id, @NotNull UUID uuid);
+ 
++    @Contract(pure = true)
+     public abstract @NotNull
+     Packet playOutSpawnLivingEntity(@NotNull EntityType type, @NotNull Location location);
+ 
++    @Contract(pure = true)
+     public abstract @NotNull
+     Packet playOutSpawnLivingEntity(@NotNull EntityType type, @NotNull Location location, int id, @NotNull UUID uuid);
+ 
++    @Contract(pure = true)
+     public abstract @NotNull
+     Packet playOutSpawnLivingEntity(@NotNull EntityType type, @NotNull Location location, int id, @NotNull UUID uuid, float yaw, float pitch, float headRotation);
+ 
++    @Contract(pure = true)
+     public @NotNull
+     Packet playOutEntityTeleport(@NotNull Entity entity, @NotNull Location location) {
+         return playOutEntityTeleport(entity.getEntityId(), location);
+     }
+ 
++    @Contract(pure = true)
+     public abstract @NotNull
+     Packet playOutEntityTeleport(int id, @NotNull Location location);
+ 
++    @Contract(pure = true)
+     public abstract @NotNull
+     Packet playOutRelEntityMove(int id, @NotNull Location from, @NotNull Location to);
+ 
++    @Contract(pure = true)
+     public @NotNull
+     Packet playOutRelEntityMove(@NotNull Entity entity, @NotNull Location target) {
+         return playOutRelEntityMove(entity.getEntityId(), entity.getLocation(), target);
+     }
+ 
++    @Contract(pure = true)
++    public abstract @NotNull
++    Packet playOutEntityLook(int id, float yaw, float pitch);
++
++    @Contract(pure = true)
++    public abstract @NotNull
++    Packet playOutEntityLook(@NotNull Entity entity, float yaw, float pitch);
++
++    @Contract(pure = true)
++    public abstract @NotNull
++    Packet playOutRelEntityMoveLook(int id, @NotNull Location from, @NotNull Location to, float yaw, float pitch);
++
++    @Contract(pure = true)
++    public @NotNull
++    Packet playOutRelEntityMoveLook(@NotNull Entity entity, @NotNull Location target, float yaw, float pitch) {
++        return playOutRelEntityMoveLook(entity.getEntityId(), entity.getLocation(), target, yaw, pitch);
++    }
++
++    @Contract(pure = true)
++    public abstract @NotNull
++    Packet playOutEntityVelocity(int id, @NotNull Vector vector);
++
++    @Contract(pure = true)
++    public @NotNull
++    Packet playOutEntityVelocity(@NotNull Entity entity, @NotNull Vector vector) {
++        return playOutEntityVelocity(entity.getEntityId(), vector);
++    }
++
+     @Deprecated
++    @Contract(pure = true)
+     public abstract @NotNull
+     Packet playOutEntityMetadata(@NotNull Entity entity, @NotNull NBTCompound compound);
+ 
++    @Contract(pure = true)
+     public abstract @NotNull
+     Packet playOutEntityDestroy(@NotNull Entity entity);
+ 
++    @Contract(pure = true)
+     public abstract @NotNull
+     Packet playOutEntityDestroy(@NotNull int id);
+ 
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/PacketListener.java b/src/main/java/mx/kenzie/wellspring/packet/PacketListener.java
+deleted file mode 100644
+index cd00523be6423fc67225a2ca031e9c6c843ec576..0000000000000000000000000000000000000000
+--- a/src/main/java/mx/kenzie/wellspring/packet/PacketListener.java
++++ /dev/null
+@@ -1,4 +0,0 @@
+-package mx.kenzie.wellspring.packet;
+-
+-public interface PacketListener {
+-}
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/receiving/DefaultPacketEvent.java b/src/main/java/mx/kenzie/wellspring/packet/receiving/DefaultPacketEvent.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..dbcf68e6cc7090d40ae6c11943ff513fea6d674f
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/packet/receiving/DefaultPacketEvent.java
+@@ -0,0 +1,10 @@
++package mx.kenzie.wellspring.packet.receiving;
++
++import mx.kenzie.wellspring.packet.Packet;
++import org.jetbrains.annotations.NotNull;
++
++public class DefaultPacketEvent extends PacketEvent<Packet> {
++    public DefaultPacketEvent(@NotNull Packet packet, @NotNull PacketSender sender) {
++        super(packet, sender);
++    }
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/receiving/PacketEvent.java b/src/main/java/mx/kenzie/wellspring/packet/receiving/PacketEvent.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..66e3c3fb50cb884565b80afbc78da0b3678e099d
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/packet/receiving/PacketEvent.java
+@@ -0,0 +1,42 @@
++package mx.kenzie.wellspring.packet.receiving;
++
++import mx.kenzie.wellspring.packet.Packet;
++import mx.kenzie.wellspring.packet.PacketType;
++import org.jetbrains.annotations.NotNull;
++
++/**
++ *
++ * @param <T> the packet type - future-proofing specifics
++ *
++ * @author Moderocky
++ */
++public abstract class PacketEvent<T extends Packet> {
++
++    public final @NotNull Packet packet;
++    public final @NotNull
++    PacketSender sender;
++    public final @NotNull
++    PacketType type;
++
++    private volatile boolean cancelled, incoming;
++
++    public PacketEvent(@NotNull Packet packet, @NotNull PacketSender sender) {
++        this.packet = packet;
++        this.sender = sender;
++        this.type = PacketType.of(packet);
++        incoming = true;
++        cancelled = false;
++    }
++
++    public synchronized void setCancelled(boolean cancelled) {
++        this.cancelled = cancelled;
++    }
++
++    public synchronized boolean isCancelled() {
++        return cancelled;
++    }
++
++    public synchronized boolean isIncoming() {
++        return incoming;
++    }
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/receiving/PacketEventController.java b/src/main/java/mx/kenzie/wellspring/packet/receiving/PacketEventController.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..960d8b230d57cbd71d038a309b4e7c1cd4f9914f
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/packet/receiving/PacketEventController.java
+@@ -0,0 +1,69 @@
++package mx.kenzie.wellspring.packet.receiving;
++
++import mx.kenzie.wellspring.packet.Packet;
++import mx.kenzie.wellspring.packet.PacketType;
++import org.bukkit.plugin.Plugin;
++import org.jetbrains.annotations.NotNull;
++
++import java.util.HashSet;
++import java.util.Map;
++import java.util.Set;
++import java.util.WeakHashMap;
++
++/**
++ * The handler for all packet-related events.
++ *
++ * @author Moderocky
++ */
++public abstract class PacketEventController {
++
++    protected static PacketEventController controller;
++    protected static final Map<PacketSender, Set<PacketListener>> LISTENERS;
++
++    static {
++        LISTENERS = new WeakHashMap<>();
++    }
++
++    public static @NotNull
++    PacketEventController getInstance() {
++        return controller;
++    }
++
++    protected boolean accept(@NotNull Packet packet, @NotNull PacketSender sender) {
++        if (LISTENERS.containsKey(sender)) {
++            final PacketEvent<Packet> event = new DefaultPacketEvent(packet, sender);
++            for (PacketListener listener : LISTENERS.get(sender)) {
++                if (listener.accepts(event.type))
++                    listener.onEvent(event);
++            }
++            return !event.isCancelled();
++        }
++        return true;
++    }
++
++    protected boolean registerListener(@NotNull PacketSender sender, @NotNull PacketListener listener) {
++        if (LISTENERS.containsKey(sender)) {
++            return LISTENERS.get(sender).add(listener);
++        } else {
++            LISTENERS.put(sender, createWith(listener));
++        }
++        return true;
++    }
++
++    protected boolean unregisterListener(@NotNull PacketSender sender, @NotNull PacketListener listener) {
++        return LISTENERS.containsKey(sender) && LISTENERS.get(sender).remove(listener);
++    }
++
++    public void unregisterListeners(@NotNull Plugin plugin) {
++        for (Set<PacketListener> set : LISTENERS.values()) {
++            set.removeIf(listener -> listener.getPlugin().equals(plugin));
++        }
++    }
++
++    private @NotNull Set<PacketListener> createWith(@NotNull PacketListener listener) {
++        final Set<PacketListener> set = new HashSet<>();
++        set.add(listener);
++        return set;
++    }
++
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/receiving/PacketListener.java b/src/main/java/mx/kenzie/wellspring/packet/receiving/PacketListener.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..f79b06b616a974bf3e050f1bcfff2e542d3f64b2
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/packet/receiving/PacketListener.java
+@@ -0,0 +1,58 @@
++package mx.kenzie.wellspring.packet.receiving;
++
++import mx.kenzie.wellspring.packet.PacketType;
++import org.bukkit.plugin.Plugin;
++import org.jetbrains.annotations.NotNull;
++
++import java.util.function.Consumer;
++
++/**
++ * A packet listener. This is different from an event listener
++ * as it is registered to specific network connections rather
++ * than just a packet type. This allows you to control
++ * which packets should be listened to.
++ *
++ * @author Moderocky
++ */
++public class PacketListener {
++
++    public static @NotNull PacketListener create(@NotNull Plugin plugin, @NotNull Consumer<PacketEvent<?>> handler, @NotNull PacketType... types) {
++        return new PacketListener(plugin, types, handler);
++    }
++
++    private final @NotNull Plugin plugin;
++    private final @NotNull Consumer<PacketEvent<?>> handler;
++    private final @NotNull PacketType[] types;
++
++    public PacketListener(@NotNull Plugin plugin, @NotNull PacketType[] types, @NotNull Consumer<PacketEvent<?>> handler) {
++        this.plugin = plugin;
++        this.handler = handler;
++        this.types = types;
++    }
++
++    synchronized void onEvent(@NotNull PacketEvent<?> event) {
++        handler.accept(event);
++    }
++
++    public boolean accepts(@NotNull PacketType type) {
++        for (PacketType packetType : types) {
++            if (packetType == type) return true;
++        }
++        return false;
++    }
++
++    @NotNull
++    public PacketType[] getTypes() {
++        return types;
++    }
++
++    @NotNull
++    public final Plugin getPlugin() {
++        return plugin;
++    }
++
++    @NotNull
++    public final Consumer<PacketEvent<?>> getHandler() {
++        return handler;
++    }
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/receiving/PacketSender.java b/src/main/java/mx/kenzie/wellspring/packet/receiving/PacketSender.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..9fb478b50a3498ad70db85b4b7dc665b02a321f0
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/packet/receiving/PacketSender.java
+@@ -0,0 +1,65 @@
++package mx.kenzie.wellspring.packet.receiving;
++
++import mx.kenzie.wellspring.packet.Packet;
++import mx.kenzie.wellspring.packet.PacketType;
++import org.jetbrains.annotations.Contract;
++import org.jetbrains.annotations.NotNull;
++
++import java.util.function.Consumer;
++
++/**
++ * This represents the object belonging to an
++ * incoming connection. Typically, this will be
++ * a {@link org.bukkit.entity.Player} via a {@link com.destroystokyo.paper.network.NetworkClient}.
++ *
++ * This is not necessarily the "sender" of the packet, so much as
++ * it is the thing representing the sender. E.g. a player, rather than the
++ * remote network connection.
++ *
++ * @author Moderocky
++ */
++public interface PacketSender {
++
++    /**
++     * Registers a new packet listener for this sender. The listener
++     * is specific to this object and will exist for as long as this
++     * object does.
++     *
++     * @param listener the listener to register.
++     * @return true if successful.
++     */
++    @Contract("!null -> true")
++    default boolean registerPacketListener(@NotNull PacketListener listener) {
++        return PacketEventController.controller.registerListener(this, listener);
++    }
++
++    /**
++     * Unregisters the given listener.
++     * @param listener the listener.
++     * @return true if successful.
++     */
++    @Contract()
++    default boolean unregisterPacketListener(@NotNull PacketListener listener) {
++        return PacketEventController.controller.unregisterListener(this, listener);
++    }
++
++    /**
++     * This is used internally to mark an incoming packet and trigger
++     * any registered listeners.
++     *
++     * This also allows a plugin to "falsify" an incoming packet - this will
++     * not actually send the packet, or cause the behaviour it usually triggers,
++     * but will trigger any listeners for this packet.
++     *
++     * This exists both as a useful testing tool, and also in case a plugin
++     * is creating some sort of "fake" player implementation.
++     *
++     * @param packet the packet to be faked.
++     * @return true if passed, false if a listener cancels it.
++     */
++    @Contract()
++    default boolean triggerIncomingPacket(@NotNull Packet packet) {
++        return PacketEventController.controller.accept(packet, this);
++    }
++
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/specific/IncomingSteerVehicle.java b/src/main/java/mx/kenzie/wellspring/packet/specific/IncomingSteerVehicle.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..6a4351b4ae1ca4fc6c846e596f1383c9199d09bc
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/packet/specific/IncomingSteerVehicle.java
+@@ -0,0 +1,61 @@
++package mx.kenzie.wellspring.packet.specific;
++
++import mx.kenzie.wellspring.packet.Packet;
++import org.jetbrains.annotations.NotNull;
++
++import java.util.HashSet;
++import java.util.Set;
++
++import static mx.kenzie.wellspring.packet.specific.IncomingSteerVehicle.Direction.*;
++import static mx.kenzie.wellspring.packet.specific.IncomingSteerVehicle.Direction.UP;
++
++/**
++ * Sent when a player presses movement key input while
++ * mounted.
++ */
++public interface IncomingSteerVehicle extends Packet {
++
++    float getLateralMotion();
++
++    float getForwardMotion();
++
++    boolean isJumping();
++
++    boolean isSneaking();
++
++    default @NotNull
++    Set<Direction> getDirections() {
++        final Set<IncomingSteerVehicle.Direction> directions = new HashSet<>();
++        if (this.getForwardMotion() > 0) directions.add(FORWARDS);
++        else if (this.getForwardMotion() < 0) directions.add(BACKWARDS);
++        if (this.getLateralMotion() > 0) directions.add(LEFT);
++        else if (this.getLateralMotion() < 0) directions.add(RIGHT);
++        if (this.isSneaking()) directions.add(DOWN);
++        if (this.isJumping()) directions.add(UP);
++        return directions;
++    }
++
++    default boolean isMoving(@NotNull Direction direction) {
++        switch (direction) {
++            case FORWARDS:
++                return getForwardMotion() > 0;
++            case BACKWARDS:
++                return getForwardMotion() < 0;
++            case LEFT:
++                return getLateralMotion() > 0;
++            case RIGHT:
++                return getLateralMotion() < 0;
++            case UP:
++                return isJumping();
++            case DOWN:
++                return isSneaking();
++            default:
++                return false;
++        }
++    }
++
++    enum Direction {
++        FORWARDS,BACKWARDS,LEFT,RIGHT,UP,DOWN;
++    }
++
++}

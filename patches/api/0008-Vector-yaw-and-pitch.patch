@@ -1,0 +1,47 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Tue, 20 Oct 2020 17:58:35 +0100
+Subject: [PATCH] Vector yaw and pitch.
+
+
+diff --git a/src/main/java/org/bukkit/util/Vector.java b/src/main/java/org/bukkit/util/Vector.java
+index bdfb9623b74ea73a3d343b20fc1369cc797880c5..a8fd026b1e266dff35babccd5977a84770b31884 100644
+--- a/src/main/java/org/bukkit/util/Vector.java
++++ b/src/main/java/org/bukkit/util/Vector.java
+@@ -816,6 +816,36 @@ public class Vector implements Cloneable, ConfigurationSerializable {
+         NumberConversions.checkFinite(z, "z not finite");
+     }
+ 
++    // Kenzie start
++
++    /**
++     * @return the yaw of this vector
++     */
++    public float getYaw() {
++        if (x == 0 && z == 0) {
++            return 0.0F;
++        }
++        final double pi2 = 2 * Math.PI;
++        final double theta = Math.atan2(-getX(), getZ());
++        return (float) Math.toDegrees((theta + pi2) % pi2);
++    }
++
++    /**
++     * @return the pitch of this vector
++     */
++    public float getPitch() {
++        final double x = getX();
++        final double z = getZ();
++        if (x == 0 && z == 0) {
++            return getY() > 0 ? -90 : 90;
++        }
++        double x2 = NumberConversions.square(x);
++        double z2 = NumberConversions.square(z);
++        double xz = Math.sqrt(x2 + z2);
++        return (float) Math.toDegrees(Math.atan(-getY() / xz));
++    }
++    // Kenzie end
++
+     /**
+      * Get the threshold used for equals().
+      *

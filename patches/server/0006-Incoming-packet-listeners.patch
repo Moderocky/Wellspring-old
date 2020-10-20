@@ -1,0 +1,247 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Tue, 20 Oct 2020 17:06:26 +0100
+Subject: [PATCH] Incoming packet listeners.
+
+Implementation testing.
+
+Velocity and new packet types.
+
+diff --git a/src/main/java/com/destroystokyo/paper/network/PaperNetworkClient.java b/src/main/java/com/destroystokyo/paper/network/PaperNetworkClient.java
+index 1fbe2cfeb8c5a6eda85ea38e71963eb590cfd94c..ef45555db50064cbda00c4e898795b8853817b35 100644
+--- a/src/main/java/com/destroystokyo/paper/network/PaperNetworkClient.java
++++ b/src/main/java/com/destroystokyo/paper/network/PaperNetworkClient.java
+@@ -12,6 +12,7 @@ public class PaperNetworkClient implements NetworkClient {
+ 
+     PaperNetworkClient(NetworkManager networkManager) {
+         this.networkManager = networkManager;
++        networkManager.client = this; // Kenzie - reverse-referencing the client
+     }
+ 
+     @Override
+diff --git a/src/main/java/mx/kenzie/server/packet/IncomingPacketManager.java b/src/main/java/mx/kenzie/server/packet/IncomingPacketManager.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..17bdb54010c8b0619674692526c592e4e76c86ef
+--- /dev/null
++++ b/src/main/java/mx/kenzie/server/packet/IncomingPacketManager.java
+@@ -0,0 +1,21 @@
++package mx.kenzie.server.packet;
++
++import mx.kenzie.wellspring.packet.Packet;
++import mx.kenzie.wellspring.packet.receiving.PacketEventController;
++import mx.kenzie.wellspring.packet.receiving.PacketSender;
++import org.bukkit.craftbukkit.CraftServer;
++
++public class IncomingPacketManager extends PacketEventController {
++
++    final CraftServer server;
++
++    public IncomingPacketManager(CraftServer server) {
++        this.server = server;
++        controller = this;
++    }
++
++    @Override
++    public boolean accept(Packet packet, PacketSender sender) {
++        return super.accept(packet, sender);
++    }
++}
+diff --git a/src/main/java/mx/kenzie/server/packet/PacketFactoryImpl.java b/src/main/java/mx/kenzie/server/packet/PacketFactoryImpl.java
+index 7692ac665339f460cde628131a3d9e63fefed653..d0794523868d5df64d4ae48d210ae9ea3f45a98a 100644
+--- a/src/main/java/mx/kenzie/server/packet/PacketFactoryImpl.java
++++ b/src/main/java/mx/kenzie/server/packet/PacketFactoryImpl.java
+@@ -22,6 +22,7 @@ import org.bukkit.craftbukkit.util.CraftMagicNumbers;
+ import org.bukkit.entity.Entity;
+ import org.bukkit.entity.EntityType;
+ import org.bukkit.entity.Player;
++import org.bukkit.util.Vector;
+ 
+ import java.lang.reflect.Field;
+ import java.lang.reflect.Modifier;
+@@ -320,6 +321,31 @@ public class PacketFactoryImpl extends PacketFactory {
+           return new PacketPlayOutEntity.PacketPlayOutRelEntityMove(id, x, y, z, false);
+     }
+ 
++    @Override
++    public mx.kenzie.wellspring.packet.Packet playOutEntityLook(int id, float yaw, float pitch) {
++        return new PacketPlayOutEntity.PacketPlayOutEntityLook(id, (byte) MathHelper.d(yaw * 256.0F / 360.0F), (byte) MathHelper.d(pitch * 256.0F / 360.0F), false);
++    }
++
++    @Override
++    public mx.kenzie.wellspring.packet.Packet playOutEntityLook(Entity entity, float yaw, float pitch) {
++        return new PacketPlayOutEntity.PacketPlayOutEntityLook(entity.getEntityId(), (byte) MathHelper.d(yaw * 256.0F / 360.0F), (byte) MathHelper.d(pitch * 256.0F / 360.0F), false);
++    }
++
++    @Override
++    public mx.kenzie.wellspring.packet.Packet playOutRelEntityMoveLook(int id, Location from, Location to, float yaw, float pitch) {
++        if (from.distanceSquared(to) > 64)
++            return playOutEntityTeleport(id, to);
++        short x = (short) ((to.getX() * 32 - from.getX() * 32) * 128);
++        short y = (short) ((to.getY() * 32 - from.getY() * 32) * 128);
++        short z = (short) ((to.getZ() * 32 - from.getZ() * 32) * 128);
++        return new PacketPlayOutEntity.PacketPlayOutRelEntityMoveLook(id, x, y, z, (byte) MathHelper.d(yaw * 256.0F / 360.0F), (byte) MathHelper.d(pitch * 256.0F / 360.0F), false);
++    }
++
++    @Override
++    public mx.kenzie.wellspring.packet.Packet playOutEntityVelocity(int id, Vector vector) {
++        return new PacketPlayOutEntityVelocity(id, new Vec3D(vector.getX(), vector.getY(), vector.getZ()));
++    }
++
+     @Override
+     public mx.kenzie.wellspring.packet.Packet playOutEntityMetadata(Entity entity, NBTCompound compound) {
+         return new PacketPlayOutEntityMetadata();
+diff --git a/src/main/java/net/minecraft/server/NetworkManager.java b/src/main/java/net/minecraft/server/NetworkManager.java
+index c9b36e6040f03e6cee46989bab8415d829f8eef4..2c12022f6987761669bfe28a9143e0c07429747a 100644
+--- a/src/main/java/net/minecraft/server/NetworkManager.java
++++ b/src/main/java/net/minecraft/server/NetworkManager.java
+@@ -1,5 +1,6 @@
+ package net.minecraft.server;
+ 
++import com.destroystokyo.paper.network.NetworkClient;
+ import com.google.common.collect.Queues;
+ import com.google.common.util.concurrent.ThreadFactoryBuilder;
+ import io.netty.channel.Channel;
+@@ -21,11 +22,14 @@ import java.net.SocketAddress;
+ import java.util.Queue;
+ import javax.annotation.Nullable;
+ import javax.crypto.SecretKey;
++
++import mx.kenzie.wellspring.packet.receiving.PacketEventController;
+ import org.apache.commons.lang3.Validate;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+ import org.apache.logging.log4j.Marker;
+ import org.apache.logging.log4j.MarkerManager;
++import org.bukkit.craftbukkit.entity.CraftPlayer;
+ 
+ public class NetworkManager extends SimpleChannelInboundHandler<Packet<?>> {
+ 
+@@ -70,6 +74,7 @@ public class NetworkManager extends SimpleChannelInboundHandler<Packet<?>> {
+     boolean queueImmunity = false;
+     EnumProtocol protocol;
+     // Paper end
++    public NetworkClient client; // Kenzie - use this to reverse-reference the client
+ 
+     public NetworkManager(EnumProtocolDirection enumprotocoldirection) {
+         this.h = enumprotocoldirection;
+@@ -156,7 +161,23 @@ public class NetworkManager extends SimpleChannelInboundHandler<Packet<?>> {
+     }
+ 
+     private static <T extends PacketListener> void a(Packet<T> packet, PacketListener packetlistener) {
+-        packet.a((T) packetlistener); // CraftBukkit - decompile error
++        // Kenzie start - packet listeners
++        final boolean pass;
++        if (packetlistener instanceof PlayerConnection) {
++            PlayerConnection connection = (PlayerConnection) packetlistener;
++            CraftPlayer player = connection.player.getBukkitEntity();
++            pass = player.triggerIncomingPacket(packet);
++        } else {
++            NetworkManager manager;
++            NetworkClient client;
++            if ((manager = packetlistener.a()) != null && (client = manager.client) != null)
++                pass = client.triggerIncomingPacket(packet);
++            else pass = true;
++        }
++        if (pass) {
++            packet.a((T) packetlistener); // CraftBukkit - decompile error
++        }
++        // Kenzie end
+     }
+ 
+     public void setPacketListener(PacketListener packetlistener) {
+diff --git a/src/main/java/net/minecraft/server/PacketPlayInSteerVehicle.java b/src/main/java/net/minecraft/server/PacketPlayInSteerVehicle.java
+index 09efca74d57047a95e4e0e101f0fdf50817252be..888e0cb2838de297a8e56f1ad110a0ce3f6c3139 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayInSteerVehicle.java
++++ b/src/main/java/net/minecraft/server/PacketPlayInSteerVehicle.java
+@@ -1,8 +1,10 @@
+ package net.minecraft.server;
+ 
++import mx.kenzie.wellspring.packet.specific.IncomingSteerVehicle;
++
+ import java.io.IOException;
+ 
+-public class PacketPlayInSteerVehicle implements Packet<PacketListenerPlayIn> {
++public class PacketPlayInSteerVehicle implements Packet<PacketListenerPlayIn>, IncomingSteerVehicle { // Kenzie
+ 
+     private float a;
+     private float b;
+@@ -11,6 +13,35 @@ public class PacketPlayInSteerVehicle implements Packet<PacketListenerPlayIn> {
+ 
+     public PacketPlayInSteerVehicle() {}
+ 
++    // Kenzie start
++    public PacketPlayInSteerVehicle(float lateral, float forward, boolean jumping, boolean sneaking) {
++        a = lateral;
++        b = forward;
++        c = jumping;
++        d = sneaking;
++    }
++
++    @Override
++    public float getLateralMotion() {
++        return a;
++    }
++
++    @Override
++    public float getForwardMotion() {
++        return b;
++    }
++
++    @Override
++    public boolean isJumping() {
++        return c;
++    }
++
++    @Override
++    public boolean isSneaking() {
++        return d;
++    }
++    // Kenzie end
++
+     @Override
+     public void a(PacketDataSerializer packetdataserializer) throws IOException {
+         this.a = packetdataserializer.readFloat();
+@@ -57,4 +88,5 @@ public class PacketPlayInSteerVehicle implements Packet<PacketListenerPlayIn> {
+     public boolean e() {
+         return this.d;
+     }
++
+ }
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+index b68c29b5ef87c97d12567a1c89e5c6e2aa32ec1d..e104c46325d298cdad03475ea92e72fa33eab2f4 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+@@ -51,6 +51,7 @@ import javax.imageio.ImageIO;
+ import mx.kenzie.server.CraftBridge;
+ import mx.kenzie.server.enchantment.EnchantmentBuilderImplementation;
+ import mx.kenzie.server.nbt.NBTFactoryImplementation;
++import mx.kenzie.server.packet.IncomingPacketManager;
+ import mx.kenzie.server.potion.PotionBuilderImpl;
+ import mx.kenzie.wellspring.Wellspring;
+ import mx.kenzie.wellspring.enchantment.EnchantmentBuilder;
+@@ -59,6 +60,7 @@ import mx.kenzie.wellspring.nbt.NBTCompound;
+ import mx.kenzie.wellspring.nbt.NBTFactory;
+ import mx.kenzie.wellspring.nbt.NBTList;
+ import mx.kenzie.wellspring.packet.PacketFactory;
++import mx.kenzie.wellspring.packet.receiving.PacketEventController;
+ import mx.kenzie.wellspring.potion.PotionBuilder;
+ import mx.kenzie.wellspring.tile.TileType;
+ import net.minecraft.server.*;
+@@ -235,10 +237,13 @@ public final class CraftServer implements Server, Wellspring { // Kenzie - Secon
+     private final List<CraftPlayer> playerView;
+     public int reloadCount;
+     public static Exception excessiveVelEx; // Paper - Velocity warnings
+-    public final AttachmentFactory attachmentFactory = new AttachmentFactory(this); // Kenzie
+-    public final NBTFactory nbtFactory; // Kenzie
+-    public final PacketFactoryImpl packetFactory = new PacketFactoryImpl(); // Kenzie
+-    public final CraftBridge bridge = new CraftBridge(); // Kenzie
++    // Kenzie start
++    public final AttachmentFactory attachmentFactory = new AttachmentFactory(this);
++    public final NBTFactory nbtFactory;
++    public final PacketFactoryImpl packetFactory = new PacketFactoryImpl();
++    public final CraftBridge bridge = new CraftBridge();
++    public final PacketEventController packetEventController = new IncomingPacketManager(this);
++    // Kenzie end
+ 
+     static {
+         ConfigurationSerialization.registerClass(CraftOfflinePlayer.class);

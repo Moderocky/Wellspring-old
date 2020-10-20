@@ -1,0 +1,34 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Tue, 20 Oct 2020 20:22:39 +0100
+Subject: [PATCH] Entity change position/location.
+
+
+diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
+index 8d456ff5601392021ab4e39d4310cea27a47da57..d31a63dce4ebec1ede7a5730ac00c0cb0830d1f8 100644
+--- a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
++++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
+@@ -249,6 +249,23 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
+             throw new IllegalArgumentException("Illegal compound was loaded!", ex);
+         }
+     }
++
++    @Override
++    public void setLocation(Location location) {
++        getHandle().setLocation(location.getX(), location.getY(), location.getZ(), location.getYaw(), location.getPitch());
++    }
++
++    @Override
++    public void move(Vector offset) {
++        Location loc = getLocation();
++        getHandle().setPosition(loc.getX() + offset.getX(), loc.getY() + offset.getY(), loc.getZ() + offset.getZ());
++    }
++
++    @Override
++    public void setPosition(double x, double y, double z) {
++        getHandle().setPosition(x, y, z);
++    }
++
+     // Kenzie end
+ 
+     // Kenzie start - attachment system
