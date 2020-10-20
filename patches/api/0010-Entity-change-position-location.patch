@@ -1,0 +1,54 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Tue, 20 Oct 2020 20:22:46 +0100
+Subject: [PATCH] Entity change position/location.
+
+
+diff --git a/src/main/java/org/bukkit/entity/Entity.java b/src/main/java/org/bukkit/entity/Entity.java
+index f292bd38342a202212d6b9557af2f804b15e8862..7a932f7d0fe2f5e430251e897dc7684ffa3786c2 100644
+--- a/src/main/java/org/bukkit/entity/Entity.java
++++ b/src/main/java/org/bukkit/entity/Entity.java
+@@ -40,6 +40,43 @@ public interface Entity extends Metadatable, CommandSender, Nameable, Persistent
+     @NotNull
+     public Location getLocation();
+ 
++    /**
++     * Potentially unsafe - this avoids triggering all of the baggage
++     * that comes with a teleport (incl. events) but can cause
++     * problems when moving long distances or out of loaded chunks.
++     * This also allows passengers to be preserved.
++     *
++     * If the target location is in a different world, this will
++     * internally trigger {@link Entity#teleport(Location)}.
++     *
++     * @param location the target location
++     */
++    void setLocation(@NotNull Location location); // Kenzie
++
++    /**
++     * A utility method for moving an entity short distances without
++     * triggering a teleport. This also allows passengers to be preserved.
++     *
++     * This will not affect yaw and pitch, but will recalculate the
++     * entity's position internally.
++     *
++     * Should not be used over long distances.
++     *
++     * @param offset the offset.
++     */
++    void move(@NotNull Vector offset); // Kenzie
++
++    /**
++     * Sets the entity's position without triggering a teleport or
++     * altering the yaw/pitch of the entity. This uses the same
++     * internal process as {@link Entity#move(Vector)} but is from
++     * the world origin, rather than a displacement vector.
++     * @param x target x coord
++     * @param y target y coord
++     * @param z target z coord
++     */
++    void setPosition(double x, double y, double z); // Kenzie
++
+     /**
+      * Stores the entity's current position in the provided Location object.
+      * <p>
