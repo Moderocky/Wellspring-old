@@ -1,0 +1,72 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Tue, 20 Oct 2020 20:01:14 +0100
+Subject: [PATCH] New packet creators exposed.
+
+Expose head rotation and new creators.
+
+diff --git a/src/main/java/mx/kenzie/server/packet/PacketFactoryImpl.java b/src/main/java/mx/kenzie/server/packet/PacketFactoryImpl.java
+index d0794523868d5df64d4ae48d210ae9ea3f45a98a..a2cf263fe500268d1e3aff4b95bdf0aa69121484 100644
+--- a/src/main/java/mx/kenzie/server/packet/PacketFactoryImpl.java
++++ b/src/main/java/mx/kenzie/server/packet/PacketFactoryImpl.java
+@@ -6,6 +6,8 @@ import mx.kenzie.wellspring.conversion.Converter;
+ import mx.kenzie.wellspring.nbt.NBTCompound;
+ import mx.kenzie.wellspring.packet.PacketFactory;
+ import mx.kenzie.wellspring.packet.PacketType;
++import mx.kenzie.wellspring.tile.TileEntity;
++import mx.kenzie.wellspring.tile.TileType;
+ import net.md_5.bungee.api.chat.BaseComponent;
+ import net.md_5.bungee.chat.ComponentSerializer;
+ import net.minecraft.server.*;
+@@ -341,6 +343,11 @@ public class PacketFactoryImpl extends PacketFactory {
+         return new PacketPlayOutEntity.PacketPlayOutRelEntityMoveLook(id, x, y, z, (byte) MathHelper.d(yaw * 256.0F / 360.0F), (byte) MathHelper.d(pitch * 256.0F / 360.0F), false);
+     }
+ 
++    @Override
++    public mx.kenzie.wellspring.packet.Packet packetPlayOutEntityHeadRotation(int id, float yaw) {
++        return new PacketPlayOutEntityHeadRotation(id, (byte) MathHelper.d(yaw * 256.0F / 360.0F));
++    }
++
+     @Override
+     public mx.kenzie.wellspring.packet.Packet playOutEntityVelocity(int id, Vector vector) {
+         return new PacketPlayOutEntityVelocity(id, new Vec3D(vector.getX(), vector.getY(), vector.getZ()));
+@@ -361,6 +368,23 @@ public class PacketFactoryImpl extends PacketFactory {
+         return new PacketPlayOutEntityDestroy(id);
+     }
+ 
++    @Override
++    public mx.kenzie.wellspring.packet.Packet packetPlayOutTileEntityData(TileEntity entity, NBTCompound compound) {
++        return packetPlayOutTileEntityData(entity.getLocation().getBlock(), entity.getType(), compound);
++    }
++
++    @Override
++    public mx.kenzie.wellspring.packet.Packet packetPlayOutTileEntityData(org.bukkit.block.Block block, TileType type, NBTCompound compound) {
++        final BlockPosition position = new BlockPosition(block.getX(), block.getY(), block.getZ());
++        return new PacketPlayOutTileEntityData(position, type.getId(), ((NBTTagCompound) compound));
++    }
++
++    @Override
++    public mx.kenzie.wellspring.packet.Packet packetPlayOutBlockBreakAnimation(org.bukkit.block.Block block, int stage, int id) {
++        final BlockPosition position = new BlockPosition(block.getX(), block.getY(), block.getZ());
++        return new PacketPlayOutBlockBreakAnimation(id, position, stage);
++    }
++
+     @Override
+     public mx.kenzie.wellspring.packet.Packet createFrom(PacketType type, Object... fieldInputs) {
+         try {
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutEntityHeadRotation.java b/src/main/java/net/minecraft/server/PacketPlayOutEntityHeadRotation.java
+index 62e85edfaa5e0276cddcee1d82bfd5d406109177..4c09e9b95ea1bd7d60e8327fdaaacf7da12d2859 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutEntityHeadRotation.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutEntityHeadRotation.java
+@@ -9,6 +9,11 @@ public class PacketPlayOutEntityHeadRotation implements Packet<PacketListenerPla
+ 
+     public PacketPlayOutEntityHeadRotation() {}
+ 
++    public PacketPlayOutEntityHeadRotation(int id, byte b0) { // Kenzie
++        this.a = id;
++        this.b = b0;
++    }
++
+     public PacketPlayOutEntityHeadRotation(Entity entity, byte b0) {
+         this.a = entity.getId();
+         this.b = b0;

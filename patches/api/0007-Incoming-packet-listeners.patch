@@ -7,7 +7,6 @@ Squash
 
 Implementation testing.
 
-
 Velocity and new packet types.
 
 diff --git a/src/main/java/com/destroystokyo/paper/network/NetworkClient.java b/src/main/java/com/destroystokyo/paper/network/NetworkClient.java

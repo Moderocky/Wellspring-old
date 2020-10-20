@@ -5,7 +5,6 @@ Subject: [PATCH] Incoming packet listeners.
 
 Implementation testing.
 
-
 Velocity and new packet types.
 
 diff --git a/src/main/java/com/destroystokyo/paper/network/PaperNetworkClient.java b/src/main/java/com/destroystokyo/paper/network/PaperNetworkClient.java

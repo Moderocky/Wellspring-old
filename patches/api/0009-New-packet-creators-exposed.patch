@@ -1,0 +1,157 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Tue, 20 Oct 2020 20:01:31 +0100
+Subject: [PATCH] New packet creators exposed.
+
+Expose head rotation and new creators.
+
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java b/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java
+index 39dc4576ffee7f11132841207f4ca399ac31afd7..6029258b47286cd4f8f20989f861a08144a6bdf3 100644
+--- a/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java
++++ b/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java
+@@ -4,11 +4,14 @@ import com.destroystokyo.paper.network.NetworkClient;
+ import mx.kenzie.wellspring.conversion.BiConverter;
+ import mx.kenzie.wellspring.conversion.Converter;
+ import mx.kenzie.wellspring.nbt.NBTCompound;
++import mx.kenzie.wellspring.tile.TileEntity;
++import mx.kenzie.wellspring.tile.TileType;
+ import net.md_5.bungee.api.chat.BaseComponent;
+ import org.bukkit.Location;
+ import org.bukkit.NamespacedKey;
+ import org.bukkit.advancement.Advancement;
+ import org.bukkit.advancement.AdvancementProgress;
++import org.bukkit.block.Block;
+ import org.bukkit.block.data.BlockData;
+ import org.bukkit.entity.Entity;
+ import org.bukkit.entity.EntityType;
+@@ -149,6 +152,16 @@ public abstract class PacketFactory {
+         return playOutRelEntityMoveLook(entity.getEntityId(), entity.getLocation(), target, yaw, pitch);
+     }
+ 
++    @Contract(pure = true)
++    public abstract @NotNull
++    Packet packetPlayOutEntityHeadRotation(int id, float yaw);
++
++    @Contract(pure = true)
++    public @NotNull
++    Packet packetPlayOutEntityHeadRotation(@NotNull Entity entity, float yaw) {
++        return packetPlayOutEntityHeadRotation(entity.getEntityId(), yaw);
++    }
++
+     @Contract(pure = true)
+     public abstract @NotNull
+     Packet playOutEntityVelocity(int id, @NotNull Vector vector);
+@@ -172,6 +185,24 @@ public abstract class PacketFactory {
+     public abstract @NotNull
+     Packet playOutEntityDestroy(@NotNull int id);
+ 
++    @Contract(pure = true)
++    public abstract @NotNull
++    Packet packetPlayOutTileEntityData(@NotNull TileEntity entity, @NotNull NBTCompound compound);
++
++    @Contract(pure = true)
++    public abstract @NotNull
++    Packet packetPlayOutTileEntityData(@NotNull Block block, @NotNull TileType type, @NotNull NBTCompound compound);
++
++    @Contract(pure = true)
++    public abstract @NotNull
++    Packet packetPlayOutBlockBreakAnimation(@NotNull Block block, int stage, int id);
++
++    @Contract(pure = true)
++    public @NotNull
++    Packet packetPlayOutBlockBreakAnimation(@NotNull Block block, int stage) {
++        return packetPlayOutBlockBreakAnimation(block, stage, (block.getBlockKey() + "").hashCode()); // A cheap way to generate a "reliable" int for a block.
++    }
++
+     public abstract void send(@NotNull Packet packet, @NotNull NetworkClient... recipients) throws IllegalArgumentException;
+ 
+     protected static class ConversionEntry<X, Y> {
+diff --git a/src/main/java/mx/kenzie/wellspring/tile/TileType.java b/src/main/java/mx/kenzie/wellspring/tile/TileType.java
+index bfac1922c3463ed537cea8b3bac8a5754e643299..00fabcb6d41caa4159b0aff8c1405bd21957524a 100644
+--- a/src/main/java/mx/kenzie/wellspring/tile/TileType.java
++++ b/src/main/java/mx/kenzie/wellspring/tile/TileType.java
+@@ -35,32 +35,32 @@ public final class TileType {
+     public static final TileType JUKEBOX = create("jukebox", Jukebox.class, Material.JUKEBOX);
+     public static final TileType DISPENSER = create("dispenser", Dispenser.class, Material.DISPENSER);
+     public static final TileType DROPPER = create("dropper", Dropper.class, Material.DROPPER);
+-    public static final TileType SIGN = create("sign", Sign.class, Material.OAK_SIGN, Material.SPRUCE_SIGN, Material.BIRCH_SIGN, Material.ACACIA_SIGN, Material.JUNGLE_SIGN, Material.DARK_OAK_SIGN, Material.OAK_WALL_SIGN, Material.SPRUCE_WALL_SIGN, Material.BIRCH_WALL_SIGN, Material.ACACIA_WALL_SIGN, Material.JUNGLE_WALL_SIGN, Material.DARK_OAK_WALL_SIGN, Material.CRIMSON_SIGN, Material.CRIMSON_WALL_SIGN, Material.WARPED_SIGN, Material.WARPED_WALL_SIGN);
+-    public static final TileType MOB_SPAWNER = create("mob_spawner", CreatureSpawner.class, Material.SPAWNER);
++    public static final TileType SIGN = create("sign", 9, Sign.class, Material.OAK_SIGN, Material.SPRUCE_SIGN, Material.BIRCH_SIGN, Material.ACACIA_SIGN, Material.JUNGLE_SIGN, Material.DARK_OAK_SIGN, Material.OAK_WALL_SIGN, Material.SPRUCE_WALL_SIGN, Material.BIRCH_WALL_SIGN, Material.ACACIA_WALL_SIGN, Material.JUNGLE_WALL_SIGN, Material.DARK_OAK_WALL_SIGN, Material.CRIMSON_SIGN, Material.CRIMSON_WALL_SIGN, Material.WARPED_SIGN, Material.WARPED_WALL_SIGN);
++    public static final TileType MOB_SPAWNER = create("mob_spawner", 1, CreatureSpawner.class, Material.SPAWNER);
+     public static final TileType PISTON = create("piston", TileState.class, Material.MOVING_PISTON);
+     public static final TileType BREWING_STAND = create("brewing_stand", BrewingStand.class, Material.BREWING_STAND);
+     public static final TileType ENCHANTING_TABLE = create("enchanting_table", EnchantingTable.class, Material.ENCHANTING_TABLE);
+     public static final TileType END_PORTAL = create("end_portal", TileState.class, Material.END_PORTAL);
+-    public static final TileType BEACON = create("beacon", Beacon.class, Material.BEACON);
+-    public static final TileType SKULL = create("skull", Skull.class, Material.SKELETON_SKULL, Material.SKELETON_WALL_SKULL, Material.CREEPER_HEAD, Material.CREEPER_WALL_HEAD, Material.DRAGON_HEAD, Material.DRAGON_WALL_HEAD, Material.ZOMBIE_HEAD, Material.ZOMBIE_WALL_HEAD, Material.WITHER_SKELETON_SKULL, Material.WITHER_SKELETON_WALL_SKULL, Material.PLAYER_HEAD, Material.PLAYER_WALL_HEAD);
++    public static final TileType BEACON = create("beacon", 3, Beacon.class, Material.BEACON);
++    public static final TileType SKULL = create("skull", 4, Skull.class, Material.SKELETON_SKULL, Material.SKELETON_WALL_SKULL, Material.CREEPER_HEAD, Material.CREEPER_WALL_HEAD, Material.DRAGON_HEAD, Material.DRAGON_WALL_HEAD, Material.ZOMBIE_HEAD, Material.ZOMBIE_WALL_HEAD, Material.WITHER_SKELETON_SKULL, Material.WITHER_SKELETON_WALL_SKULL, Material.PLAYER_HEAD, Material.PLAYER_WALL_HEAD);
+     public static final TileType DAYLIGHT_DETECTOR = create("daylight_detector", DaylightDetector.class, Material.DAYLIGHT_DETECTOR);
+     public static final TileType HOPPER = create("hopper", Hopper.class, Material.HOPPER);
+     public static final TileType COMPARATOR = create("comparator", Comparator.class, Material.COMPARATOR);
+-    public static final TileType BANNER = create("banner", Banner.class, Material.WHITE_BANNER, Material.ORANGE_BANNER, Material.MAGENTA_BANNER, Material.LIGHT_BLUE_BANNER, Material.YELLOW_BANNER, Material.LIME_BANNER, Material.PINK_BANNER, Material.GRAY_BANNER, Material.LIGHT_GRAY_BANNER, Material.CYAN_BANNER, Material.PURPLE_BANNER, Material.BLUE_BANNER, Material.BROWN_BANNER, Material.GREEN_BANNER, Material.RED_BANNER, Material.BLACK_BANNER, Material.WHITE_WALL_BANNER, Material.ORANGE_WALL_BANNER, Material.MAGENTA_WALL_BANNER, Material.LIGHT_BLUE_WALL_BANNER, Material.YELLOW_WALL_BANNER, Material.LIME_WALL_BANNER, Material.PINK_WALL_BANNER, Material.GRAY_WALL_BANNER, Material.LIGHT_GRAY_WALL_BANNER, Material.CYAN_WALL_BANNER, Material.PURPLE_WALL_BANNER, Material.BLUE_WALL_BANNER, Material.BROWN_WALL_BANNER, Material.GREEN_WALL_BANNER, Material.RED_WALL_BANNER, Material.BLACK_WALL_BANNER);
+-    public static final TileType STRUCTURE_BLOCK = create("structure_block", Structure.class, Material.STRUCTURE_BLOCK);
+-    public static final TileType END_GATEWAY = create("end_gateway", EndGateway.class, Material.END_GATEWAY);
+-    public static final TileType COMMAND_BLOCK = create("command_block", CommandBlock.class, Material.COMMAND_BLOCK, Material.CHAIN_COMMAND_BLOCK, Material.REPEATING_COMMAND_BLOCK);
++    public static final TileType BANNER = create("banner", 6, Banner.class, Material.WHITE_BANNER, Material.ORANGE_BANNER, Material.MAGENTA_BANNER, Material.LIGHT_BLUE_BANNER, Material.YELLOW_BANNER, Material.LIME_BANNER, Material.PINK_BANNER, Material.GRAY_BANNER, Material.LIGHT_GRAY_BANNER, Material.CYAN_BANNER, Material.PURPLE_BANNER, Material.BLUE_BANNER, Material.BROWN_BANNER, Material.GREEN_BANNER, Material.RED_BANNER, Material.BLACK_BANNER, Material.WHITE_WALL_BANNER, Material.ORANGE_WALL_BANNER, Material.MAGENTA_WALL_BANNER, Material.LIGHT_BLUE_WALL_BANNER, Material.YELLOW_WALL_BANNER, Material.LIME_WALL_BANNER, Material.PINK_WALL_BANNER, Material.GRAY_WALL_BANNER, Material.LIGHT_GRAY_WALL_BANNER, Material.CYAN_WALL_BANNER, Material.PURPLE_WALL_BANNER, Material.BLUE_WALL_BANNER, Material.BROWN_WALL_BANNER, Material.GREEN_WALL_BANNER, Material.RED_WALL_BANNER, Material.BLACK_WALL_BANNER);
++    public static final TileType STRUCTURE_BLOCK = create("structure_block", 7, Structure.class, Material.STRUCTURE_BLOCK);
++    public static final TileType END_GATEWAY = create("end_gateway", 8, EndGateway.class, Material.END_GATEWAY);
++    public static final TileType COMMAND_BLOCK = create("command_block", 2, CommandBlock.class, Material.COMMAND_BLOCK, Material.CHAIN_COMMAND_BLOCK, Material.REPEATING_COMMAND_BLOCK);
+     public static final TileType SHULKER_BOX = create("shulker_box", ShulkerBox.class, Material.SHULKER_BOX, Material.BLACK_SHULKER_BOX, Material.BLUE_SHULKER_BOX, Material.BROWN_SHULKER_BOX, Material.CYAN_SHULKER_BOX, Material.GRAY_SHULKER_BOX, Material.GREEN_SHULKER_BOX, Material.LIGHT_BLUE_SHULKER_BOX, Material.LIGHT_GRAY_SHULKER_BOX, Material.LIME_SHULKER_BOX, Material.MAGENTA_SHULKER_BOX, Material.ORANGE_SHULKER_BOX, Material.PINK_SHULKER_BOX, Material.PURPLE_SHULKER_BOX, Material.RED_SHULKER_BOX, Material.WHITE_SHULKER_BOX, Material.YELLOW_SHULKER_BOX);
+-    public static final TileType BED = create("bed", Bed.class, Material.RED_BED, Material.BLACK_BED, Material.BLUE_BED, Material.BROWN_BED, Material.CYAN_BED, Material.GRAY_BED, Material.GREEN_BED, Material.LIGHT_BLUE_BED, Material.LIGHT_GRAY_BED, Material.LIME_BED, Material.MAGENTA_BED, Material.ORANGE_BED, Material.PINK_BED, Material.PURPLE_BED, Material.WHITE_BED, Material.YELLOW_BED);
+-    public static final TileType CONDUIT = create("conduit", Conduit.class, Material.CONDUIT);
++    public static final TileType BED = create("bed", 11, Bed.class, Material.RED_BED, Material.BLACK_BED, Material.BLUE_BED, Material.BROWN_BED, Material.CYAN_BED, Material.GRAY_BED, Material.GREEN_BED, Material.LIGHT_BLUE_BED, Material.LIGHT_GRAY_BED, Material.LIME_BED, Material.MAGENTA_BED, Material.ORANGE_BED, Material.PINK_BED, Material.PURPLE_BED, Material.WHITE_BED, Material.YELLOW_BED);
++    public static final TileType CONDUIT = create("conduit", 5, Conduit.class, Material.CONDUIT);
+     public static final TileType BARREL = create("barrel", Barrel.class, Material.BARREL);
+     public static final TileType SMOKER = create("smoker", Smoker.class, Material.SMOKER);
+     public static final TileType BLAST_FURNACE = create("blast_furnace", BlastFurnace.class, Material.BLAST_FURNACE);
+     public static final TileType LECTERN = create("lectern", Lectern.class, Material.LECTERN);
+     public static final TileType BELL = create("bell", Bell.class, Material.BELL);
+     public static final TileType JIGSAW = create("jigsaw", Jigsaw.class, Material.JIGSAW);
+-    public static final TileType CAMPFIRE = create("campfire", Campfire.class, Material.CAMPFIRE, Material.SOUL_CAMPFIRE);
+-    public static final TileType BEEHIVE = create("beehive", Beehive.class, Material.BEE_NEST, Material.BEEHIVE);
++    public static final TileType CAMPFIRE = create("campfire", 13, Campfire.class, Material.CAMPFIRE, Material.SOUL_CAMPFIRE);
++    public static final TileType BEEHIVE = create("beehive", 14, Beehive.class, Material.BEE_NEST, Material.BEEHIVE);
+     @Deprecated
+     public static final TileType UNKNOWN = create("unknown", TileState.class);
+ 
+@@ -69,15 +69,22 @@ public final class TileType {
+     private final @NotNull NamespacedKey key;
+     private final @NotNull Material[] materials;
+     private final @NotNull Class<? extends TileState> state;
++    private final @NotNull int id;
+ 
+     private TileType(@NotNull NamespacedKey key, @NotNull Material... materials) {
+-        this(key, TileState.class, materials);
++        this(key, -1, TileState.class, materials);
+     }
+     
+-    private TileType(@NotNull NamespacedKey key, @NotNull Class<? extends TileState> state, @NotNull Material... materials) {
++    private TileType(@NotNull NamespacedKey key, int id, @NotNull Class<? extends TileState> state, @NotNull Material... materials) {
+         this.key = key;
+         this.materials = materials;
+         this.state = state;
++        this.id = id;
++    }
++
++    @Deprecated
++    public int getId() {
++        return id;
+     }
+ 
+     @NotNull
+@@ -126,8 +133,13 @@ public final class TileType {
+ 
+     private static @NotNull
+     TileType create(@NotNull String name, @NotNull Class<? extends TileState> state, @NotNull Material... materials) {
++        return create(name, -1, state, materials);
++    }
++
++    private static @NotNull
++    TileType create(@NotNull String name, int id, @NotNull Class<? extends TileState> state, @NotNull Material... materials) {
+         final NamespacedKey key = NamespacedKey.minecraft(name);
+-        TileType tile = new TileType(key, state, materials);
++        TileType tile = new TileType(key, id, state, materials);
+         MAP.put(key, tile);
+         return tile;
+     }
