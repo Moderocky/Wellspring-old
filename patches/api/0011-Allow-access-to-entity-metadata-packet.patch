@@ -1,0 +1,149 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Wed, 21 Oct 2020 11:30:31 +0100
+Subject: [PATCH] Allow access to entity metadata packet.
+
+Expose meta-fields and the outgoing metadata packet.
+
+
+Missed extending packet.
+
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java b/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java
+index 6029258b47286cd4f8f20989f861a08144a6bdf3..4ca42db974ff588289e6cff28289e1209af3af2a 100644
+--- a/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java
++++ b/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java
+@@ -4,6 +4,7 @@ import com.destroystokyo.paper.network.NetworkClient;
+ import mx.kenzie.wellspring.conversion.BiConverter;
+ import mx.kenzie.wellspring.conversion.Converter;
+ import mx.kenzie.wellspring.nbt.NBTCompound;
++import mx.kenzie.wellspring.packet.specific.OutgoingEntityMetadata;
+ import mx.kenzie.wellspring.tile.TileEntity;
+ import mx.kenzie.wellspring.tile.TileType;
+ import net.md_5.bungee.api.chat.BaseComponent;
+@@ -177,6 +178,14 @@ public abstract class PacketFactory {
+     public abstract @NotNull
+     Packet playOutEntityMetadata(@NotNull Entity entity, @NotNull NBTCompound compound);
+ 
++    @Contract(pure = true)
++    public abstract @NotNull
++    OutgoingEntityMetadata playOutEntityMetadata(@NotNull int entityId);
++
++    @Contract(pure = true)
++    public abstract @NotNull
++    OutgoingEntityMetadata playOutEntityMetadata(@NotNull Entity entity);
++
+     @Contract(pure = true)
+     public abstract @NotNull
+     Packet playOutEntityDestroy(@NotNull Entity entity);
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/meta/MetaField.java b/src/main/java/mx/kenzie/wellspring/packet/meta/MetaField.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..0bc7465dfe28aa3d0c397aaf05184e669cd8a0bb
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/packet/meta/MetaField.java
+@@ -0,0 +1,71 @@
++package mx.kenzie.wellspring.packet.meta;
++
++import java.util.Optional;
++
++public abstract class MetaField<T> {
++
++    // Entity
++    public static MetaField<Byte> SHARED_FLAGS;
++    public static MetaField<Integer> AIR_TICKS;
++    public static MetaField<?> CUSTOM_NAME; // Optional<IChatBaseComponent>
++    public static MetaField<Boolean> CUSTOM_NAME_VISIBLE;
++    public static MetaField<Boolean> SILENT;
++    public static MetaField<Boolean> NO_GRAVITY;
++    public static MetaField<?> POSE; // EntityPose
++    // EntityLiving
++    public static MetaField<Byte> LIVING_ENTITY_FLAGS;
++    public static MetaField<Float> HEALTH;
++    public static MetaField<Integer> EFFECT_COLOR;
++    public static MetaField<Boolean> EFFECT_AMBIENCE;
++    public static MetaField<Integer> ARROWS_IN_BODY;
++    public static MetaField<Integer> STINGER_COUNT;
++    public static MetaField<?> SLEEPING_POSITION; // Optional<BlockPosition>
++    // EntityInsentient
++    public static MetaField<Byte> MOB_FLAGS;
++    // EntityAgeable
++    public static MetaField<Boolean> AGEABLE_FLAGS;
++    // EntityAreaEffectCloud
++    public static MetaField<Float> CLOUD_RADIUS;
++    public static MetaField<Integer> CLOUD_COLOR;
++    public static MetaField<Boolean> CLOUD_WAITING;
++    public static MetaField<?> CLOUD_PARTICLE; // ParticleParams
++    // EntityArmorStand
++    public static MetaField<Byte> ARMOR_STAND_FLAGS;
++    public static MetaField<?> ARMOR_STAND_HEAD_POSE; // Vector3f
++    public static MetaField<?> ARMOR_STAND_BODY_POSE; // Vector3f
++    public static MetaField<?> ARMOR_STAND_LEFT_ARM_POSE; // Vector3f
++    public static MetaField<?> ARMOR_STAND_RIGHT_ARM_POSE; // Vector3f
++    public static MetaField<?> ARMOR_STAND_LEFT_LEG_POSE; // Vector3f
++    public static MetaField<?> ARMOR_STAND_RIGHT_LEG_POSE; // Vector3f
++    // EntityArrow
++    public static MetaField<Byte> ARROW_FLAGS;
++    public static MetaField<Byte> ARROW_PIERCE_LEVEL;
++    // EntityBat
++    public static MetaField<Byte> BAT_FLAGS;
++    // EntityBee
++    public static MetaField<Byte> BEE_FLAGS;
++    public static MetaField<Integer> BEE_ANGER_TIME;
++    // EntityBoat
++    public static MetaField<Integer> BOAT_HURT;
++    public static MetaField<Integer> BOAT_HURT_DIRECTION;
++    public static MetaField<Float> BOAT_DAMAGE;
++    public static MetaField<Integer> BOAT_TYPE;
++    public static MetaField<Boolean> BOAT_PADDLE_LEFT;
++    public static MetaField<Boolean> BOAT_PADDLE_RIGHT;
++    public static MetaField<Integer> BOAT_BUBBLE_TIME;
++    // EntityCat
++    public static MetaField<Integer> CAT_TYPE;
++    public static MetaField<Boolean> CAT_LYING;
++    public static MetaField<Boolean> CAT_RELAX_STATE;
++    public static MetaField<Integer> CAT_COLLAR;
++    // EntityCreeper
++    public static MetaField<Integer> CREEPER_SWELL_TICKS;
++    public static MetaField<Boolean> CREEPER_POWERED;
++    public static MetaField<Boolean> CREEPER_IGNITED;
++    // EntityDolphin
++    public static MetaField<?> DOLPHIN_TREASURE_POSITION; // BlockPosition
++    public static MetaField<Boolean> DOLPHIN_HAS_FISH;
++    public static MetaField<Integer> DOLPHIN_MOIST_LEVEL;
++
++
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/specific/OutgoingEntityMetadata.java b/src/main/java/mx/kenzie/wellspring/packet/specific/OutgoingEntityMetadata.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..adcbfb36144d701125dab2e2c61a0800bee3e532
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/packet/specific/OutgoingEntityMetadata.java
+@@ -0,0 +1,29 @@
++package mx.kenzie.wellspring.packet.specific;
++
++import mx.kenzie.wellspring.packet.Packet;
++import mx.kenzie.wellspring.packet.meta.MetaField;
++import org.bukkit.UndefinedNullability;
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
++
++import java.util.Map;
++
++public interface OutgoingEntityMetadata extends Packet {
++
++    int getFieldCount();
++
++    @NotNull
++    Map<MetaField<?>, ?> getDataFields();
++
++    <T> boolean hasDataField(@NotNull MetaField<T> field);
++
++    @UndefinedNullability("null if field is not present")
++    <T> T getDataField(@NotNull MetaField<T> field);
++
++    <T> void addDataField(@NotNull MetaField<T> field, @NotNull T value);
++
++    <T> void removeDataField(@NotNull MetaField<T> field);
++
++    // Stub
++
++}
