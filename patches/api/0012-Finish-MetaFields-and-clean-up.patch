@@ -1,0 +1,1744 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Wed, 21 Oct 2020 16:05:22 +0100
+Subject: [PATCH] Finish MetaFields and clean-up.
+
+
+diff --git a/src/main/java/mx/kenzie/wellspring/Provider.java b/src/main/java/mx/kenzie/wellspring/Provider.java
+index 3b75f48f5b391db11f4f7937e784917a6d9475de..f89bdda5585e0814a3c535d8d5c15105622d6841 100644
+--- a/src/main/java/mx/kenzie/wellspring/Provider.java
++++ b/src/main/java/mx/kenzie/wellspring/Provider.java
+@@ -9,14 +9,14 @@ import java.util.function.Supplier;
+ /**
+  * A provider function, typically to be occupied by
+  * a method reference for a nullary consumer.
+- *
++ * <p>
+  * This is also designed to allow for the type to be
+  * obtained without actually calling the provider.
+- *
++ * <p>
+  * This is purely functional and used internally.
+  *
+- * @author Moderocky
+  * @param <T> the type
++ * @author Moderocky
+  */
+ @FunctionalInterface
+ public interface Provider<T> extends Supplier<T> {
+@@ -24,7 +24,8 @@ public interface Provider<T> extends Supplier<T> {
+     default @NotNull
+     @SuppressWarnings({"UnstableApiUsage"})
+     TypeToken<T> getToken() {
+-        return new TypeToken<T>(this.getClass()) { };
++        return new TypeToken<T>(this.getClass()) {
++        };
+     }
+ 
+     default @NotNull
+diff --git a/src/main/java/mx/kenzie/wellspring/Wellspring.java b/src/main/java/mx/kenzie/wellspring/Wellspring.java
+index 6a048d656112c5c5c4b56e73f3c83bfea33fdb6d..9f56d6ad84f4fc0ec521a227f93f882ad4a03d4d 100644
+--- a/src/main/java/mx/kenzie/wellspring/Wellspring.java
++++ b/src/main/java/mx/kenzie/wellspring/Wellspring.java
+@@ -2,13 +2,12 @@ package mx.kenzie.wellspring;
+ 
+ import mx.kenzie.wellspring.enchantment.EnchantmentBuilder;
+ import mx.kenzie.wellspring.nbt.NBTCompound;
++import mx.kenzie.wellspring.packet.meta.MetaField;
+ import mx.kenzie.wellspring.structure.*;
+-import org.bukkit.Bukkit;
+-import org.bukkit.Location;
+-import org.bukkit.NamespacedKey;
+-import org.bukkit.Server;
++import org.bukkit.*;
+ import org.bukkit.attribute.Attribute;
+ import org.bukkit.entity.EntityType;
++import org.jetbrains.annotations.Contract;
+ import org.jetbrains.annotations.NotNull;
+ import org.jetbrains.annotations.Nullable;
+ 
+@@ -50,6 +49,26 @@ public interface Wellspring extends Server {
+      */
+     abstract class Bridge {
+ 
++        /**
++         * A dangerous internal method.
++         * Used to convert some Bukkit types to their NMS equivalent.
++         * Should never be used by plugins.
++         */
++        @Deprecated
++        @Contract(value = "!null -> !null", pure = true)
++        public abstract @UndefinedNullability
++        <T> T typeInputConversion(@UndefinedNullability Object object);
++
++        /**
++         * A dangerous internal method.
++         * Used to convert some Bukkit types to their NMS equivalent.
++         * Should never be used by plugins.
++         */
++        @Deprecated
++        @Contract(pure = true)
++        public abstract @NotNull
++        <T> Object typeInputConversion(@NotNull T object, @NotNull MetaField.Converter<T> converter);
++
+         public abstract boolean isStructurePresent(@NotNull WorldStructureType structure, @NotNull Location location);
+ 
+         public abstract @NotNull
+diff --git a/src/main/java/mx/kenzie/wellspring/attribute/AttributeProvider.java b/src/main/java/mx/kenzie/wellspring/attribute/AttributeProvider.java
+index 6acc60dea88eeea7e6190624c24e4ce4b0ead3b9..7d247179523f4f6a09b8b7f11ec9dd756f1f4407 100644
+--- a/src/main/java/mx/kenzie/wellspring/attribute/AttributeProvider.java
++++ b/src/main/java/mx/kenzie/wellspring/attribute/AttributeProvider.java
+@@ -9,7 +9,7 @@ import java.util.Map;
+ 
+ /**
+  * An access point for the attribute provider for entities.
+- *
++ * <p>
+  * This allows you to change the default attributes that an
+  * entity-type has, and to add new custom ones.
+  * This is only for setting the baseline values, not for
+@@ -24,6 +24,7 @@ public interface AttributeProvider {
+     /**
+      * Provides a map of the default attributes for this entity type,
+      * and their baseline values.
++     *
+      * @return a cloned map
+      */
+     default @NotNull
+@@ -34,7 +35,7 @@ public interface AttributeProvider {
+     /**
+      * Replaces the existing attribute map with this new one.
+      * This may cause issues with entities already loaded.
+-     *
++     * <p>
+      * Please note: removing attributes from default entity types
+      * will almost certainly cause errors.
+      *
+@@ -59,7 +60,7 @@ public interface AttributeProvider {
+      * This can be used to add a custom attribute to the entity type
+      *
+      * @param attribute the attribute to set
+-     * @param value the value
++     * @param value     the value
+      */
+     default void setBaseValue(@NotNull Attribute attribute, double value) {
+         Wellspring.bridge().setBaseValue((EntityType) this, attribute, value);
+@@ -67,11 +68,11 @@ public interface AttributeProvider {
+ 
+     /**
+      * Removes a default attribute entry from this entity type
+-     *
++     * <p>
+      * NOTE: removing default attributes WILL cause errors!
+      * - These are not null-checked internally as they are
+      * assumed always to be present.
+-     *
++     * <p>
+      * This should only be used for adding or removing custom
+      * attribute types.
+      *
+diff --git a/src/main/java/mx/kenzie/wellspring/conversion/BiConverter.java b/src/main/java/mx/kenzie/wellspring/conversion/BiConverter.java
+index 3dcb287cbe4fe2e03b3121a88a793bca38760e74..fa3974aa8410d909b526d3c5a6114f9d63271846 100644
+--- a/src/main/java/mx/kenzie/wellspring/conversion/BiConverter.java
++++ b/src/main/java/mx/kenzie/wellspring/conversion/BiConverter.java
+@@ -5,7 +5,7 @@ import org.jetbrains.annotations.Contract;
+ import org.jetbrains.annotations.NotNull;
+ import org.jetbrains.annotations.Nullable;
+ 
+-public interface BiConverter<X, Y>  extends Converter<X, Y> {
++public interface BiConverter<X, Y> extends Converter<X, Y> {
+ 
+     @UndefinedNullability
+     @Contract(value = "null -> null", pure = true)
+@@ -16,7 +16,8 @@ public interface BiConverter<X, Y>  extends Converter<X, Y> {
+     @Contract(value = "null -> null", pure = true)
+     Y from(@Nullable X x);
+ 
+-    default @NotNull Converter<Y, X> reverse() {
++    default @NotNull
++    Converter<Y, X> reverse() {
+         return this::to;
+     }
+ 
+diff --git a/src/main/java/mx/kenzie/wellspring/conversion/Converter.java b/src/main/java/mx/kenzie/wellspring/conversion/Converter.java
+index 97f504744c8a99fcbd5452fa4d89068cb740c577..bb28a23549df05c3beff9db2845ee8fd74398e07 100644
+--- a/src/main/java/mx/kenzie/wellspring/conversion/Converter.java
++++ b/src/main/java/mx/kenzie/wellspring/conversion/Converter.java
+@@ -2,7 +2,6 @@ package mx.kenzie.wellspring.conversion;
+ 
+ import org.bukkit.UndefinedNullability;
+ import org.jetbrains.annotations.Contract;
+-import org.jetbrains.annotations.NotNull;
+ import org.jetbrains.annotations.Nullable;
+ 
+ @FunctionalInterface
+diff --git a/src/main/java/mx/kenzie/wellspring/enchantment/EnchantmentBuilder.java b/src/main/java/mx/kenzie/wellspring/enchantment/EnchantmentBuilder.java
+index 7b2ac33e73a3841a0112c1de84a9a4a358396cbb..0ff7cc593b3c3d6443a6f572a7bc632e5a48b1a4 100644
+--- a/src/main/java/mx/kenzie/wellspring/enchantment/EnchantmentBuilder.java
++++ b/src/main/java/mx/kenzie/wellspring/enchantment/EnchantmentBuilder.java
+@@ -256,15 +256,15 @@ public abstract class EnchantmentBuilder {
+     /**
+      * Add an attribute for this enchantment.
+      * The attribute will only function when the item is put in the correct slot.
+-     *
++     * <p>
+      * The modifier's value will be multiplied by the enchantment's level, so be careful
+      * of using large values.
+-     *
++     * <p>
+      * This will be combined with the item's attributes for use cases, but will not
+      * be stored within the item's NBT.
+      *
+      * @param attribute the attribute to add
+-     * @param value the value of the attribute, to be multiplied by the enchantment level
++     * @param value     the value of the attribute, to be multiplied by the enchantment level
+      * @param operation the attribute operation
+      * @return builder method
+      */
+diff --git a/src/main/java/mx/kenzie/wellspring/enchantment/EnchantmentHolder.java b/src/main/java/mx/kenzie/wellspring/enchantment/EnchantmentHolder.java
+index 22fc06b09211bb4f5944cc34f9048a4863e8004f..984e9fa9f828bab0210e8a34e0e5e79a5efdc03b 100644
+--- a/src/main/java/mx/kenzie/wellspring/enchantment/EnchantmentHolder.java
++++ b/src/main/java/mx/kenzie/wellspring/enchantment/EnchantmentHolder.java
+@@ -6,11 +6,11 @@ import org.jetbrains.annotations.NotNull;
+ /**
+  * An enchantment holder - either an entity with equipment
+  * or an item stack.
+- *
++ * <p>
+  * This can be used to find the highest-level enchantment on
+  * an entity's total gear.
+  * Entities will only count valid enchantments.
+- *
++ * <p>
+  * For an item it will only include present enchantments.
+  *
+  * @author Moderocky
+diff --git a/src/main/java/mx/kenzie/wellspring/nbt/BlockNBTStorage.java b/src/main/java/mx/kenzie/wellspring/nbt/BlockNBTStorage.java
+index 5fdb02bdfc80622d1f254f140a434e60988bec05..65555579e367b1d4d28e9c8e02acd445c39a2baa 100644
+--- a/src/main/java/mx/kenzie/wellspring/nbt/BlockNBTStorage.java
++++ b/src/main/java/mx/kenzie/wellspring/nbt/BlockNBTStorage.java
+@@ -7,7 +7,7 @@ import org.jetbrains.annotations.NotNull;
+ /**
+  * Represents something that stores block NBT.
+  * For use purposes, this is only worlds.
+- *
++ * <p>
+  * Please note - storing excessive amounts of block NBT
+  * will increase the size of your world files and consume RAM while.
+  *
+@@ -15,15 +15,18 @@ import org.jetbrains.annotations.NotNull;
+  */
+ public interface BlockNBTStorage {
+ 
+-    default @NotNull NBTCompound getNBT(@NotNull Block block) {
++    default @NotNull
++    NBTCompound getNBT(@NotNull Block block) {
+         return getNBT(new Vector(block.getX(), block.getY(), block.getZ()));
+     }
+ 
+-    default @NotNull NBTCompound getNBT(int x, int y, int z) {
++    default @NotNull
++    NBTCompound getNBT(int x, int y, int z) {
+         return getNBT(new Vector(x, y, z));
+     }
+ 
+-    @NotNull NBTCompound getNBT(@NotNull Vector position);
++    @NotNull
++    NBTCompound getNBT(@NotNull Vector position);
+ 
+     void clearNBT(@NotNull Vector position);
+ 
+diff --git a/src/main/java/mx/kenzie/wellspring/nbt/NBT.java b/src/main/java/mx/kenzie/wellspring/nbt/NBT.java
+index 9f37ea5f606e007f7b8e1afedd7b1ece62018fb6..29028c4b881fef2d781fbe73dc67b9dd4c50ace1 100644
+--- a/src/main/java/mx/kenzie/wellspring/nbt/NBT.java
++++ b/src/main/java/mx/kenzie/wellspring/nbt/NBT.java
+@@ -67,8 +67,10 @@ public interface NBT {
+         if (object instanceof UUID) return Bukkit.getNBTFactory().newBase(((UUID) object));
+         if (object instanceof ItemStack) return NBTCompound.convert(((ItemStack) object));
+         if (object instanceof AttributeModifier) return NBTCompound.convert(((AttributeModifier) object));
+-        if (object instanceof BaseComponent) return convert(ComponentSerializer.toString(((BaseComponent) object)), Type.STRING);
+-        if (object instanceof BaseComponent[]) return convert(ComponentSerializer.toString(((BaseComponent[]) object)), Type.STRING);
++        if (object instanceof BaseComponent)
++            return convert(ComponentSerializer.toString(((BaseComponent) object)), Type.STRING);
++        if (object instanceof BaseComponent[])
++            return convert(ComponentSerializer.toString(((BaseComponent[]) object)), Type.STRING);
+         if (object instanceof Object[]) return NBTList.create(((Object[]) object));
+         if (object instanceof Iterable) return NBTList.create(((Iterable<?>) object));
+         if (object instanceof Map) return NBTCompound.create(((Map<?, ?>) object));
+diff --git a/src/main/java/mx/kenzie/wellspring/nbt/NBTCompound.java b/src/main/java/mx/kenzie/wellspring/nbt/NBTCompound.java
+index 6bdbeec7651c8b106491b41a6c59daabfc2d9b83..3bc302fa06bfae1029937efb186f5f7413ef6526 100644
+--- a/src/main/java/mx/kenzie/wellspring/nbt/NBTCompound.java
++++ b/src/main/java/mx/kenzie/wellspring/nbt/NBTCompound.java
+@@ -61,6 +61,7 @@ public interface NBTCompound extends NBT {
+     /**
+      * This returns the entire itemstack serialised to an NBT compound.
+      * It contains all of the necessary data to re-create the item.
++     *
+      * @param itemStack the item
+      * @return The item, as NBT
+      */
+diff --git a/src/main/java/mx/kenzie/wellspring/nbt/NBTFactory.java b/src/main/java/mx/kenzie/wellspring/nbt/NBTFactory.java
+index ba835282ce4942a3904c1c6b8baa8244f5a48175..b32f0a094af3a29b32c9ee2f3db10a50b5e167b4 100644
+--- a/src/main/java/mx/kenzie/wellspring/nbt/NBTFactory.java
++++ b/src/main/java/mx/kenzie/wellspring/nbt/NBTFactory.java
+@@ -66,7 +66,7 @@ public abstract class NBTFactory {
+         long most, least;
+         most = uuid.getMostSignificantBits();
+         least = uuid.getLeastSignificantBits();
+-        return newBase(new int[]{(int)(most >> 32), (int)most, (int)(least >> 32), (int)least}, NBT.Type.INT_ARRAY);
++        return newBase(new int[]{(int) (most >> 32), (int) most, (int) (least >> 32), (int) least}, NBT.Type.INT_ARRAY);
+     }
+ 
+     public @NotNull
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/Packet.java b/src/main/java/mx/kenzie/wellspring/packet/Packet.java
+index b52f2aec8ea54bd262f08e588457ba71e8e60196..58698de0237ae736dea4244b804ea25dcdc01f24 100644
+--- a/src/main/java/mx/kenzie/wellspring/packet/Packet.java
++++ b/src/main/java/mx/kenzie/wellspring/packet/Packet.java
+@@ -2,7 +2,6 @@ package mx.kenzie.wellspring.packet;
+ 
+ import com.destroystokyo.paper.network.NetworkClient;
+ import org.bukkit.Bukkit;
+-import org.bukkit.entity.Player;
+ import org.jetbrains.annotations.NotNull;
+ 
+ /**
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java b/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java
+index 4ca42db974ff588289e6cff28289e1209af3af2a..a67517b2c652491d67eff71512f76b974a92913f 100644
+--- a/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java
++++ b/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java
+@@ -7,6 +7,7 @@ import mx.kenzie.wellspring.nbt.NBTCompound;
+ import mx.kenzie.wellspring.packet.specific.OutgoingEntityMetadata;
+ import mx.kenzie.wellspring.tile.TileEntity;
+ import mx.kenzie.wellspring.tile.TileType;
++import net.md_5.bungee.api.ChatMessageType;
+ import net.md_5.bungee.api.chat.BaseComponent;
+ import org.bukkit.Location;
+ import org.bukkit.NamespacedKey;
+@@ -16,7 +17,6 @@ import org.bukkit.block.Block;
+ import org.bukkit.block.data.BlockData;
+ import org.bukkit.entity.Entity;
+ import org.bukkit.entity.EntityType;
+-import org.bukkit.entity.Player;
+ import org.bukkit.util.Vector;
+ import org.jetbrains.annotations.Contract;
+ import org.jetbrains.annotations.NotNull;
+@@ -36,16 +36,16 @@ public abstract class PacketFactory {
+     @NotNull
+     protected HashMap<Class<?>, ConversionEntry<?, ?>> converters = new HashMap<>();
+ 
+-    public <X, Y> void registerConverter(@NotNull Converter<X, Y> converter, @NotNull Class<X> from, @NotNull Class<Y> to) {
+-        ConversionEntry<X, Y> entry = new ConversionEntry<>(converter, from, to);
+-        converters.put(from, entry);
+-    }
+-
+     public <X, Y> void registerConverter(@NotNull BiConverter<X, Y> converter, @NotNull Class<X> from, @NotNull Class<Y> to) {
+         registerConverter((Converter<X, Y>) converter, from, to);
+         registerConverter(converter.reverse(), to, from);
+     }
+ 
++    public <X, Y> void registerConverter(@NotNull Converter<X, Y> converter, @NotNull Class<X> from, @NotNull Class<Y> to) {
++        ConversionEntry<X, Y> entry = new ConversionEntry<>(converter, from, to);
++        converters.put(from, entry);
++    }
++
+     /**
+      * Creates a packet from the given type using a builder system.
+      * This allows you to input the field values of the packet directly.
+@@ -62,10 +62,12 @@ public abstract class PacketFactory {
+     Packet createFrom(@NotNull PacketType type, @NotNull Object... fieldInputs) throws IllegalArgumentException;
+ 
+     @Contract(pure = true)
+-    public abstract @NotNull Packet statusOutPong(long ms);
++    public abstract @NotNull
++    Packet statusOutPong(long ms);
+ 
+     @Contract(pure = true)
+-    public abstract @NotNull Packet statusOutOutServerInfo(@NotNull BaseComponent[] motd, int online, int maxPlayers, @NotNull String version, int protocol, @Nullable String icon);
++    public abstract @NotNull
++    Packet statusOutOutServerInfo(@NotNull BaseComponent[] motd, int online, int maxPlayers, @NotNull String version, int protocol, @Nullable String icon);
+ 
+     @Contract(pure = true)
+     public abstract @NotNull
+@@ -125,10 +127,6 @@ public abstract class PacketFactory {
+     public abstract @NotNull
+     Packet playOutEntityTeleport(int id, @NotNull Location location);
+ 
+-    @Contract(pure = true)
+-    public abstract @NotNull
+-    Packet playOutRelEntityMove(int id, @NotNull Location from, @NotNull Location to);
+-
+     @Contract(pure = true)
+     public @NotNull
+     Packet playOutRelEntityMove(@NotNull Entity entity, @NotNull Location target) {
+@@ -137,15 +135,15 @@ public abstract class PacketFactory {
+ 
+     @Contract(pure = true)
+     public abstract @NotNull
+-    Packet playOutEntityLook(int id, float yaw, float pitch);
++    Packet playOutRelEntityMove(int id, @NotNull Location from, @NotNull Location to);
+ 
+     @Contract(pure = true)
+     public abstract @NotNull
+-    Packet playOutEntityLook(@NotNull Entity entity, float yaw, float pitch);
++    Packet playOutEntityLook(int id, float yaw, float pitch);
+ 
+     @Contract(pure = true)
+     public abstract @NotNull
+-    Packet playOutRelEntityMoveLook(int id, @NotNull Location from, @NotNull Location to, float yaw, float pitch);
++    Packet playOutEntityLook(@NotNull Entity entity, float yaw, float pitch);
+ 
+     @Contract(pure = true)
+     public @NotNull
+@@ -155,7 +153,7 @@ public abstract class PacketFactory {
+ 
+     @Contract(pure = true)
+     public abstract @NotNull
+-    Packet packetPlayOutEntityHeadRotation(int id, float yaw);
++    Packet playOutRelEntityMoveLook(int id, @NotNull Location from, @NotNull Location to, float yaw, float pitch);
+ 
+     @Contract(pure = true)
+     public @NotNull
+@@ -165,7 +163,7 @@ public abstract class PacketFactory {
+ 
+     @Contract(pure = true)
+     public abstract @NotNull
+-    Packet playOutEntityVelocity(int id, @NotNull Vector vector);
++    Packet packetPlayOutEntityHeadRotation(int id, float yaw);
+ 
+     @Contract(pure = true)
+     public @NotNull
+@@ -173,6 +171,10 @@ public abstract class PacketFactory {
+         return playOutEntityVelocity(entity.getEntityId(), vector);
+     }
+ 
++    @Contract(pure = true)
++    public abstract @NotNull
++    Packet playOutEntityVelocity(int id, @NotNull Vector vector);
++
+     @Deprecated
+     @Contract(pure = true)
+     public abstract @NotNull
+@@ -202,16 +204,20 @@ public abstract class PacketFactory {
+     public abstract @NotNull
+     Packet packetPlayOutTileEntityData(@NotNull Block block, @NotNull TileType type, @NotNull NBTCompound compound);
+ 
+-    @Contract(pure = true)
+-    public abstract @NotNull
+-    Packet packetPlayOutBlockBreakAnimation(@NotNull Block block, int stage, int id);
+-
+     @Contract(pure = true)
+     public @NotNull
+     Packet packetPlayOutBlockBreakAnimation(@NotNull Block block, int stage) {
+         return packetPlayOutBlockBreakAnimation(block, stage, (block.getBlockKey() + "").hashCode()); // A cheap way to generate a "reliable" int for a block.
+     }
+ 
++    @Contract(pure = true)
++    public abstract @NotNull
++    Packet packetPlayOutBlockBreakAnimation(@NotNull Block block, int stage, int id);
++
++    @Contract(pure = true)
++    public abstract @NotNull
++    Packet packetPlayOutChat(@NotNull BaseComponent[] message, @NotNull ChatMessageType type);
++
+     public abstract void send(@NotNull Packet packet, @NotNull NetworkClient... recipients) throws IllegalArgumentException;
+ 
+     protected static class ConversionEntry<X, Y> {
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/PacketType.java b/src/main/java/mx/kenzie/wellspring/packet/PacketType.java
+index 9e0968cf23527336adf6a876d9cd70a668eca375..5d0d093e7fa090dd16d7c903e2a99809042f692c 100644
+--- a/src/main/java/mx/kenzie/wellspring/packet/PacketType.java
++++ b/src/main/java/mx/kenzie/wellspring/packet/PacketType.java
+@@ -83,10 +83,10 @@ public class PacketType {
+     @NotNull
+     public String toString() {
+         return "PacketType{" +
+-            "direction=" + direction +
+-            ", fields=" + Arrays.toString(fields) +
+-            ", constructor=" + constructor +
+-            '}';
++                "direction=" + direction +
++                ", fields=" + Arrays.toString(fields) +
++                ", constructor=" + constructor +
++                '}';
+     }
+ 
+     public static class Incoming extends PacketType {
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/meta/MetaField.java b/src/main/java/mx/kenzie/wellspring/packet/meta/MetaField.java
+index 0bc7465dfe28aa3d0c397aaf05184e669cd8a0bb..6946dd7f485ae5617eea057f41dd7bfb7f15a5a4 100644
+--- a/src/main/java/mx/kenzie/wellspring/packet/meta/MetaField.java
++++ b/src/main/java/mx/kenzie/wellspring/packet/meta/MetaField.java
+@@ -1,16 +1,48 @@
+ package mx.kenzie.wellspring.packet.meta;
+ 
++import mx.kenzie.wellspring.Wellspring;
++import mx.kenzie.wellspring.nbt.NBTCompound;
++import net.md_5.bungee.api.chat.BaseComponent;
++import org.bukkit.Location;
++import org.bukkit.block.BlockFace;
++import org.bukkit.block.data.BlockData;
++import org.bukkit.entity.Pose;
++import org.bukkit.inventory.ItemStack;
++import org.bukkit.util.Vector;
++import org.jetbrains.annotations.NotNull;
++
+ import java.util.Optional;
++import java.util.OptionalInt;
++import java.util.UUID;
+ 
++/**
++ * This class contains all of the meta field converters for
++ * the client-bound entity metadata packet.
++ * See {@link mx.kenzie.wellspring.packet.specific.OutgoingEntityMetadata}
++ *
++ * If a type has a wildcard generic, you may need to use a
++ * {@link Converter} to provide the value for it.
++ * Some types require an optional.
++ *
++ * @param <T> the object type
++ * @author Moderocky
++ */
+ public abstract class MetaField<T> {
+ 
+     // Entity
+     public static MetaField<Byte> SHARED_FLAGS;
+     public static MetaField<Integer> AIR_TICKS;
+-    public static MetaField<?> CUSTOM_NAME; // Optional<IChatBaseComponent>
++    /**
++     * Requires an {@link Optional}
++     * Use {@link Converter#CHAT_COMPONENT}
++     */
++    public static MetaField<Optional<?>> CUSTOM_NAME; // Optional<IChatBaseComponent>
+     public static MetaField<Boolean> CUSTOM_NAME_VISIBLE;
+     public static MetaField<Boolean> SILENT;
+     public static MetaField<Boolean> NO_GRAVITY;
++    /**
++     * Use {@link Converter#ENTITY_POSE}
++     */
+     public static MetaField<?> POSE; // EntityPose
+     // EntityLiving
+     public static MetaField<Byte> LIVING_ENTITY_FLAGS;
+@@ -19,7 +51,11 @@ public abstract class MetaField<T> {
+     public static MetaField<Boolean> EFFECT_AMBIENCE;
+     public static MetaField<Integer> ARROWS_IN_BODY;
+     public static MetaField<Integer> STINGER_COUNT;
+-    public static MetaField<?> SLEEPING_POSITION; // Optional<BlockPosition>
++    /**
++     * Requires an {@link Optional}
++     * Use {@link Converter#BLOCK_POSITION}
++     */
++    public static MetaField<Optional<?>> SLEEPING_POSITION; // Optional<BlockPosition>
+     // EntityInsentient
+     public static MetaField<Byte> MOB_FLAGS;
+     // EntityAgeable
+@@ -28,14 +64,35 @@ public abstract class MetaField<T> {
+     public static MetaField<Float> CLOUD_RADIUS;
+     public static MetaField<Integer> CLOUD_COLOR;
+     public static MetaField<Boolean> CLOUD_WAITING;
++    /**
++     * Use {@link Converter#PARTICLE_PARAMS}
++     */
+     public static MetaField<?> CLOUD_PARTICLE; // ParticleParams
+     // EntityArmorStand
+     public static MetaField<Byte> ARMOR_STAND_FLAGS;
++    /**
++     * Use {@link Converter#VECTOR_3F}
++     */
+     public static MetaField<?> ARMOR_STAND_HEAD_POSE; // Vector3f
++    /**
++     * Use {@link Converter#VECTOR_3F}
++     */
+     public static MetaField<?> ARMOR_STAND_BODY_POSE; // Vector3f
++    /**
++     * Use {@link Converter#VECTOR_3F}
++     */
+     public static MetaField<?> ARMOR_STAND_LEFT_ARM_POSE; // Vector3f
++    /**
++     * Use {@link Converter#VECTOR_3F}
++     */
+     public static MetaField<?> ARMOR_STAND_RIGHT_ARM_POSE; // Vector3f
++    /**
++     * Use {@link Converter#VECTOR_3F}
++     */
+     public static MetaField<?> ARMOR_STAND_LEFT_LEG_POSE; // Vector3f
++    /**
++     * Use {@link Converter#VECTOR_3F}
++     */
+     public static MetaField<?> ARMOR_STAND_RIGHT_LEG_POSE; // Vector3f
+     // EntityArrow
+     public static MetaField<Byte> ARROW_FLAGS;
+@@ -63,9 +120,238 @@ public abstract class MetaField<T> {
+     public static MetaField<Boolean> CREEPER_POWERED;
+     public static MetaField<Boolean> CREEPER_IGNITED;
+     // EntityDolphin
++    /**
++     * Use {@link Converter#BLOCK_POSITION}
++     */
+     public static MetaField<?> DOLPHIN_TREASURE_POSITION; // BlockPosition
+     public static MetaField<Boolean> DOLPHIN_HAS_FISH;
+     public static MetaField<Integer> DOLPHIN_MOIST_LEVEL;
++    // EntityEnderCrystal
++    /**
++     * Requires an {@link Optional}
++     * Use {@link Converter#BLOCK_POSITION}
++     */
++    public static MetaField<Optional<?>> ENDER_CRYSTAL_TARGET; // Optional<BlockPosition>
++    public static MetaField<Boolean> ENDER_CRYSTAL_BASE;
++    // EntityEnderDragon
++    public static MetaField<Integer> ENDER_DRAGON_PHASE;
++    // EntityEnderman
++    /**
++     * Requires an {@link Optional}
++     * Use {@link Converter#BLOCK_DATA}
++     */
++    public static MetaField<Optional<?>> ENDERMAN_CARRY; // Optional<IBlockData>
++    public static MetaField<Boolean> ENDERMAN_CREEPY;
++    public static MetaField<Boolean> ENDERMAN_STARED;
++    // EntityEnderSignal
++    /**
++     * Use {@link Converter#ITEM_STACK}
++     */
++    public static MetaField<?> ENDER_SIGNAL_ITEM; // ItemStack
++    // EntityFallingBlock
++    /**
++     * Use {@link Converter#BLOCK_POSITION}
++     */
++    public static MetaField<?> FALLING_BLOCK_START_POSITION; // BlockPosition
++    // EntityFireballFireball
++    /**
++     * Use {@link Converter#ITEM_STACK}
++     */
++    public static MetaField<?> FIREBALL_ITEM; // ItemStack
++    // EntityFireworks
++    /**
++     * Use {@link Converter#ITEM_STACK}
++     */
++    public static MetaField<?> FIREWORK_ITEM; // ItemStack
++    public static MetaField<OptionalInt> FIREWORK_ATTACHED_TO_TARGET;
++    public static MetaField<Boolean> FIREWORK_SHOT_AT_ANGLE;
++    // EntityFish
++    public static MetaField<Boolean> FISH_FROM_BUCKET;
++    // EntityFishingHook
++    public static MetaField<Integer> FISH_HOOK_HOOKED;
++    public static MetaField<Boolean> FISH_HOOK_BITING;
++    // EntityFox
++    public static MetaField<Integer> FOX_TYPE;
++    public static MetaField<Byte> FOX_FLAGS;
++    public static MetaField<Optional<UUID>> FOX_TRUSTED_PLAYER_1;
++    public static MetaField<Optional<UUID>> FOX_TRUSTED_PLAYER_2;
++    // EntityGhast
++    public static MetaField<Boolean> GHAST_IS_CHARGING;
++    // EntityHorseAbstract
++    public static MetaField<Byte> HORSE_FLAGS;
++    public static MetaField<Optional<UUID>> HORSE_OWNER_UUID;
++    // EntityHorseChestedAbstract
++    public static MetaField<Boolean> HORSE_HAS_CHEST;
++    // EntityHuman
++    public static MetaField<Float> HUMAN_ABSORPTION;
++    public static MetaField<Integer> HUMAN_SCORE;
++    public static MetaField<Byte> HUMAN_SETTINGS;
++    public static MetaField<Byte> HUMAN_MAIN_HAND;
++    public static MetaField<NBTCompound> HUMAN_LEFT_SHOULDER;
++    public static MetaField<NBTCompound> HUMAN_RIGHT_SHOULDER;
++    // EntityIllagerWizard
++    public static MetaField<Byte> WIZARD_SPELL;
++    // EntityIronGolem
++    public static MetaField<Byte> IRON_GOLEM_FLAGS;
++    // EntityItem
++    /**
++     * Use {@link Converter#ITEM_STACK}
++     */
++    public static MetaField<?> ITEM_ITEM; // ItemStack
++    // EntityItemFrame
++    /**
++     * Use {@link Converter#ITEM_STACK}
++     */
++    public static MetaField<?> ITEM_FRAME_ITEM; // ItemStack
++    public static MetaField<Integer> ITEM_FRAME_ROTATION;
++    // EntityLlama
++    public static MetaField<Integer> LLAMA_STRENGTH;
++    public static MetaField<Integer> LLAMA_CARPET;
++    public static MetaField<Integer> LLAMA_VARIANT;
++    // EntityMinecartAbstract
++    public static MetaField<Integer> MINECART_HURT;
++    public static MetaField<Integer> MINECART_HURT_DIRECTION;
++    public static MetaField<Float> MINECART_DAMAGE;
++    public static MetaField<Integer> MINECART_BLOCK;
++    public static MetaField<Integer> MINECART_OFFSET;
++    public static MetaField<Boolean> MINECART_DISPLAY;
++    // EntityMinecartCommandBlock
++    public static MetaField<String> MINECART_COMMAND_BLOCK_COMMAND;
++    /**
++     * Use {@link Converter#CHAT_COMPONENT}
++     */
++    public static MetaField<?> MINECART_COMMAND_BLOCK_PREVIOUS_OUTPUT; // IChatBaseComponent
++    // EntityMinecartFurnace
++    public static MetaField<Boolean> MINECART_FURNACE_FUELLED;
++    // EntityMushroomCow
++    public static MetaField<String> MOOSHROOM_TYPE;
++    // EntityOcelot
++    public static MetaField<Boolean> OCELOT_TRUST;
++    // EntityPanda
++    public static MetaField<Integer> PANDA_UNHAPPY_COUNT;
++    public static MetaField<Integer> PANDA_SNEEZE_COUNT;
++    public static MetaField<Integer> PANDA_EAT_COUNT;
++    public static MetaField<Byte> PANDA_DOMINANT_ALLELE;
++    public static MetaField<Byte> PANDA_RECESSIVE_ALLELE;
++    public static MetaField<Byte> PANDA_FLAGS;
++    // EntityParrot
++    public static MetaField<Integer> PARROT_VARIANT;
++    // EntityPhantom
++    public static MetaField<Integer> PHANTOM_SIZE;
++    // EntityPig
++    public static MetaField<Boolean> PIG_SADDLED;
++    public static MetaField<Integer> PIG_BOOST_TIME;
++    // EntityPillager
++    public static MetaField<Boolean> PILLAGER_CHARGING_CROSSBOW;
++    // EntityProjectileThrowable
++    /**
++     * Use {@link Converter#ITEM_STACK}
++     */
++    public static MetaField<?> PROJECTILE_ITEM; // ItemStack
++    // EntityPufferFish
++    public static MetaField<Integer> PUFFER_FISH_SIZE;
++    // EntityRabbit
++    public static MetaField<Integer> RABBIT_TYPE;
++    // EntityRaider
++    public static MetaField<Boolean> RAIDER_CELEBRATING;
++    // EntitySheep
++    public static MetaField<Byte> SHEEP_FLAGS;
++    // EntityShulker
++    /**
++     * Use {@link Converter#ENUM_DIRECTION}
++     */
++    public static MetaField<?> SHULKER_ATTACH_FACE; // EnumDirection
++    /**
++     * Requires an {@link Optional}
++     * Use {@link Converter#BLOCK_POSITION}
++     */
++    public static MetaField<Optional<?>> SHULKER_ATTACH_POSITION; // Optional<BlockPosition>
++    public static MetaField<Byte> SHULKER_PEEK;
++    public static MetaField<Byte> SHULKER_COLOR;
++    // EntitySlime
++    public static MetaField<Integer> SLIME_SIZE;
++    // EntitySnowman
++    public static MetaField<Byte> SNOWMAN_PUMPKIN;
++    // EntitySpider
++    public static MetaField<Byte> SPIDER_FLAGS;
++    // EntityThrownTrident
++    public static MetaField<Byte> TRIDENT_LOYALTY;
++    public static MetaField<Boolean> TRIDENT_ENCHANTED;
++    // EntityTippedArrow
++    public static MetaField<Integer> TIPPED_ARROW_COLOR;
++    // EntityTNTPrimed
++    public static MetaField<Integer> TNT_FUSE_TICKS;
++    // EntityTurtle
++    /**
++     * Use {@link Converter#BLOCK_POSITION}
++     */
++    public static MetaField<?> TURTLE_HOME_POSITION; // BlockPosition
++    public static MetaField<Boolean> TURTLE_HAS_EGGS;
++    public static MetaField<Boolean> TURTLE_LAYING_EGGS;
++    /**
++     * Use {@link Converter#BLOCK_POSITION}
++     */
++    public static MetaField<?> TURTLE_GO_POSITION; // BlockPosition
++    public static MetaField<Boolean> TURTLE_RETURNING;
++    public static MetaField<Boolean> TURTLE_GOING;
++    // EntityVex
++    public static MetaField<Byte> VEX_FLAGS;
++    // EntityVillager
++    /**
++     * Use {@link Converter#VILLAGER_DATA}
++     */
++    public static MetaField<?> VILLAGER_DATA; // VillagerData
++    // EntityVillagerAbstract
++    public static MetaField<Integer> VILLAGER_ANGRY_COUNT;
++    // EntityWitch
++    public static MetaField<Boolean> WITCH_USING_ITEM;
++    // EntityWither
++    public static MetaField<Integer> WITHER_TARGET_1;
++    public static MetaField<Integer> WITHER_TARGET_2;
++    public static MetaField<Integer> WITHER_TARGET_3;
++    public static MetaField<Integer> WITHER_INVULNERABLE_TICKS;
++    // EntityWitherSkull
++    public static MetaField<Boolean> WITHER_SKULL_CHARGED;
++    // EntityWolf
++    public static MetaField<Boolean> WOLF_INTEREST;
++    public static MetaField<Integer> WOLF_COLLAR;
++    public static MetaField<Integer> WOLF_ANGER_TICKS;
++    // EntityZombie
++    public static MetaField<Boolean> ZOMBIE_BABY;
++    public static MetaField<Integer> ZOMBIE_SPECIAL_ID;
++    public static MetaField<Boolean> ZOMBIE_DROWN_CONVERTING;
++    // EntityZombieVillager
++    public static MetaField<Boolean> ZOMBIE_VILLAGER_CURING;
++    /**
++     * Use {@link Converter#VILLAGER_DATA}
++     */
++    public static MetaField<?> ZOMBIE_VILLAGER_DATA; // VillagerData
++
++    public static class Converter<T> {
++        public static final Converter<Location> BLOCK_POSITION = new Converter<>();
++        public static final Converter<ItemStack> ITEM_STACK = new Converter<>();
++        public static final Converter<BaseComponent[]> CHAT_COMPONENT = new Converter<>();
++        public static final Converter<Vector> VECTOR_3F = new Converter<>();
++        public static final Converter<Pose> ENTITY_POSE = new Converter<>();
++        public static final Converter<BlockFace> ENUM_DIRECTION = new Converter<>();
++        public static final Converter<BlockData> BLOCK_DATA = new Converter<>();
++        /**
++         * Accepts: [Villager.Type, Villager.Profession, int (level)]
++         */
++        public static final Converter<Object[]> VILLAGER_DATA = new Converter<>();
++        /**
++         * This has not yet been implemented.
++         */
++        @Deprecated
++        public static final Converter<?> PARTICLE_PARAMS = new Converter<>();
++
++        private Converter() {
++        }
+ 
++        public @NotNull
++        Object convert(@NotNull T object) {
++            return Wellspring.bridge().typeInputConversion(object, this);
++        }
++    }
+ 
+ }
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/receiving/PacketEvent.java b/src/main/java/mx/kenzie/wellspring/packet/receiving/PacketEvent.java
+index 66e3c3fb50cb884565b80afbc78da0b3678e099d..ffcb0c2c99fcc1f54c88cb6f7daf0bc7746eab19 100644
+--- a/src/main/java/mx/kenzie/wellspring/packet/receiving/PacketEvent.java
++++ b/src/main/java/mx/kenzie/wellspring/packet/receiving/PacketEvent.java
+@@ -5,20 +5,20 @@ import mx.kenzie.wellspring.packet.PacketType;
+ import org.jetbrains.annotations.NotNull;
+ 
+ /**
+- *
+  * @param <T> the packet type - future-proofing specifics
+- *
+  * @author Moderocky
+  */
+ public abstract class PacketEvent<T extends Packet> {
+ 
+-    public final @NotNull Packet packet;
++    public final @NotNull
++    Packet packet;
+     public final @NotNull
+     PacketSender sender;
+     public final @NotNull
+     PacketType type;
+ 
+-    private volatile boolean cancelled, incoming;
++    private volatile boolean cancelled;
++    private final boolean incoming;
+ 
+     public PacketEvent(@NotNull Packet packet, @NotNull PacketSender sender) {
+         this.packet = packet;
+@@ -28,14 +28,14 @@ public abstract class PacketEvent<T extends Packet> {
+         cancelled = false;
+     }
+ 
+-    public synchronized void setCancelled(boolean cancelled) {
+-        this.cancelled = cancelled;
+-    }
+-
+     public synchronized boolean isCancelled() {
+         return cancelled;
+     }
+ 
++    public synchronized void setCancelled(boolean cancelled) {
++        this.cancelled = cancelled;
++    }
++
+     public synchronized boolean isIncoming() {
+         return incoming;
+     }
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/receiving/PacketEventController.java b/src/main/java/mx/kenzie/wellspring/packet/receiving/PacketEventController.java
+index 960d8b230d57cbd71d038a309b4e7c1cd4f9914f..a9fd9af2d22b32f06b8d1bcc72afafcadc199b6c 100644
+--- a/src/main/java/mx/kenzie/wellspring/packet/receiving/PacketEventController.java
++++ b/src/main/java/mx/kenzie/wellspring/packet/receiving/PacketEventController.java
+@@ -1,7 +1,6 @@
+ package mx.kenzie.wellspring.packet.receiving;
+ 
+ import mx.kenzie.wellspring.packet.Packet;
+-import mx.kenzie.wellspring.packet.PacketType;
+ import org.bukkit.plugin.Plugin;
+ import org.jetbrains.annotations.NotNull;
+ 
+@@ -17,8 +16,8 @@ import java.util.WeakHashMap;
+  */
+ public abstract class PacketEventController {
+ 
+-    protected static PacketEventController controller;
+     protected static final Map<PacketSender, Set<PacketListener>> LISTENERS;
++    protected static PacketEventController controller;
+ 
+     static {
+         LISTENERS = new WeakHashMap<>();
+@@ -60,7 +59,8 @@ public abstract class PacketEventController {
+         }
+     }
+ 
+-    private @NotNull Set<PacketListener> createWith(@NotNull PacketListener listener) {
++    private @NotNull
++    Set<PacketListener> createWith(@NotNull PacketListener listener) {
+         final Set<PacketListener> set = new HashSet<>();
+         set.add(listener);
+         return set;
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/receiving/PacketListener.java b/src/main/java/mx/kenzie/wellspring/packet/receiving/PacketListener.java
+index f79b06b616a974bf3e050f1bcfff2e542d3f64b2..b281ca7d2b832709404780410d39dcfe7ca2e1b1 100644
+--- a/src/main/java/mx/kenzie/wellspring/packet/receiving/PacketListener.java
++++ b/src/main/java/mx/kenzie/wellspring/packet/receiving/PacketListener.java
+@@ -16,20 +16,23 @@ import java.util.function.Consumer;
+  */
+ public class PacketListener {
+ 
+-    public static @NotNull PacketListener create(@NotNull Plugin plugin, @NotNull Consumer<PacketEvent<?>> handler, @NotNull PacketType... types) {
+-        return new PacketListener(plugin, types, handler);
+-    }
+-
+-    private final @NotNull Plugin plugin;
+-    private final @NotNull Consumer<PacketEvent<?>> handler;
+-    private final @NotNull PacketType[] types;
+-
++    private final @NotNull
++    Plugin plugin;
++    private final @NotNull
++    Consumer<PacketEvent<?>> handler;
++    private final @NotNull
++    PacketType[] types;
+     public PacketListener(@NotNull Plugin plugin, @NotNull PacketType[] types, @NotNull Consumer<PacketEvent<?>> handler) {
+         this.plugin = plugin;
+         this.handler = handler;
+         this.types = types;
+     }
+ 
++    public static @NotNull
++    PacketListener create(@NotNull Plugin plugin, @NotNull Consumer<PacketEvent<?>> handler, @NotNull PacketType... types) {
++        return new PacketListener(plugin, types, handler);
++    }
++
+     synchronized void onEvent(@NotNull PacketEvent<?> event) {
+         handler.accept(event);
+     }
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/receiving/PacketSender.java b/src/main/java/mx/kenzie/wellspring/packet/receiving/PacketSender.java
+index 9fb478b50a3498ad70db85b4b7dc665b02a321f0..587f0982bd73ed85ca6e2f4271da8ac14dbc220e 100644
+--- a/src/main/java/mx/kenzie/wellspring/packet/receiving/PacketSender.java
++++ b/src/main/java/mx/kenzie/wellspring/packet/receiving/PacketSender.java
+@@ -1,17 +1,14 @@
+ package mx.kenzie.wellspring.packet.receiving;
+ 
+ import mx.kenzie.wellspring.packet.Packet;
+-import mx.kenzie.wellspring.packet.PacketType;
+ import org.jetbrains.annotations.Contract;
+ import org.jetbrains.annotations.NotNull;
+ 
+-import java.util.function.Consumer;
+-
+ /**
+  * This represents the object belonging to an
+  * incoming connection. Typically, this will be
+  * a {@link org.bukkit.entity.Player} via a {@link com.destroystokyo.paper.network.NetworkClient}.
+- *
++ * <p>
+  * This is not necessarily the "sender" of the packet, so much as
+  * it is the thing representing the sender. E.g. a player, rather than the
+  * remote network connection.
+@@ -35,6 +32,7 @@ public interface PacketSender {
+ 
+     /**
+      * Unregisters the given listener.
++     *
+      * @param listener the listener.
+      * @return true if successful.
+      */
+@@ -46,11 +44,11 @@ public interface PacketSender {
+     /**
+      * This is used internally to mark an incoming packet and trigger
+      * any registered listeners.
+-     *
++     * <p>
+      * This also allows a plugin to "falsify" an incoming packet - this will
+      * not actually send the packet, or cause the behaviour it usually triggers,
+      * but will trigger any listeners for this packet.
+-     *
++     * <p>
+      * This exists both as a useful testing tool, and also in case a plugin
+      * is creating some sort of "fake" player implementation.
+      *
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/specific/IncomingSteerVehicle.java b/src/main/java/mx/kenzie/wellspring/packet/specific/IncomingSteerVehicle.java
+index 6a4351b4ae1ca4fc6c846e596f1383c9199d09bc..e1ac1f65a32c70608e27fe298d0a74b9362b42f0 100644
+--- a/src/main/java/mx/kenzie/wellspring/packet/specific/IncomingSteerVehicle.java
++++ b/src/main/java/mx/kenzie/wellspring/packet/specific/IncomingSteerVehicle.java
+@@ -1,13 +1,13 @@
+ package mx.kenzie.wellspring.packet.specific;
+ 
+ import mx.kenzie.wellspring.packet.Packet;
++import mx.kenzie.wellspring.packet.PacketType;
+ import org.jetbrains.annotations.NotNull;
+ 
+ import java.util.HashSet;
+ import java.util.Set;
+ 
+ import static mx.kenzie.wellspring.packet.specific.IncomingSteerVehicle.Direction.*;
+-import static mx.kenzie.wellspring.packet.specific.IncomingSteerVehicle.Direction.UP;
+ 
+ /**
+  * Sent when a player presses movement key input while
+@@ -15,6 +15,18 @@ import static mx.kenzie.wellspring.packet.specific.IncomingSteerVehicle.Directio
+  */
+ public interface IncomingSteerVehicle extends Packet {
+ 
++    @NotNull
++    @Override
++    default Packet.Direction getDirection() {
++        return Packet.Direction.INCOMING;
++    }
++
++    @NotNull
++    @Override
++    default PacketType getType() {
++        return PacketType.Incoming.STEER_VEHICLE;
++    }
++
+     float getLateralMotion();
+ 
+     float getForwardMotion();
+@@ -55,7 +67,7 @@ public interface IncomingSteerVehicle extends Packet {
+     }
+ 
+     enum Direction {
+-        FORWARDS,BACKWARDS,LEFT,RIGHT,UP,DOWN;
++        FORWARDS, BACKWARDS, LEFT, RIGHT, UP, DOWN
+     }
+ 
+ }
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/specific/OutgoingEntityMetadata.java b/src/main/java/mx/kenzie/wellspring/packet/specific/OutgoingEntityMetadata.java
+index adcbfb36144d701125dab2e2c61a0800bee3e532..92dadd39361b392c3d644ad9428ef877b80212d3 100644
+--- a/src/main/java/mx/kenzie/wellspring/packet/specific/OutgoingEntityMetadata.java
++++ b/src/main/java/mx/kenzie/wellspring/packet/specific/OutgoingEntityMetadata.java
+@@ -1,17 +1,36 @@
+ package mx.kenzie.wellspring.packet.specific;
+ 
+ import mx.kenzie.wellspring.packet.Packet;
++import mx.kenzie.wellspring.packet.PacketType;
+ import mx.kenzie.wellspring.packet.meta.MetaField;
+ import org.bukkit.UndefinedNullability;
+ import org.jetbrains.annotations.NotNull;
+-import org.jetbrains.annotations.Nullable;
+ 
+ import java.util.Map;
+ 
+ public interface OutgoingEntityMetadata extends Packet {
+ 
++    @NotNull
++    @Override
++    default Packet.Direction getDirection() {
++        return Direction.OUTGOING;
++    }
++
++    @NotNull
++    @Override
++    default PacketType getType() {
++        return PacketType.Outgoing.ENTITY_METADATA;
++    }
++
++    /**
++     * The number of meta fields in this packet.
++     * @return the number of meta fields
++     */
+     int getFieldCount();
+ 
++    /**
++     * @return a map of the meta fields and their values
++     */
+     @NotNull
+     Map<MetaField<?>, ?> getDataFields();
+ 
+@@ -20,6 +39,24 @@ public interface OutgoingEntityMetadata extends Packet {
+     @UndefinedNullability("null if field is not present")
+     <T> T getDataField(@NotNull MetaField<T> field);
+ 
++    /**
++     * This is used to add a new meta field value to the packet.
++     * The {@link MetaField} is used to serialise the value and
++     * position the data correctly within the packet's data stream.
++     *
++     * Meta fields may only be used with their corresponding entity
++     * type, or an inheritor of the supertype. You cannot, for example,
++     * use {@link MetaField#FIREWORK_ITEM} with an item frame.
++     *
++     * Some meta fields require a meta field converter, as they take
++     * an NMS type. These are usually item stacks or block positions.
++     * Some meta fields require an {@link java.util.Optional}.
++     * This should be made clear within the javadocs.
++     *
++     * @param field the field target
++     * @param value the value
++     * @param <T> the value type
++     */
+     <T> void addDataField(@NotNull MetaField<T> field, @NotNull T value);
+ 
+     <T> void removeDataField(@NotNull MetaField<T> field);
+diff --git a/src/main/java/mx/kenzie/wellspring/structure/Structure.java b/src/main/java/mx/kenzie/wellspring/structure/Structure.java
+index 86d5cf746799e1a37063d918d7919d7557e17d09..79ca1751b9848853c9e5d666398aeec3dcb514af 100644
+--- a/src/main/java/mx/kenzie/wellspring/structure/Structure.java
++++ b/src/main/java/mx/kenzie/wellspring/structure/Structure.java
+@@ -21,14 +21,14 @@ import java.io.InputStream;
+ /**
+  * A loaded structure (template) which can be pasted,
+  * populated and saved.
+- *
++ * <p>
+  * This does not reference a particular physical structure
+  * or type of structure, but instead a (pre-)clonal template
+  * that can be pasted or saved to a file.
+- *
++ * <p>
+  * For copying/saving block strata to the structure,
+  * see {@link Structure#populate(Location, Vector)}
+- *
++ * <p>
+  * For pasting/applying the structure to a position,
+  * see {@link Structure#paste(Location, StructureInfo)}
+  *
+@@ -39,22 +39,25 @@ public interface Structure extends NBTHolder {
+     /**
+      * Creates a new empty structure template. This is effectively a
+      * storage 'clipboard' for a structure that can be copied to/pasted from.
+-     *
++     * <p>
+      * It holds no data about locations or rotations or positions.
+      *
+      * @return a new structure
+      */
+-    static @NotNull Structure create() {
++    static @NotNull
++    Structure create() {
+         return Wellspring.bridge().createStructure();
+     }
+ 
+     /**
+      * Loads a structure from the given file.
++     *
+      * @param file the file to load from - must exist!
+      * @return the loaded/populated structure
+      * @throws RuntimeException if the file does not exist / is not valid NBT
+      */
+-    static @NotNull Structure loadFrom(@NotNull File file) throws RuntimeException {
++    static @NotNull
++    Structure loadFrom(@NotNull File file) throws RuntimeException {
+         try {
+             return loadFrom(new FileInputStream(file));
+         } catch (FileNotFoundException ex) {
+@@ -81,10 +84,12 @@ public interface Structure extends NBTHolder {
+      * Loads a structure from the given stream. This could be a
+      * file stream, an input stream from a packaged resource,
+      * a download stream from an external URL or anything else.
++     *
+      * @param stream the stream to load from
+      * @return the loaded/populated structure
+      */
+-    static @NotNull Structure loadFrom(@NotNull InputStream stream) {
++    static @NotNull
++    Structure loadFrom(@NotNull InputStream stream) {
+         return Wellspring.bridge().loadStructure(stream);
+     }
+ 
+@@ -93,28 +98,32 @@ public interface Structure extends NBTHolder {
+      * to store structures in your own way using their NBT.
+      * This is functionally equivalent to creating an empty structure
+      * and then loading the NBT into it.
++     *
+      * @param compound the nbt to load from
+      * @return the structure
+      */
+-    static @NotNull Structure loadFrom(@NotNull NBTCompound compound) {
++    static @NotNull
++    Structure loadFrom(@NotNull NBTCompound compound) {
+         return Wellspring.bridge().loadStructure(compound);
+     }
+ 
+     /**
+      * This effectively copies the given area to the structure.
+      * By default this will include entities and ignore structure voids.
++     *
+      * @param target the corner location (min x/y/z)
+-     * @param size the size, in blocks, of the structure (positive and non-zero)
++     * @param size   the size, in blocks, of the structure (positive and non-zero)
+      */
+     void populate(@NotNull Location target, @NotNull Vector size);
+ 
+     /**
+      * This effectively copies the given area to the structure.
+      * By default this will ignore structure voids.
+-     * @param target the corner location (min x/y/z)
+-     * @param size the size, in blocks, of the structure (positive and non-zero)
++     *
++     * @param target          the corner location (min x/y/z)
++     * @param size            the size, in blocks, of the structure (positive and non-zero)
+      * @param includeEntities whether to include entities whose feet-locations
+-     *                       fall within the bounds
++     *                        fall within the bounds
+      */
+     void populate(@NotNull Location target, @NotNull Vector size, boolean includeEntities);
+ 
+@@ -123,16 +132,17 @@ public interface Structure extends NBTHolder {
+      * Structure voids are used to preserve blocks at the pasting
+      * location, such as keeping existing terrain when pasting in a
+      * village house.
+-     *
++     * <p>
+      * If you want the structure voids to be saved verbatim, then set
+      * the option to false.
+-     * @param target the corner location (min x/y/z)
+-     * @param size the size, in blocks, of the structure (positive and non-zero)
++     *
++     * @param target          the corner location (min x/y/z)
++     * @param size            the size, in blocks, of the structure (positive and non-zero)
+      * @param includeEntities whether to include entities whose feet-locations
+-     *                       fall within the bounds
+-     * @param ignoreVoids whether to ignore structure voids that are saved,
+-     *                    which will keep the existing block when pasting the
+-     *                    structure.
++     *                        fall within the bounds
++     * @param ignoreVoids     whether to ignore structure voids that are saved,
++     *                        which will keep the existing block when pasting the
++     *                        structure.
+      */
+     void populate(@NotNull Location target, @NotNull Vector size, boolean includeEntities, boolean ignoreVoids);
+ 
+@@ -151,14 +161,14 @@ public interface Structure extends NBTHolder {
+      * Pastes the structure at the given location. You can use the
+      * {@link StructureInfo} to provide special data such as the pivot point,
+      * rotation and mirroring.
+-     *
++     * <p>
+      * Note: Bukkit gets upset if a structure is pasted over existing
+      * tile entities - you may wish to clear the bounds first.
+-     *
++     * <p>
+      * The structure must be populated before pasting.
+      *
+      * @param location the location to paste at
+-     * @param info the special settings
++     * @param info     the special settings
+      * @return true if successful, false if failed
+      */
+     boolean paste(@NotNull Location location, @NotNull StructureInfo info);
+@@ -166,10 +176,10 @@ public interface Structure extends NBTHolder {
+     /**
+      * Pastes the structure at the given location. This will paste it
+      * in the original orientation and from the corner.
+-     *
++     * <p>
+      * Note: Bukkit gets upset if a structure is pasted over existing
+      * tile entities - you may wish to clear the bounds first.
+-     *
++     * <p>
+      * The structure must be populated before pasting.
+      *
+      * @param location the location to paste at
+@@ -186,10 +196,10 @@ public interface Structure extends NBTHolder {
+      * Bukkit's. Please test first to make sure you understand how to interpret
+      * the result of this calculation.
+      *
+-     * @param target the target location
+-     * @param pivot the given pivot
++     * @param target   the target location
++     * @param pivot    the given pivot
+      * @param rotation the given rotation
+-     * @param mirror the given reflection
++     * @param mirror   the given reflection
+      * @return the provisional bounds
+      */
+     default @NotNull
+@@ -204,10 +214,10 @@ public interface Structure extends NBTHolder {
+      * Bukkit's. Please test first to make sure you understand how to interpret
+      * the result of this calculation.
+      *
+-     * @param target the target location
+-     * @param pivot the given pivot
++     * @param target   the target location
++     * @param pivot    the given pivot
+      * @param rotation the given rotation
+-     * @param mirror the given reflection
++     * @param mirror   the given reflection
+      * @return the provisional bounds
+      */
+     @NotNull
+@@ -221,7 +231,7 @@ public interface Structure extends NBTHolder {
+      * the result of this calculation.
+      *
+      * @param target the target location
+-     * @param data the structure data
++     * @param data   the structure data
+      * @return the provisional bounds
+      */
+     default @NotNull
+@@ -237,7 +247,7 @@ public interface Structure extends NBTHolder {
+      * the result of this calculation.
+      *
+      * @param target the target location
+-     * @param data the structure data
++     * @param data   the structure data
+      * @return the provisional bounds
+      */
+     @NotNull
+@@ -255,12 +265,14 @@ public interface Structure extends NBTHolder {
+     /**
+      * Used to give this structure an 'author' when saving to a file.
+      * This is a simple piece of metadata you can attribute.
++     *
+      * @param author the author
+      */
+     void setAuthor(@Nullable String author);
+ 
+     /**
+      * Saves this structure to an NBT compound.
++     *
+      * @return the new NBT compound
+      */
+     default @NotNull
+@@ -270,6 +282,7 @@ public interface Structure extends NBTHolder {
+ 
+     /**
+      * Saves this structure to an NBT compound.
++     *
+      * @param compound the compound to be saved to
+      * @return the compound
+      */
+@@ -279,6 +292,7 @@ public interface Structure extends NBTHolder {
+     /**
+      * Populates the structure from the given NBT compound.
+      * This is effectively the same as using {@link Structure#loadFrom(NBTCompound)}.
++     *
+      * @param compound the valid compound to load from
+      */
+     void load(@NotNull NBTCompound compound);
+@@ -286,7 +300,7 @@ public interface Structure extends NBTHolder {
+     /**
+      * Saves this structure to the given file. The file must
+      * already exist and be accessible.
+-     *
++     * <p>
+      * The structure will be saved as compressed NBT.
+      *
+      * @param file the file to save to
+@@ -296,12 +310,14 @@ public interface Structure extends NBTHolder {
+     /**
+      * Saves the file to the root world's resources, similar to
+      * how a structure block saves structures.
++     *
+      * @param resource the resource key to use
+      */
+     void saveAs(@NotNull NamespacedKey resource);
+ 
+     /**
+      * Effectively the same as {@link Structure#save()}
++     *
+      * @return the compound
+      */
+     default @NotNull
+@@ -324,6 +340,7 @@ public interface Structure extends NBTHolder {
+      * and currently has no API implementation.
+      * This will almost certainly require NMS to use effectively
+      * and should not be used unless absolutely necessary.
++     *
+      * @param a blockinfo palette (?)
+      * @param b entity palette (?)
+      */
+diff --git a/src/main/java/mx/kenzie/wellspring/structure/StructureInfo.java b/src/main/java/mx/kenzie/wellspring/structure/StructureInfo.java
+index 587c33b95993aaa7d2e047e9e1ee84aeec982719..68c35dd7c16f51cf49ce955d5699109ea2b056ee 100644
+--- a/src/main/java/mx/kenzie/wellspring/structure/StructureInfo.java
++++ b/src/main/java/mx/kenzie/wellspring/structure/StructureInfo.java
+@@ -1,7 +1,6 @@
+ package mx.kenzie.wellspring.structure;
+ 
+ import mx.kenzie.wellspring.Wellspring;
+-import org.bukkit.Location;
+ import org.bukkit.block.structure.Mirror;
+ import org.bukkit.block.structure.StructureRotation;
+ import org.bukkit.util.Vector;
+@@ -15,7 +14,7 @@ import java.util.Random;
+  * This includes things like mirroring, depreciation seed,
+  * rotation and rotational pivot, as well as individual settings
+  * for liquids and entities.
+- *
++ * <p>
+  * This data would typically be provided by the structure block.
+  *
+  * @author Moderocky
+@@ -24,6 +23,7 @@ public interface StructureInfo {
+ 
+     /**
+      * Creates a blank info with the default settings.
++     *
+      * @return the new info
+      */
+     @NotNull
+@@ -31,33 +31,42 @@ public interface StructureInfo {
+         return Wellspring.bridge().createStructureInfo();
+     }
+ 
+-    @NotNull StructureInfo setMirror(@NotNull Mirror mirror);
+-
+-    @NotNull StructureInfo setRotation(@NotNull StructureRotation rotation);
+-
+-    @NotNull StructureInfo keepLiquids(boolean keep);
+-
+-    @NotNull StructureInfo ignoreEntities(@NotNull boolean ignore);
++    @NotNull
++    StructureInfo setMirror(@NotNull Mirror mirror);
+ 
+-    @NotNull StructureInfo setSeed(@Nullable Random random);
++    @NotNull
++    StructureInfo setRotation(@NotNull StructureRotation rotation);
+ 
+-    default @NotNull StructureInfo setPivot(@NotNull Vector pivot) {
+-        return setPivot(pivot.getBlockX(), pivot.getBlockY(), pivot.getBlockZ());
+-    }
++    @NotNull
++    StructureInfo keepLiquids(boolean keep);
+ 
+-    @NotNull StructureInfo setPivot(int x, int y, int z);
++    @NotNull
++    StructureInfo ignoreEntities(@NotNull boolean ignore);
+ 
+-    default @NotNull StructureInfo setSeed(long seed) {
+-        return setSeed(new Random(seed));
+-    }
++    @NotNull
++    StructureInfo setPivot(int x, int y, int z);
+ 
+     boolean isKeepLiquids();
+ 
+     boolean isIgnoreEntities();
+ 
+-    @NotNull Vector getPivot();
++    @NotNull
++    Vector getPivot();
++
++    default @NotNull
++    StructureInfo setPivot(@NotNull Vector pivot) {
++        return setPivot(pivot.getBlockX(), pivot.getBlockY(), pivot.getBlockZ());
++    }
+ 
+     @Nullable
+     Random getSeed();
+ 
++    @NotNull
++    StructureInfo setSeed(@Nullable Random random);
++
++    default @NotNull
++    StructureInfo setSeed(long seed) {
++        return setSeed(new Random(seed));
++    }
++
+ }
+diff --git a/src/main/java/mx/kenzie/wellspring/structure/WorldStructure.java b/src/main/java/mx/kenzie/wellspring/structure/WorldStructure.java
+index c6e65d9f71046cd567bb445581ed6019b5f49c4d..d09978ef963ab7b6f925ba8aa15971927bfddfdd 100644
+--- a/src/main/java/mx/kenzie/wellspring/structure/WorldStructure.java
++++ b/src/main/java/mx/kenzie/wellspring/structure/WorldStructure.java
+@@ -10,11 +10,11 @@ import java.util.List;
+ /**
+  * Represents a structure in the world, such as
+  * a mineshaft or a pillager outpost.
+- *
++ * <p>
+  * These structures have a defined bounding box which
+  * can impact what entities spawn in the area among
+  * other things.
+- *
++ * <p>
+  * Entering the bounds may also provide achievements
+  * (see stronghold/fortress.)
+  *
+@@ -26,6 +26,7 @@ public interface WorldStructure extends Keyed {
+      * Provides the bounds for the entire structure.
+      * Please note that some structures use the bounds of internal
+      * pieces for actual calculations.
++     *
+      * @return the bounds
+      */
+     @NotNull
+@@ -33,9 +34,10 @@ public interface WorldStructure extends Keyed {
+ 
+     /**
+      * Provides the parts of the structure.
+-     *
++     * <p>
+      * All structures are divided into parts, though some may have
+      * only one "core" part.
++     *
+      * @return the parts of this structure
+      */
+     @NotNull
+@@ -62,6 +64,7 @@ public interface WorldStructure extends Keyed {
+      * Structures are never "null" when acquired - this
+      * determines whether they are an instance of the default
+      * 'empty' structure (the equivalent to null.)
++     *
+      * @return whether this structure is empty
+      */
+     boolean isEmpty();
+diff --git a/src/main/java/mx/kenzie/wellspring/structure/WorldStructurePart.java b/src/main/java/mx/kenzie/wellspring/structure/WorldStructurePart.java
+index 5f138264b954f5f02a50ff996d26fae509bc008f..aac9319a4e69e0d7f5d595085dd2d0c5b205b7dd 100644
+--- a/src/main/java/mx/kenzie/wellspring/structure/WorldStructurePart.java
++++ b/src/main/java/mx/kenzie/wellspring/structure/WorldStructurePart.java
+@@ -9,7 +9,7 @@ import org.jetbrains.annotations.NotNull;
+  * Represents a tangible segment of a structure.
+  * For small structures, the entire structure may be defined
+  * as one part (such as jungle temples.)
+- *
++ * <p>
+  * Structures such as fortresses and strongholds are made
+  * from myriad and varied parts.
+  *
+@@ -19,6 +19,7 @@ public interface WorldStructurePart extends Keyed {
+ 
+     /**
+      * Provides the bounds for this part of the structure.
++     *
+      * @return the bounds
+      */
+     @NotNull
+@@ -26,7 +27,7 @@ public interface WorldStructurePart extends Keyed {
+ 
+     /**
+      * Provides the ID for this part.
+-     *
++     * <p>
+      * This will be fairly useless without a knowledge of
+      * which ID corresponds to which part of what structure.
+      *
+diff --git a/src/main/java/mx/kenzie/wellspring/structure/WorldStructureType.java b/src/main/java/mx/kenzie/wellspring/structure/WorldStructureType.java
+index d0ec0b4a46afab1b9ca667c21e859f56996f8497..b9121e1b186736abf56c8e7d401ceae536d317a9 100644
+--- a/src/main/java/mx/kenzie/wellspring/structure/WorldStructureType.java
++++ b/src/main/java/mx/kenzie/wellspring/structure/WorldStructureType.java
+@@ -14,12 +14,12 @@ import static mx.kenzie.wellspring.structure.DecorationType.UNDERGROUND;
+ 
+ /**
+  * A type of structure within the world.
+- *
++ * <p>
+  * Note that this is different from Bukkit's {@link org.bukkit.StructureType}.
+  * Bukkit's types seem to be more geared towards map usage, and
+  * altering Bukkit classes can have unintended consequences. Instead,
+  * Wellspring has its own implementation.
+- *
++ * <p>
+  * If you or a modification has altered world generation, you may register
+  * the necessary structure types here using
+  * {@link WorldStructureType#define(NamespacedKey, DecorationType)}
+@@ -57,6 +57,28 @@ public final class WorldStructureType {
+         this.type = type;
+     }
+ 
++    public static @NotNull
++    WorldStructureType from(@NotNull NamespacedKey key) {
++        return STRUCTURE_MAP.get(key);
++    }
++
++    private static @NotNull
++    WorldStructureType define(final @NotNull String id, @NotNull DecorationType type) {
++        final @NotNull NamespacedKey key = NamespacedKey.minecraft(id.toLowerCase(Locale.ENGLISH));
++        final @NotNull WorldStructureType structure;
++        STRUCTURE_MAP.put(key, structure = new WorldStructureType(key, type));
++        return structure;
++    }
++
++    public static @NotNull
++    WorldStructureType define(final @NotNull NamespacedKey key, @NotNull DecorationType type) {
++        if (key.isMinecraft() && STRUCTURE_MAP.containsKey(key))
++            throw new IllegalArgumentException("Minecraft structure definitions cannot be overridden!");
++        final @NotNull WorldStructureType structure;
++        STRUCTURE_MAP.put(key, structure = new WorldStructureType(key, type));
++        return structure;
++    }
++
+     @NotNull
+     public final NamespacedKey getKey() {
+         return key;
+@@ -81,26 +103,4 @@ public final class WorldStructureType {
+         return Wellspring.bridge().getStructurePart(this, location);
+     }
+ 
+-    public static @NotNull
+-    WorldStructureType from(@NotNull NamespacedKey key) {
+-        return STRUCTURE_MAP.get(key);
+-    }
+-
+-    private static @NotNull
+-    WorldStructureType define(final @NotNull String id, @NotNull DecorationType type) {
+-        final @NotNull NamespacedKey key = NamespacedKey.minecraft(id.toLowerCase(Locale.ENGLISH));
+-        final @NotNull WorldStructureType structure;
+-        STRUCTURE_MAP.put(key, structure = new WorldStructureType(key, type));
+-        return structure;
+-    }
+-
+-    public static @NotNull
+-    WorldStructureType define(final @NotNull NamespacedKey key, @NotNull DecorationType type) {
+-        if (key.isMinecraft() && STRUCTURE_MAP.containsKey(key))
+-            throw new IllegalArgumentException("Minecraft structure definitions cannot be overridden!");
+-        final @NotNull WorldStructureType structure;
+-        STRUCTURE_MAP.put(key, structure = new WorldStructureType(key, type));
+-        return structure;
+-    }
+-
+ }
+diff --git a/src/main/java/mx/kenzie/wellspring/tile/TileEntity.java b/src/main/java/mx/kenzie/wellspring/tile/TileEntity.java
+index 8a7255407efac06390bddc2398a18ac24541f5fb..8b2dc506d6b6bc7d7b052e810ee162c0cb87479e 100644
+--- a/src/main/java/mx/kenzie/wellspring/tile/TileEntity.java
++++ b/src/main/java/mx/kenzie/wellspring/tile/TileEntity.java
+@@ -12,10 +12,10 @@ import org.jetbrains.annotations.Nullable;
+  * world.
+  * Unlike Bukkit's *amazing* TileState system, this references the true
+  * object and is unique.
+- *
++ * <p>
+  * Note: it is unwise to store this except as a weak reference - it
+  * can interfere with the disposal of destroyed tile entities.
+- *
++ * <p>
+  * Instead, consider storing the location or the block itself and
+  * retrieving the tile entity when required.
+  *
+@@ -34,7 +34,7 @@ public interface TileEntity extends NBTHolder, Attachable {
+ 
+     /**
+      * Provides the actual location of this tile entity.
+-     *
++     * <p>
+      * Note that during an attachment initialisation this will
+      * not be the correct location - minecraft assigns the location
+      * post-creation.
+diff --git a/src/main/java/mx/kenzie/wellspring/tile/TileType.java b/src/main/java/mx/kenzie/wellspring/tile/TileType.java
+index 00fabcb6d41caa4159b0aff8c1405bd21957524a..39f9358fb0e95460424a63cc9e0e0d9cab1a102e 100644
+--- a/src/main/java/mx/kenzie/wellspring/tile/TileType.java
++++ b/src/main/java/mx/kenzie/wellspring/tile/TileType.java
+@@ -3,21 +3,20 @@ package mx.kenzie.wellspring.tile;
+ import org.bukkit.Material;
+ import org.bukkit.NamespacedKey;
+ import org.bukkit.block.*;
+-import org.bukkit.block.Comparator;
+-import org.bukkit.block.data.type.Piston;
+ import org.jetbrains.annotations.NotNull;
+-import org.jetbrains.annotations.Nullable;
+ 
+-import java.util.*;
+-import java.util.function.Supplier;
++import java.util.Arrays;
++import java.util.LinkedHashMap;
++import java.util.List;
++import java.util.Map;
+ 
+ /**
+  * A type of tile entity.
+- *
++ * <p>
+  * Note that this is not an enum, so if your particular
+  * implementation is using modded content you may easily
+  * register any additional tile entity types.
+- *
++ * <p>
+  * Additionally, if you are adding a new tile entity within
+  * your plugin (which is ill-advised but perfectly possible)
+  * you should register it here.
+@@ -28,6 +27,7 @@ import java.util.function.Supplier;
+  */
+ public final class TileType {
+ 
++    private static final Map<NamespacedKey, TileType> MAP = new LinkedHashMap<>();
+     public static final TileType FURNACE = create("furnace", Furnace.class, Material.FURNACE);
+     public static final TileType CHEST = create("chest", Chest.class, Material.CHEST);
+     public static final TileType TRAPPED_CHEST = create("trapped_chest", Chest.class, Material.TRAPPED_CHEST);
+@@ -63,18 +63,19 @@ public final class TileType {
+     public static final TileType BEEHIVE = create("beehive", 14, Beehive.class, Material.BEE_NEST, Material.BEEHIVE);
+     @Deprecated
+     public static final TileType UNKNOWN = create("unknown", TileState.class);
+-
+-    private static final Map<NamespacedKey, TileType> MAP = new LinkedHashMap<>();
+-
+-    private final @NotNull NamespacedKey key;
+-    private final @NotNull Material[] materials;
+-    private final @NotNull Class<? extends TileState> state;
+-    private final @NotNull int id;
++    private final @NotNull
++    NamespacedKey key;
++    private final @NotNull
++    Material[] materials;
++    private final @NotNull
++    Class<? extends TileState> state;
++    private final @NotNull
++    int id;
+ 
+     private TileType(@NotNull NamespacedKey key, @NotNull Material... materials) {
+         this(key, -1, TileState.class, materials);
+     }
+-    
++
+     private TileType(@NotNull NamespacedKey key, int id, @NotNull Class<? extends TileState> state, @NotNull Material... materials) {
+         this.key = key;
+         this.materials = materials;
+@@ -82,26 +83,6 @@ public final class TileType {
+         this.id = id;
+     }
+ 
+-    @Deprecated
+-    public int getId() {
+-        return id;
+-    }
+-
+-    @NotNull
+-    public Class<? extends TileState> getState() {
+-        return state;
+-    }
+-
+-    public final @NotNull
+-    List<Material> getMaterials() {
+-        return Arrays.asList(materials);
+-    }
+-
+-    public final @NotNull
+-    NamespacedKey getKey() {
+-        return key;
+-    }
+-    
+     public static @NotNull
+     TileType get(@NotNull Class<? extends TileState> cls) {
+         for (TileType type : MAP.values()) {
+@@ -125,7 +106,8 @@ public final class TileType {
+ 
+     public static @NotNull
+     TileType create(@NotNull NamespacedKey key, @NotNull Material... materials) {
+-        if (key.isMinecraft() && MAP.containsKey(key)) throw new IllegalArgumentException("A tile type with this key already exists!");
++        if (key.isMinecraft() && MAP.containsKey(key))
++            throw new IllegalArgumentException("A tile type with this key already exists!");
+         TileType tile = new TileType(key, materials);
+         MAP.put(key, tile);
+         return tile;
+@@ -144,4 +126,24 @@ public final class TileType {
+         return tile;
+     }
+ 
++    @Deprecated
++    public int getId() {
++        return id;
++    }
++
++    @NotNull
++    public Class<? extends TileState> getState() {
++        return state;
++    }
++
++    public final @NotNull
++    List<Material> getMaterials() {
++        return Arrays.asList(materials);
++    }
++
++    public final @NotNull
++    NamespacedKey getKey() {
++        return key;
++    }
++
+ }

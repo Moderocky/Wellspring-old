@@ -1,0 +1,1368 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Wed, 21 Oct 2020 16:17:21 +0100
+Subject: [PATCH] Finish MetaFields and clean-up.
+
+Squash fix.
+
+diff --git a/src/main/java/mx/kenzie/server/CraftBridge.java b/src/main/java/mx/kenzie/server/CraftBridge.java
+index f90c229c4bd91f929c290e509ed773b64398f128..78b7a48868b7f5266fb14d00c519fd4dedcbfd29 100644
+--- a/src/main/java/mx/kenzie/server/CraftBridge.java
++++ b/src/main/java/mx/kenzie/server/CraftBridge.java
+@@ -2,16 +2,27 @@ package mx.kenzie.server;
+ 
+ import mx.kenzie.wellspring.Wellspring;
+ import mx.kenzie.wellspring.nbt.NBTCompound;
++import mx.kenzie.wellspring.packet.meta.MetaField;
+ import mx.kenzie.wellspring.structure.*;
++import net.md_5.bungee.api.chat.BaseComponent;
++import net.md_5.bungee.chat.ComponentSerializer;
+ import net.minecraft.server.*;
+ import org.bukkit.Location;
+ import org.bukkit.NamespacedKey;
+ import org.bukkit.attribute.Attribute;
++import org.bukkit.block.BlockFace;
++import org.bukkit.block.data.BlockData;
+ import org.bukkit.craftbukkit.CraftWorld;
++import org.bukkit.craftbukkit.block.data.CraftBlockData;
+ import org.bukkit.craftbukkit.entity.CraftEntity;
+ import org.bukkit.craftbukkit.entity.CraftLivingEntity;
++import org.bukkit.craftbukkit.inventory.CraftItemStack;
+ import org.bukkit.enchantments.Enchantment;
+ import org.bukkit.entity.EntityType;
++import org.bukkit.entity.Pose;
++import org.bukkit.entity.Villager;
++import org.bukkit.util.EulerAngle;
++import org.bukkit.util.Vector;
+ 
+ import java.io.InputStream;
+ import java.util.HashMap;
+@@ -20,6 +31,60 @@ import java.util.Map;
+ 
+ public class CraftBridge extends Wellspring.Bridge {
+ 
++    @Override
++    public <T> T typeInputConversion(Object object) {
++        if (object instanceof BaseComponent[])
++            return (T) IChatBaseComponent.ChatSerializer.jsonToComponent(ComponentSerializer.toString(((BaseComponent[]) object)));
++        if (object instanceof BaseComponent)
++            return (T) IChatBaseComponent.ChatSerializer.jsonToComponent(ComponentSerializer.toString(((BaseComponent) object)));
++        if (object instanceof Location) {
++            Location location = (Location) object;
++            return (T) new BlockPosition(location.getBlockX(), location.getBlockY(), location.getBlockZ());
++        }
++        return object != null ? (T) object : null;
++    }
++
++    @Override
++    public <T> Object typeInputConversion(T object, MetaField.Converter<T> converter) {
++        if (converter == MetaField.Converter.BLOCK_POSITION) {
++            Location location = (Location) object;
++            return new BlockPosition(location.getBlockX(), location.getBlockY(), location.getBlockZ());
++        }
++        if (converter == MetaField.Converter.CHAT_COMPONENT) {
++            return IChatBaseComponent.ChatSerializer.jsonToComponent(ComponentSerializer.toString(((BaseComponent[]) object)));
++        }
++        if (converter == MetaField.Converter.VECTOR_3F) {
++            Vector vector = (Vector) object;
++            return new Vector3f((float) vector.getX(), (float) vector.getY(), (float) vector.getZ());
++        }
++        if (converter == MetaField.Converter.ENTITY_POSE) {
++            return EntityPose.valueOf(((Pose) object).name());
++        }
++        if (converter == MetaField.Converter.ENUM_DIRECTION) {
++            return EnumDirection.valueOf(((BlockFace) object).name());
++        }
++        if (converter == MetaField.Converter.ITEM_STACK) {
++            return CraftItemStack.asNMSCopy(((org.bukkit.inventory.ItemStack) object));
++        }
++        if (converter == MetaField.Converter.BLOCK_DATA) {
++            CraftBlockData data = (CraftBlockData) object;
++            return data.getState();
++        }
++        if (converter == MetaField.Converter.VILLAGER_DATA) {
++            Object[] array = (Object[]) object;
++            Villager.Profession profession = ((Villager.Profession) array[0]);
++            Villager.Type type = ((Villager.Type) array[1]);
++            int level = ((int) array[2]);
++            return new VillagerData(IRegistry.VILLAGER_TYPE.get(MinecraftKey.a(type.getKey().toString())),
++                    IRegistry.VILLAGER_PROFESSION.get(MinecraftKey.a(profession.getKey().toString())),
++                    level);
++        }
++        if (converter == MetaField.Converter.PARTICLE_PARAMS) {
++            return object;
++        }
++        return object;
++    }
++
+     @Override
+     public boolean isStructurePresent(WorldStructureType structure, Location location) {
+         WorldStructure str = getStructure(structure, location);
+diff --git a/src/main/java/mx/kenzie/server/packet/PacketFactoryImpl.java b/src/main/java/mx/kenzie/server/packet/PacketFactoryImpl.java
+index eaaae5aa2f344551afff0b7a1a715fed2f2b8dbe..4b3026edfe1af1c1d6dd697aa3820ef47868fbe3 100644
+--- a/src/main/java/mx/kenzie/server/packet/PacketFactoryImpl.java
++++ b/src/main/java/mx/kenzie/server/packet/PacketFactoryImpl.java
+@@ -2,6 +2,8 @@ package mx.kenzie.server.packet;
+ 
+ import com.destroystokyo.paper.network.NetworkClient;
+ import com.destroystokyo.paper.network.PaperNetworkClient;
++import mx.kenzie.server.CraftBridge;
++import mx.kenzie.wellspring.Wellspring;
+ import mx.kenzie.wellspring.conversion.Converter;
+ import mx.kenzie.wellspring.nbt.NBTCompound;
+ import mx.kenzie.wellspring.packet.PacketFactory;
+@@ -9,6 +11,7 @@ import mx.kenzie.wellspring.packet.PacketType;
+ import mx.kenzie.wellspring.packet.specific.OutgoingEntityMetadata;
+ import mx.kenzie.wellspring.tile.TileEntity;
+ import mx.kenzie.wellspring.tile.TileType;
++import net.md_5.bungee.api.ChatMessageType;
+ import net.md_5.bungee.api.chat.BaseComponent;
+ import net.md_5.bungee.chat.ComponentSerializer;
+ import net.minecraft.server.*;
+@@ -17,6 +20,7 @@ import org.bukkit.NamespacedKey;
+ import org.bukkit.advancement.Advancement;
+ import org.bukkit.advancement.AdvancementProgress;
+ import org.bukkit.block.data.BlockData;
++import org.bukkit.craftbukkit.CraftServer;
+ import org.bukkit.craftbukkit.advancement.CraftAdvancement;
+ import org.bukkit.craftbukkit.advancement.CraftAdvancementProgress;
+ import org.bukkit.craftbukkit.entity.CraftEntity;
+@@ -366,7 +370,7 @@ public class PacketFactoryImpl extends PacketFactory {
+ 
+     @Override
+     public OutgoingEntityMetadata playOutEntityMetadata(Entity entity) {
+-        return new PacketPlayOutEntityMetadata(entity.getEntityId(), ((CraftEntity) entity).getHandle().getDataWatcher(), false);
++        return (OutgoingEntityMetadata) new PacketPlayOutEntityMetadata(entity.getEntityId(), ((CraftEntity) entity).getHandle().getDataWatcher(), false);
+     }
+ 
+     @Override
+@@ -396,6 +400,11 @@ public class PacketFactoryImpl extends PacketFactory {
+         return new PacketPlayOutBlockBreakAnimation(id, position, stage);
+     }
+ 
++    @Override
++    public mx.kenzie.wellspring.packet.Packet packetPlayOutChat(BaseComponent[] message, ChatMessageType type) {
++        return new PacketPlayOutChat(Wellspring.bridge().typeInputConversion(message), net.minecraft.server.ChatMessageType.valueOf(type.name()), null);
++    }
++
+     @Override
+     public mx.kenzie.wellspring.packet.Packet createFrom(PacketType type, Object... fieldInputs) {
+         try {
+diff --git a/src/main/java/net/minecraft/server/DataWatcherObject.java b/src/main/java/net/minecraft/server/DataWatcherObject.java
+index 0139d2852df3d35f99166a4e65da7929106e4661..b1105c59973d5a17dd8171665fd988ff2b476112 100644
+--- a/src/main/java/net/minecraft/server/DataWatcherObject.java
++++ b/src/main/java/net/minecraft/server/DataWatcherObject.java
+@@ -1,6 +1,7 @@
+ package net.minecraft.server;
+ 
+ import mx.kenzie.wellspring.packet.meta.MetaField;
++import org.bukkit.entity.Entity;
+ 
+ public class DataWatcherObject<T> extends MetaField<T> {
+ 
+diff --git a/src/main/java/net/minecraft/server/Entity.java b/src/main/java/net/minecraft/server/Entity.java
+index c7e1478f2f0e39c50ff7adbf87e4f2604c0f978a..6f04337208f454b1c3f11f38d07b36d0827e74bb 100644
+--- a/src/main/java/net/minecraft/server/Entity.java
++++ b/src/main/java/net/minecraft/server/Entity.java
+@@ -163,7 +163,7 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
+     static { // Kenzie - init datawatchers
+         MetaField.SHARED_FLAGS = S;
+         MetaField.AIR_TICKS = AIR_TICKS;
+-        MetaField.CUSTOM_NAME = aq;
++        MetaField.CUSTOM_NAME = (DataWatcherObject<Optional<?>>) (DataWatcherObject<?>) aq;
+         MetaField.CUSTOM_NAME_VISIBLE = ar;
+         MetaField.SILENT = as;
+         MetaField.NO_GRAVITY = at;
+diff --git a/src/main/java/net/minecraft/server/EntityEnderCrystal.java b/src/main/java/net/minecraft/server/EntityEnderCrystal.java
+index 362ca695d88a7c788421cc557b8110b954d8153a..a552a34fa1866f28cf697bf22d38e994ceb92f46 100644
+--- a/src/main/java/net/minecraft/server/EntityEnderCrystal.java
++++ b/src/main/java/net/minecraft/server/EntityEnderCrystal.java
+@@ -4,6 +4,7 @@ import java.util.Optional;
+ import javax.annotation.Nullable;
+ 
+ // CraftBukkit start
++import mx.kenzie.wellspring.packet.meta.MetaField;
+ import org.bukkit.craftbukkit.event.CraftEventFactory;
+ import org.bukkit.event.entity.ExplosionPrimeEvent;
+ // CraftBukkit end
+@@ -12,6 +13,10 @@ public class EntityEnderCrystal extends Entity {
+ 
+     private static final DataWatcherObject<Optional<BlockPosition>> c = DataWatcher.a(EntityEnderCrystal.class, DataWatcherRegistry.m);
+     private static final DataWatcherObject<Boolean> d = DataWatcher.a(EntityEnderCrystal.class, DataWatcherRegistry.i);
++    static { // Kenzie - init datawatchers
++        MetaField.ENDER_CRYSTAL_TARGET = (DataWatcherObject<Optional<?>>) (DataWatcherObject<?>) c;
++        MetaField.ENDER_CRYSTAL_BASE = d;
++    }
+     public int b;
+ 
+     public EntityEnderCrystal(EntityTypes<? extends EntityEnderCrystal> entitytypes, World world) {
+diff --git a/src/main/java/net/minecraft/server/EntityEnderDragon.java b/src/main/java/net/minecraft/server/EntityEnderDragon.java
+index 6b2c5e8d4640e19d33cbfe76d2399e6100890dbc..1002501d4185cfcd58030706efb37a5cd3c869d0 100644
+--- a/src/main/java/net/minecraft/server/EntityEnderDragon.java
++++ b/src/main/java/net/minecraft/server/EntityEnderDragon.java
+@@ -4,6 +4,8 @@ import com.google.common.collect.Lists;
+ import java.util.Iterator;
+ import java.util.List;
+ import javax.annotation.Nullable;
++
++import mx.kenzie.wellspring.packet.meta.MetaField;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+ // CraftBukkit start
+@@ -18,6 +20,9 @@ public class EntityEnderDragon extends EntityInsentient implements IMonster {
+ 
+     private static final Logger LOGGER = LogManager.getLogger();
+     public static final DataWatcherObject<Integer> PHASE = DataWatcher.a(EntityEnderDragon.class, DataWatcherRegistry.b);
++    static { // Kenzie - init datawatchers
++        MetaField.ENDER_DRAGON_PHASE = PHASE;
++    }
+     private static final PathfinderTargetCondition bw = (new PathfinderTargetCondition()).a(64.0D);
+     public final double[][] c = new double[64][3];
+     public int d = -1;
+diff --git a/src/main/java/net/minecraft/server/EntityEnderSignal.java b/src/main/java/net/minecraft/server/EntityEnderSignal.java
+index 08da58677a0042b0632d458a9476632974fa1e2d..62c5ef7e28c729c667166c7f83d812861c699ba2 100644
+--- a/src/main/java/net/minecraft/server/EntityEnderSignal.java
++++ b/src/main/java/net/minecraft/server/EntityEnderSignal.java
+@@ -1,8 +1,13 @@
+ package net.minecraft.server;
+ 
++import mx.kenzie.wellspring.packet.meta.MetaField;
++
+ public class EntityEnderSignal extends Entity {
+ 
+     private static final DataWatcherObject<ItemStack> b = DataWatcher.a(EntityEnderSignal.class, DataWatcherRegistry.g);
++    static { // Kenzie - init datawatchers
++        MetaField.ENDER_SIGNAL_ITEM = b;
++    }
+     public double targetX;
+     public double targetY;
+     public double targetZ;
+diff --git a/src/main/java/net/minecraft/server/EntityEnderman.java b/src/main/java/net/minecraft/server/EntityEnderman.java
+index 03176e83ae31aff4c2c75702e249afaef3240f50..4a844ab920918cc0880fa7d47e4e3b7b16c7e92e 100644
+--- a/src/main/java/net/minecraft/server/EntityEnderman.java
++++ b/src/main/java/net/minecraft/server/EntityEnderman.java
+@@ -3,6 +3,8 @@ package net.minecraft.server;
+ import java.util.EnumSet;
+ import java.util.Optional;
+ import com.destroystokyo.paper.event.entity.EndermanEscapeEvent; // Paper
++import mx.kenzie.wellspring.packet.meta.MetaField;
++
+ import java.util.Random;
+ import java.util.UUID;
+ import java.util.function.Predicate;
+@@ -15,6 +17,11 @@ public class EntityEnderman extends EntityMonster implements IEntityAngerable {
+     private static final DataWatcherObject<Optional<IBlockData>> d = DataWatcher.a(EntityEnderman.class, DataWatcherRegistry.h);
+     private static final DataWatcherObject<Boolean> bo = DataWatcher.a(EntityEnderman.class, DataWatcherRegistry.i);
+     private static final DataWatcherObject<Boolean> bp = DataWatcher.a(EntityEnderman.class, DataWatcherRegistry.i);
++    static { // Kenzie - init datawatchers
++        MetaField.ENDERMAN_CARRY = (DataWatcherObject<Optional<?>>) (DataWatcherObject<?>) d;
++        MetaField.ENDERMAN_CREEPY = bo;
++        MetaField.ENDERMAN_STARED = bp;
++    }
+     private static final Predicate<EntityLiving> bq = (entityliving) -> {
+         return entityliving instanceof EntityEndermite && ((EntityEndermite) entityliving).isPlayerSpawned();
+     };
+diff --git a/src/main/java/net/minecraft/server/EntityFallingBlock.java b/src/main/java/net/minecraft/server/EntityFallingBlock.java
+index 492a4cf1a8b1a26624b093d7f6946bfd8277c4f9..8c32aa826581c9bdd0c62aba2f9cee1ea81f1b2f 100644
+--- a/src/main/java/net/minecraft/server/EntityFallingBlock.java
++++ b/src/main/java/net/minecraft/server/EntityFallingBlock.java
+@@ -4,6 +4,7 @@ import com.google.common.collect.Lists;
+ import java.util.Iterator;
+ import java.util.List;
+ 
++import mx.kenzie.wellspring.packet.meta.MetaField;
+ import org.bukkit.craftbukkit.event.CraftEventFactory; // CraftBukkit
+ 
+ public class EntityFallingBlock extends Entity {
+@@ -17,6 +18,9 @@ public class EntityFallingBlock extends Entity {
+     private float fallHurtAmount;
+     public NBTTagCompound tileEntityData;
+     protected static final DataWatcherObject<BlockPosition> e = DataWatcher.a(EntityFallingBlock.class, DataWatcherRegistry.l);
++    static { // Kenzie - init datawatchers
++        MetaField.FALLING_BLOCK_START_POSITION = e;
++    }
+ 
+     public EntityFallingBlock(EntityTypes<? extends EntityFallingBlock> entitytypes, World world) {
+         super(entitytypes, world);
+diff --git a/src/main/java/net/minecraft/server/EntityFireballFireball.java b/src/main/java/net/minecraft/server/EntityFireballFireball.java
+index 73985655ea0fb3ce618accf2f38308062f8821f9..7647659c96fb4a4b2b1deeabb920dd8cc471a390 100644
+--- a/src/main/java/net/minecraft/server/EntityFireballFireball.java
++++ b/src/main/java/net/minecraft/server/EntityFireballFireball.java
+@@ -1,8 +1,13 @@
+ package net.minecraft.server;
+ 
++import mx.kenzie.wellspring.packet.meta.MetaField;
++
+ public abstract class EntityFireballFireball extends EntityFireball {
+ 
+     private static final DataWatcherObject<ItemStack> e = DataWatcher.a(EntityFireballFireball.class, DataWatcherRegistry.g);
++    static { // Kenzie - init datawatchers
++        MetaField.FIREBALL_ITEM = e;
++    }
+ 
+     public EntityFireballFireball(EntityTypes<? extends EntityFireballFireball> entitytypes, World world) {
+         super(entitytypes, world);
+diff --git a/src/main/java/net/minecraft/server/EntityFireworks.java b/src/main/java/net/minecraft/server/EntityFireworks.java
+index 36729e478329cdcd4af6132f3024963314bc4c61..32abffea4a59e313804eebe8098f49329a9752a6 100644
+--- a/src/main/java/net/minecraft/server/EntityFireworks.java
++++ b/src/main/java/net/minecraft/server/EntityFireworks.java
+@@ -4,6 +4,8 @@ import java.util.Iterator;
+ import java.util.List;
+ import java.util.OptionalInt;
+ import javax.annotation.Nullable;
++
++import mx.kenzie.wellspring.packet.meta.MetaField;
+ import org.bukkit.craftbukkit.event.CraftEventFactory; // CraftBukkit
+ 
+ public class EntityFireworks extends IProjectile {
+@@ -11,6 +13,11 @@ public class EntityFireworks extends IProjectile {
+     public static final DataWatcherObject<ItemStack> FIREWORK_ITEM = DataWatcher.a(EntityFireworks.class, DataWatcherRegistry.g);
+     private static final DataWatcherObject<OptionalInt> c = DataWatcher.a(EntityFireworks.class, DataWatcherRegistry.r);
+     public static final DataWatcherObject<Boolean> SHOT_AT_ANGLE = DataWatcher.a(EntityFireworks.class, DataWatcherRegistry.i);
++    static { // Kenzie - init datawatchers
++        MetaField.FIREWORK_ITEM = FIREWORK_ITEM;
++        MetaField.FIREWORK_ATTACHED_TO_TARGET = c;
++        MetaField.FIREWORK_SHOT_AT_ANGLE = SHOT_AT_ANGLE;
++    }
+     private int ticksFlown;
+     public int expectedLifespan;
+     public EntityLiving ridingEntity; // Paper - public
+diff --git a/src/main/java/net/minecraft/server/EntityFish.java b/src/main/java/net/minecraft/server/EntityFish.java
+index 27d0f93510a235b80784dd1f29b0c3b3910e4459..2525e40869e48294b6a6c6bd246935bc90d8cc5d 100644
+--- a/src/main/java/net/minecraft/server/EntityFish.java
++++ b/src/main/java/net/minecraft/server/EntityFish.java
+@@ -1,11 +1,16 @@
+ package net.minecraft.server;
+ 
++import mx.kenzie.wellspring.packet.meta.MetaField;
++
+ import java.util.Random;
+ import java.util.function.Predicate;
+ 
+ public abstract class EntityFish extends EntityWaterAnimal {
+ 
+     private static final DataWatcherObject<Boolean> FROM_BUCKET = DataWatcher.a(EntityFish.class, DataWatcherRegistry.i);
++    static { // Kenzie - init datawatchers
++        MetaField.FISH_FROM_BUCKET = FROM_BUCKET;
++    }
+ 
+     public EntityFish(EntityTypes<? extends EntityFish> entitytypes, World world) {
+         super(entitytypes, world);
+@@ -75,7 +80,7 @@ public abstract class EntityFish extends EntityWaterAnimal {
+         Predicate predicate = IEntitySelector.g;
+ 
+         predicate.getClass();
+-        pathfindergoalselector.a(2, new PathfinderGoalAvoidTarget<>(this, EntityHuman.class, 8.0F, 1.6D, 1.4D, predicate::test));
++        pathfindergoalselector.a(2, new PathfinderGoalAvoidTarget<>(this, EntityHuman.class, 8.0F, 1.6D, 1.4D, predicate)); // Kenzie - deobfuscation error
+         this.goalSelector.a(4, new EntityFish.b(this));
+     }
+ 
+diff --git a/src/main/java/net/minecraft/server/EntityFishingHook.java b/src/main/java/net/minecraft/server/EntityFishingHook.java
+index b6cace72ab2f3389408a5e528981fcff3b511180..c3d3d753fd354a2a215c3dcf86609b55d6349b63 100644
+--- a/src/main/java/net/minecraft/server/EntityFishingHook.java
++++ b/src/main/java/net/minecraft/server/EntityFishingHook.java
+@@ -7,6 +7,7 @@ import java.util.List;
+ import java.util.Random;
+ import javax.annotation.Nullable;
+ // CraftBukkit start
++import mx.kenzie.wellspring.packet.meta.MetaField;
+ import org.bukkit.entity.Player;
+ import org.bukkit.entity.FishHook;
+ import org.bukkit.event.player.PlayerFishEvent;
+@@ -19,6 +20,10 @@ public class EntityFishingHook extends IProjectile {
+     private int d;
+     private static final DataWatcherObject<Integer> e = DataWatcher.a(EntityFishingHook.class, DataWatcherRegistry.b);
+     private static final DataWatcherObject<Boolean> f = DataWatcher.a(EntityFishingHook.class, DataWatcherRegistry.i);
++    static { // Kenzie - init datawatchers
++        MetaField.FISH_HOOK_HOOKED = e;
++        MetaField.FISH_HOOK_BITING = f;
++    }
+     private int g;
+     private int ag;
+     private int ah;
+diff --git a/src/main/java/net/minecraft/server/EntityFox.java b/src/main/java/net/minecraft/server/EntityFox.java
+index 0ac0364ffeb81ac3f379848f6e1afae641658c73..6e0983ef8bbc54542704b19e45e5c6610d897c00 100644
+--- a/src/main/java/net/minecraft/server/EntityFox.java
++++ b/src/main/java/net/minecraft/server/EntityFox.java
+@@ -1,6 +1,8 @@
+ package net.minecraft.server;
+ 
+ import com.google.common.collect.Lists;
++import mx.kenzie.wellspring.packet.meta.MetaField;
++
+ import java.util.Arrays;
+ import java.util.Comparator;
+ import java.util.EnumSet;
+@@ -19,6 +21,12 @@ public class EntityFox extends EntityAnimal {
+     private static final DataWatcherObject<Byte> bp = DataWatcher.a(EntityFox.class, DataWatcherRegistry.a);
+     public static final DataWatcherObject<Optional<UUID>> FIRST_TRUSTED_PLAYER = DataWatcher.a(EntityFox.class, DataWatcherRegistry.o);
+     public static final DataWatcherObject<Optional<UUID>> SECOND_TRUSTED_PLAYER = DataWatcher.a(EntityFox.class, DataWatcherRegistry.o);
++    static { // Kenzie - init datawatchers
++        MetaField.FOX_TYPE = bo;
++        MetaField.FOX_FLAGS = bp;
++        MetaField.FOX_TRUSTED_PLAYER_1 = FIRST_TRUSTED_PLAYER;
++        MetaField.FOX_TRUSTED_PLAYER_2 = SECOND_TRUSTED_PLAYER;
++    }
+     private static final Predicate<EntityItem> bs = (entityitem) -> {
+         return !entityitem.p() && entityitem.isAlive();
+     };
+diff --git a/src/main/java/net/minecraft/server/EntityGhast.java b/src/main/java/net/minecraft/server/EntityGhast.java
+index a67611c4f9271c116a795ee598412f25396fee88..3e8faaaa9f6fe058d83d08c4d3821be611de81c7 100644
+--- a/src/main/java/net/minecraft/server/EntityGhast.java
++++ b/src/main/java/net/minecraft/server/EntityGhast.java
+@@ -1,11 +1,16 @@
+ package net.minecraft.server;
+ 
++import mx.kenzie.wellspring.packet.meta.MetaField;
++
+ import java.util.EnumSet;
+ import java.util.Random;
+ 
+ public class EntityGhast extends EntityFlying implements IMonster {
+ 
+     private static final DataWatcherObject<Boolean> b = DataWatcher.a(EntityGhast.class, DataWatcherRegistry.i);
++    static { // Kenzie - init datawatchers
++        MetaField.GHAST_IS_CHARGING = b;
++    }
+     private int c = 1;
+ 
+     public EntityGhast(EntityTypes<? extends EntityGhast> entitytypes, World world) {
+diff --git a/src/main/java/net/minecraft/server/EntityHorseAbstract.java b/src/main/java/net/minecraft/server/EntityHorseAbstract.java
+index 191d9cb8279cabdb5441fb10a107eb119e0fe9d0..49b0e1f20bb9daf15cb85f7d942926649e05e714 100644
+--- a/src/main/java/net/minecraft/server/EntityHorseAbstract.java
++++ b/src/main/java/net/minecraft/server/EntityHorseAbstract.java
+@@ -6,6 +6,8 @@ import java.util.Optional;
+ import java.util.UUID;
+ import java.util.function.Predicate;
+ import javax.annotation.Nullable;
++
++import mx.kenzie.wellspring.packet.meta.MetaField;
+ import org.bukkit.event.entity.EntityRegainHealthEvent.RegainReason; // CraftBukkit
+ 
+ public abstract class EntityHorseAbstract extends EntityAnimal implements IInventoryListener, IJumpable, ISaddleable {
+@@ -17,6 +19,10 @@ public abstract class EntityHorseAbstract extends EntityAnimal implements IInven
+     private static final RecipeItemStack by = RecipeItemStack.a(Items.WHEAT, Items.SUGAR, Blocks.HAY_BLOCK.getItem(), Items.APPLE, Items.GOLDEN_CARROT, Items.GOLDEN_APPLE, Items.ENCHANTED_GOLDEN_APPLE);
+     private static final DataWatcherObject<Byte> bz = DataWatcher.a(EntityHorseAbstract.class, DataWatcherRegistry.a);
+     private static final DataWatcherObject<Optional<UUID>> bA = DataWatcher.a(EntityHorseAbstract.class, DataWatcherRegistry.o);
++    static { // Kenzie - init datawatchers
++        MetaField.HORSE_FLAGS = bz;
++        MetaField.HORSE_OWNER_UUID = bA;
++    }
+     private int bB;
+     private int bC;
+     private int bD;
+diff --git a/src/main/java/net/minecraft/server/EntityHorseChestedAbstract.java b/src/main/java/net/minecraft/server/EntityHorseChestedAbstract.java
+index c14d722e9b1ed61d2878ca752797871b6de39ac9..c4304c299182f28b807eff91a7cdd4a70cbbe409 100644
+--- a/src/main/java/net/minecraft/server/EntityHorseChestedAbstract.java
++++ b/src/main/java/net/minecraft/server/EntityHorseChestedAbstract.java
+@@ -1,8 +1,13 @@
+ package net.minecraft.server;
+ 
++import mx.kenzie.wellspring.packet.meta.MetaField;
++
+ public abstract class EntityHorseChestedAbstract extends EntityHorseAbstract {
+ 
+     private static final DataWatcherObject<Boolean> bw = DataWatcher.a(EntityHorseChestedAbstract.class, DataWatcherRegistry.i);
++    static { // Kenzie - init datawatchers
++        MetaField.HORSE_HAS_CHEST = bw;
++    }
+ 
+     protected EntityHorseChestedAbstract(EntityTypes<? extends EntityHorseChestedAbstract> entitytypes, World world) {
+         super(entitytypes, world);
+diff --git a/src/main/java/net/minecraft/server/EntityHuman.java b/src/main/java/net/minecraft/server/EntityHuman.java
+index 9502d72f3a2b376302f75d17d16c08eac43c37f7..1d3badd203ebcbc55384251aa5b4bd5eae9cfcae 100644
+--- a/src/main/java/net/minecraft/server/EntityHuman.java
++++ b/src/main/java/net/minecraft/server/EntityHuman.java
+@@ -17,6 +17,8 @@ import java.util.function.Predicate;
+ import javax.annotation.Nullable;
+ 
+ // CraftBukkit start
++import mx.kenzie.wellspring.nbt.NBTCompound;
++import mx.kenzie.wellspring.packet.meta.MetaField;
+ import org.bukkit.craftbukkit.entity.CraftHumanEntity;
+ import org.bukkit.craftbukkit.util.CraftVector;
+ import org.bukkit.entity.Item;
+@@ -40,6 +42,14 @@ public abstract class EntityHuman extends EntityLiving {
+     protected static final DataWatcherObject<Byte> bj = DataWatcher.a(EntityHuman.class, DataWatcherRegistry.a);
+     protected static final DataWatcherObject<NBTTagCompound> bk = DataWatcher.a(EntityHuman.class, DataWatcherRegistry.p);
+     protected static final DataWatcherObject<NBTTagCompound> bl = DataWatcher.a(EntityHuman.class, DataWatcherRegistry.p);
++    static { // Kenzie - init datawatchers
++        MetaField.HUMAN_ABSORPTION = c;
++        MetaField.HUMAN_SCORE = d;
++        MetaField.HUMAN_SETTINGS = bi;
++        MetaField.HUMAN_MAIN_HAND = bj;
++        MetaField.HUMAN_LEFT_SHOULDER = (MetaField<NBTCompound>) (MetaField<?>) bk;
++        MetaField.HUMAN_RIGHT_SHOULDER = (MetaField<NBTCompound>) (MetaField<?>) bl;
++    }
+     private long e;
+     public final PlayerInventory inventory = new PlayerInventory(this);
+     protected InventoryEnderChest enderChest = new InventoryEnderChest(this); // CraftBukkit - add "this" to constructor
+diff --git a/src/main/java/net/minecraft/server/EntityIllagerWizard.java b/src/main/java/net/minecraft/server/EntityIllagerWizard.java
+index 920e3469948a3d0c1a6a8e3879ccb3713966db50..16e8facb25610335ccf1f4a9c6a12019fb8b0ddf 100644
+--- a/src/main/java/net/minecraft/server/EntityIllagerWizard.java
++++ b/src/main/java/net/minecraft/server/EntityIllagerWizard.java
+@@ -1,11 +1,17 @@
+ package net.minecraft.server;
+ 
++import mx.kenzie.wellspring.nbt.NBTCompound;
++import mx.kenzie.wellspring.packet.meta.MetaField;
++
+ import java.util.EnumSet;
+ import javax.annotation.Nullable;
+ 
+ public abstract class EntityIllagerWizard extends EntityIllagerAbstract {
+ 
+     private static final DataWatcherObject<Byte> bo = DataWatcher.a(EntityIllagerWizard.class, DataWatcherRegistry.a);
++    static { // Kenzie - init datawatchers
++        MetaField.WIZARD_SPELL = bo;
++    }
+     protected int b;
+     private EntityIllagerWizard.Spell bp;
+ 
+diff --git a/src/main/java/net/minecraft/server/EntityIronGolem.java b/src/main/java/net/minecraft/server/EntityIronGolem.java
+index 0a5c27e732540e03c87e6da0fbdc6e3c2e382810..b5ca7f79c3f004de848345cfdbe376862efd2b34 100644
+--- a/src/main/java/net/minecraft/server/EntityIronGolem.java
++++ b/src/main/java/net/minecraft/server/EntityIronGolem.java
+@@ -1,6 +1,8 @@
+ package net.minecraft.server;
+ 
+ import com.google.common.collect.ImmutableList;
++import mx.kenzie.wellspring.packet.meta.MetaField;
++
+ import java.util.Comparator;
+ import java.util.Iterator;
+ import java.util.List;
+@@ -11,6 +13,9 @@ import javax.annotation.Nullable;
+ public class EntityIronGolem extends EntityGolem implements IEntityAngerable {
+ 
+     protected static final DataWatcherObject<Byte> b = DataWatcher.a(EntityIronGolem.class, DataWatcherRegistry.a);
++    static { // Kenzie - init datawatchers
++        MetaField.IRON_GOLEM_FLAGS = b;
++    }
+     private int c;
+     private int d;
+     private static final IntRange bo = TimeRange.a(20, 39);
+diff --git a/src/main/java/net/minecraft/server/EntityItem.java b/src/main/java/net/minecraft/server/EntityItem.java
+index bc4f84c8857aab45a69c915104de8d70b758698c..d683b053224497de4ff9c71c871bd30853bc1d7a 100644
+--- a/src/main/java/net/minecraft/server/EntityItem.java
++++ b/src/main/java/net/minecraft/server/EntityItem.java
+@@ -6,6 +6,7 @@ import java.util.Objects;
+ import java.util.UUID;
+ import javax.annotation.Nullable;
+ // CraftBukkit start
++import mx.kenzie.wellspring.packet.meta.MetaField;
+ import org.bukkit.Material; // Paper
+ import org.bukkit.event.entity.EntityPickupItemEvent;
+ import org.bukkit.event.player.PlayerPickupItemEvent;
+@@ -15,6 +16,9 @@ import org.bukkit.event.player.PlayerAttemptPickupItemEvent; // Paper
+ public class EntityItem extends Entity {
+ 
+     private static final DataWatcherObject<ItemStack> ITEM = DataWatcher.a(EntityItem.class, DataWatcherRegistry.g);
++    static { // Kenzie - init datawatchers
++        MetaField.ITEM_ITEM = ITEM;
++    }
+     public int age;
+     public int pickupDelay;
+     private int f;
+diff --git a/src/main/java/net/minecraft/server/EntityItemFrame.java b/src/main/java/net/minecraft/server/EntityItemFrame.java
+index db6e5ec8b79380b2939cc8667c31d5a620d78711..285088409ce686f26cb2832ec54af1d0d20a7ae8 100644
+--- a/src/main/java/net/minecraft/server/EntityItemFrame.java
++++ b/src/main/java/net/minecraft/server/EntityItemFrame.java
+@@ -1,6 +1,8 @@
+ package net.minecraft.server;
+ 
+ import javax.annotation.Nullable;
++
++import mx.kenzie.wellspring.packet.meta.MetaField;
+ import org.apache.commons.lang3.Validate;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+@@ -10,6 +12,10 @@ public class EntityItemFrame extends EntityHanging {
+     private static final Logger LOGGER = LogManager.getLogger();
+     private static final DataWatcherObject<ItemStack> ITEM = DataWatcher.a(EntityItemFrame.class, DataWatcherRegistry.g);
+     private static final DataWatcherObject<Integer> g = DataWatcher.a(EntityItemFrame.class, DataWatcherRegistry.b);
++    static { // Kenzie - init datawatchers
++        MetaField.ITEM_FRAME_ITEM = ITEM;
++        MetaField.ITEM_FRAME_ROTATION = g;
++    }
+     private float ag = 1.0F;
+     public boolean fixed;
+ 
+diff --git a/src/main/java/net/minecraft/server/EntityLiving.java b/src/main/java/net/minecraft/server/EntityLiving.java
+index 753a7ab647f22b622261706f6b72e0fb1ef8c2ec..4520158c284a24c28e3ad00d3732be30e4531779 100644
+--- a/src/main/java/net/minecraft/server/EntityLiving.java
++++ b/src/main/java/net/minecraft/server/EntityLiving.java
+@@ -66,7 +66,7 @@ public abstract class EntityLiving extends Entity {
+        MetaField.EFFECT_AMBIENCE = g;
+        MetaField.ARROWS_IN_BODY = ARROWS_IN_BODY;
+        MetaField.STINGER_COUNT = bi;
+-       MetaField.SLEEPING_POSITION = bj;
++       MetaField.SLEEPING_POSITION = (DataWatcherObject<Optional<?>>) (DataWatcherObject<?>) bj;
+     }
+     protected static final EntitySize ah = EntitySize.c(0.2F, 0.2F);
+     private final AttributeMapBase attributeMap;
+diff --git a/src/main/java/net/minecraft/server/EntityLlama.java b/src/main/java/net/minecraft/server/EntityLlama.java
+index d4175f2dad57b19a2420ee4c2d1343aaf2d2740e..d7e9f2e069d8ea509b04960a9764f97fbb948785 100644
+--- a/src/main/java/net/minecraft/server/EntityLlama.java
++++ b/src/main/java/net/minecraft/server/EntityLlama.java
+@@ -1,5 +1,7 @@
+ package net.minecraft.server;
+ 
++import mx.kenzie.wellspring.packet.meta.MetaField;
++
+ import java.util.Iterator;
+ import javax.annotation.Nullable;
+ 
+@@ -9,6 +11,11 @@ public class EntityLlama extends EntityHorseChestedAbstract implements IRangedEn
+     private static final DataWatcherObject<Integer> bx = DataWatcher.a(EntityLlama.class, DataWatcherRegistry.b);
+     private static final DataWatcherObject<Integer> by = DataWatcher.a(EntityLlama.class, DataWatcherRegistry.b);
+     private static final DataWatcherObject<Integer> bz = DataWatcher.a(EntityLlama.class, DataWatcherRegistry.b);
++    static { // Kenzie - init datawatchers
++        MetaField.LLAMA_STRENGTH = bx;
++        MetaField.LLAMA_CARPET = by;
++        MetaField.LLAMA_VARIANT = bz;
++    }
+     private boolean bA;
+     @Nullable
+     private EntityLlama bB;
+diff --git a/src/main/java/net/minecraft/server/EntityMinecartAbstract.java b/src/main/java/net/minecraft/server/EntityMinecartAbstract.java
+index 9bc21ef8a1f366f77ceb31b8bd01e6cc6b8a17a5..266ab84dbab89b847ecc52201537603ab90fd66c 100644
+--- a/src/main/java/net/minecraft/server/EntityMinecartAbstract.java
++++ b/src/main/java/net/minecraft/server/EntityMinecartAbstract.java
+@@ -11,6 +11,7 @@ import java.util.Map;
+ import javax.annotation.Nullable;
+ 
+ // CraftBukkit start
++import mx.kenzie.wellspring.packet.meta.MetaField;
+ import org.bukkit.Location;
+ import org.bukkit.entity.Vehicle;
+ import org.bukkit.event.vehicle.VehicleDamageEvent;
+@@ -27,6 +28,14 @@ public abstract class EntityMinecartAbstract extends Entity {
+     private static final DataWatcherObject<Integer> e = DataWatcher.a(EntityMinecartAbstract.class, DataWatcherRegistry.b);
+     private static final DataWatcherObject<Integer> f = DataWatcher.a(EntityMinecartAbstract.class, DataWatcherRegistry.b);
+     private static final DataWatcherObject<Boolean> g = DataWatcher.a(EntityMinecartAbstract.class, DataWatcherRegistry.i);
++    static { // Kenzie - init datawatchers
++        MetaField.MINECART_HURT = b;
++        MetaField.MINECART_HURT_DIRECTION = c;
++        MetaField.MINECART_DAMAGE = d;
++        MetaField.MINECART_BLOCK = e;
++        MetaField.MINECART_OFFSET = f;
++        MetaField.MINECART_DISPLAY = g;
++    }
+     private static final ImmutableMap<EntityPose, ImmutableList<Integer>> ag = ImmutableMap.of(EntityPose.STANDING, ImmutableList.of(0, 1, -1), EntityPose.CROUCHING, ImmutableList.of(0, 1, -1), EntityPose.SWIMMING, ImmutableList.of(0, 1));
+     private boolean ah;
+     private static final Map<BlockPropertyTrackPosition, Pair<BaseBlockPosition, BaseBlockPosition>> ai = (Map) SystemUtils.a(Maps.newEnumMap(BlockPropertyTrackPosition.class), (enummap) -> { // CraftBukkit - decompile error
+diff --git a/src/main/java/net/minecraft/server/EntityMinecartCommandBlock.java b/src/main/java/net/minecraft/server/EntityMinecartCommandBlock.java
+index 78e4ea52d2fc626f7542371de55f77b5af5835f4..90fcea7c7b273268efc885047d9f2f2f68ad3b83 100644
+--- a/src/main/java/net/minecraft/server/EntityMinecartCommandBlock.java
++++ b/src/main/java/net/minecraft/server/EntityMinecartCommandBlock.java
+@@ -1,9 +1,15 @@
+ package net.minecraft.server;
+ 
++import mx.kenzie.wellspring.packet.meta.MetaField;
++
+ public class EntityMinecartCommandBlock extends EntityMinecartAbstract {
+ 
+     public static final DataWatcherObject<String> COMMAND = DataWatcher.a(EntityMinecartCommandBlock.class, DataWatcherRegistry.d);
+     private static final DataWatcherObject<IChatBaseComponent> c = DataWatcher.a(EntityMinecartCommandBlock.class, DataWatcherRegistry.e);
++    static { // Kenzie - init datawatchers
++        MetaField.MINECART_COMMAND_BLOCK_COMMAND = COMMAND;
++        MetaField.MINECART_COMMAND_BLOCK_PREVIOUS_OUTPUT = c;
++    }
+     private final CommandBlockListenerAbstract d = new EntityMinecartCommandBlock.a();
+     private int e;
+ 
+diff --git a/src/main/java/net/minecraft/server/EntityMinecartFurnace.java b/src/main/java/net/minecraft/server/EntityMinecartFurnace.java
+index 44a2a38b394ca67f5f4e7540a24b83529e42152c..6fb4cfb0867f12b47f4abb79d6d722b3cf79e15f 100644
+--- a/src/main/java/net/minecraft/server/EntityMinecartFurnace.java
++++ b/src/main/java/net/minecraft/server/EntityMinecartFurnace.java
+@@ -1,8 +1,13 @@
+ package net.minecraft.server;
+ 
++import mx.kenzie.wellspring.packet.meta.MetaField;
++
+ public class EntityMinecartFurnace extends EntityMinecartAbstract {
+ 
+     private static final DataWatcherObject<Boolean> d = DataWatcher.a(EntityMinecartFurnace.class, DataWatcherRegistry.i);
++    static { // Kenzie - init datawatchers
++        MetaField.MINECART_FURNACE_FUELLED = d;
++    }
+     public int e; // CraftBukkit PAIL private -> public, RENAME fuel
+     public double b;
+     public double c;
+diff --git a/src/main/java/net/minecraft/server/EntityMushroomCow.java b/src/main/java/net/minecraft/server/EntityMushroomCow.java
+index 1aacbae04ce89be4da82d65116c494c493e71530..693a43ac328e11a27357bc9787949eac52ae51db 100644
+--- a/src/main/java/net/minecraft/server/EntityMushroomCow.java
++++ b/src/main/java/net/minecraft/server/EntityMushroomCow.java
+@@ -3,6 +3,8 @@ package net.minecraft.server;
+ import java.util.Optional;
+ import java.util.Random;
+ import java.util.UUID;
++
++import mx.kenzie.wellspring.packet.meta.MetaField;
+ import org.apache.commons.lang3.tuple.Pair;
+ // CraftBukkit start
+ import org.bukkit.craftbukkit.event.CraftEventFactory;
+@@ -12,6 +14,9 @@ import org.bukkit.event.entity.EntityTransformEvent;
+ public class EntityMushroomCow extends EntityCow implements IShearable {
+ 
+     private static final DataWatcherObject<String> bo = DataWatcher.a(EntityMushroomCow.class, DataWatcherRegistry.d);
++    static { // Kenzie - init datawatchers
++        MetaField.MOOSHROOM_TYPE = bo;
++    }
+     private MobEffectList bp;
+     private int bq;
+     private UUID br;
+diff --git a/src/main/java/net/minecraft/server/EntityOcelot.java b/src/main/java/net/minecraft/server/EntityOcelot.java
+index 9dc55b78325292e55b2387db6b98dbca022dbbdf..0731269e36ee622ce81066f78841b986541cc11b 100644
+--- a/src/main/java/net/minecraft/server/EntityOcelot.java
++++ b/src/main/java/net/minecraft/server/EntityOcelot.java
+@@ -1,5 +1,7 @@
+ package net.minecraft.server;
+ 
++import mx.kenzie.wellspring.packet.meta.MetaField;
++
+ import java.util.Random;
+ import java.util.function.Predicate;
+ import javax.annotation.Nullable;
+@@ -8,6 +10,9 @@ public class EntityOcelot extends EntityAnimal {
+ 
+     private static final RecipeItemStack bo = RecipeItemStack.a(Items.COD, Items.SALMON);
+     private static final DataWatcherObject<Boolean> bp = DataWatcher.a(EntityOcelot.class, DataWatcherRegistry.i);
++    static { // Kenzie - init datawatchers
++        MetaField.OCELOT_TRUST = bp;
++    }
+     private EntityOcelot.a<EntityHuman> bq;
+     private EntityOcelot.b br;
+ 
+diff --git a/src/main/java/net/minecraft/server/EntityPanda.java b/src/main/java/net/minecraft/server/EntityPanda.java
+index 01cc3d94d3fe1f82c94abdfcc92b0d3bc26f2fea..28465f697194696e8436f179c8c40c6be19ab297 100644
+--- a/src/main/java/net/minecraft/server/EntityPanda.java
++++ b/src/main/java/net/minecraft/server/EntityPanda.java
+@@ -9,6 +9,7 @@ import java.util.Random;
+ import java.util.function.Predicate;
+ import javax.annotation.Nullable;
+ 
++import mx.kenzie.wellspring.packet.meta.MetaField;
+ import org.bukkit.event.entity.EntityTargetEvent; // CraftBukkit
+ 
+ public class EntityPanda extends EntityAnimal {
+@@ -19,6 +20,14 @@ public class EntityPanda extends EntityAnimal {
+     private static final DataWatcherObject<Byte> bs = DataWatcher.a(EntityPanda.class, DataWatcherRegistry.a);
+     private static final DataWatcherObject<Byte> bt = DataWatcher.a(EntityPanda.class, DataWatcherRegistry.a);
+     private static final DataWatcherObject<Byte> bu = DataWatcher.a(EntityPanda.class, DataWatcherRegistry.a);
++    static { // Kenzie - init datawatchers
++        MetaField.PANDA_UNHAPPY_COUNT = bp;
++        MetaField.PANDA_SNEEZE_COUNT = bq;
++        MetaField.PANDA_EAT_COUNT = br;
++        MetaField.PANDA_DOMINANT_ALLELE = bs;
++        MetaField.PANDA_RECESSIVE_ALLELE = bt;
++        MetaField.PANDA_FLAGS = bu;
++    }
+     private static final PathfinderTargetCondition bv = (new PathfinderTargetCondition()).a(8.0D).b().a();
+     private boolean bw;
+     private boolean bx;
+diff --git a/src/main/java/net/minecraft/server/EntityParrot.java b/src/main/java/net/minecraft/server/EntityParrot.java
+index 34e08dda2e16cd4a6ecd8d8c6dc89f090ec2bc56..8e1a8a7be8f2934c6f5164b507659ee00dcef0a7 100644
+--- a/src/main/java/net/minecraft/server/EntityParrot.java
++++ b/src/main/java/net/minecraft/server/EntityParrot.java
+@@ -3,6 +3,8 @@ package net.minecraft.server;
+ import com.google.common.collect.Lists;
+ import com.google.common.collect.Maps;
+ import com.google.common.collect.Sets;
++import mx.kenzie.wellspring.packet.meta.MetaField;
++
+ import java.util.List;
+ import java.util.Map;
+ import java.util.Random;
+@@ -13,6 +15,9 @@ import javax.annotation.Nullable;
+ public class EntityParrot extends EntityPerchable implements EntityBird {
+ 
+     private static final DataWatcherObject<Integer> bu = DataWatcher.a(EntityParrot.class, DataWatcherRegistry.b);
++    static { // Kenzie - init datawatchers
++        MetaField.PARROT_VARIANT = bu;
++    }
+     private static final Predicate<EntityInsentient> bv = new Predicate<EntityInsentient>() {
+         public boolean test(@Nullable EntityInsentient entityinsentient) {
+             return entityinsentient != null && EntityParrot.by.containsKey(entityinsentient.getEntityType());
+diff --git a/src/main/java/net/minecraft/server/EntityPhantom.java b/src/main/java/net/minecraft/server/EntityPhantom.java
+index 3a70900c73e3a6c4f40cf74406534f4bfd3eb67b..8c822fd32b1a122b27e2a433b97c1a8dea6145b3 100644
+--- a/src/main/java/net/minecraft/server/EntityPhantom.java
++++ b/src/main/java/net/minecraft/server/EntityPhantom.java
+@@ -1,5 +1,7 @@
+ package net.minecraft.server;
+ 
++import mx.kenzie.wellspring.packet.meta.MetaField;
++
+ import java.util.Comparator;
+ import java.util.EnumSet;
+ import java.util.Iterator;
+@@ -9,6 +11,9 @@ import javax.annotation.Nullable;
+ public class EntityPhantom extends EntityFlying implements IMonster {
+ 
+     private static final DataWatcherObject<Integer> b = DataWatcher.a(EntityPhantom.class, DataWatcherRegistry.b);
++    static { // Kenzie - init datawatchers
++        MetaField.PHANTOM_SIZE = b;
++    }
+     private Vec3D c;
+     private BlockPosition d;
+     private EntityPhantom.AttackPhase bo;
+diff --git a/src/main/java/net/minecraft/server/EntityPig.java b/src/main/java/net/minecraft/server/EntityPig.java
+index 6848670104e12ac4529d4f210729c32675a2eac9..8d94f6d0df7aeb59417c6b7be257431304932c2c 100644
+--- a/src/main/java/net/minecraft/server/EntityPig.java
++++ b/src/main/java/net/minecraft/server/EntityPig.java
+@@ -4,6 +4,7 @@ import com.google.common.collect.UnmodifiableIterator;
+ import javax.annotation.Nullable;
+ 
+ // CraftBukkit start
++import mx.kenzie.wellspring.packet.meta.MetaField;
+ import org.bukkit.craftbukkit.event.CraftEventFactory;
+ // CraftBukkit end
+ 
+@@ -11,6 +12,10 @@ public class EntityPig extends EntityAnimal implements ISteerable, ISaddleable {
+ 
+     private static final DataWatcherObject<Boolean> bo = DataWatcher.a(EntityPig.class, DataWatcherRegistry.i);
+     private static final DataWatcherObject<Integer> bp = DataWatcher.a(EntityPig.class, DataWatcherRegistry.b);
++    static { // Kenzie - init datawatchers
++        MetaField.PIG_SADDLED = bo;
++        MetaField.PIG_BOOST_TIME = bp;
++    }
+     private static final RecipeItemStack bq = RecipeItemStack.a(Items.CARROT, Items.POTATO, Items.BEETROOT);
+     public final SaddleStorage saddleStorage;
+ 
+diff --git a/src/main/java/net/minecraft/server/EntityPillager.java b/src/main/java/net/minecraft/server/EntityPillager.java
+index a3a428da99574c485fcf2b8c7944e0d8354146ee..1800ac41d23dbbd390527781d7addad3554b4f28 100644
+--- a/src/main/java/net/minecraft/server/EntityPillager.java
++++ b/src/main/java/net/minecraft/server/EntityPillager.java
+@@ -1,12 +1,17 @@
+ package net.minecraft.server;
+ 
+ import com.google.common.collect.Maps;
++import mx.kenzie.wellspring.packet.meta.MetaField;
++
+ import java.util.Map;
+ import javax.annotation.Nullable;
+ 
+ public class EntityPillager extends EntityIllagerAbstract implements ICrossbow {
+ 
+     private static final DataWatcherObject<Boolean> b = DataWatcher.a(EntityPillager.class, DataWatcherRegistry.i);
++    static { // Kenzie - init datawatchers
++        MetaField.PILLAGER_CHARGING_CROSSBOW = b;
++    }
+     public final InventorySubcontainer inventory = new InventorySubcontainer(5);
+ 
+     public EntityPillager(EntityTypes<? extends EntityPillager> entitytypes, World world) {
+diff --git a/src/main/java/net/minecraft/server/EntityProjectileThrowable.java b/src/main/java/net/minecraft/server/EntityProjectileThrowable.java
+index 68b7a42b595575fef60402d8c659dcd8d5deeeca..65adf8b7a8358333c3050b5f642a7ef4002abd5a 100644
+--- a/src/main/java/net/minecraft/server/EntityProjectileThrowable.java
++++ b/src/main/java/net/minecraft/server/EntityProjectileThrowable.java
+@@ -1,8 +1,13 @@
+ package net.minecraft.server;
+ 
++import mx.kenzie.wellspring.packet.meta.MetaField;
++
+ public abstract class EntityProjectileThrowable extends EntityProjectile {
+ 
+     private static final DataWatcherObject<ItemStack> b = DataWatcher.a(EntityProjectileThrowable.class, DataWatcherRegistry.g);
++    static { // Kenzie - init datawatchers
++        MetaField.PROJECTILE_ITEM = b;
++    }
+ 
+     public EntityProjectileThrowable(EntityTypes<? extends EntityProjectileThrowable> entitytypes, World world) {
+         super(entitytypes, world);
+diff --git a/src/main/java/net/minecraft/server/EntityPufferFish.java b/src/main/java/net/minecraft/server/EntityPufferFish.java
+index 639af6bd3de4094ca5f85166a9b686d271692e44..f1a557cb8792ff027c99b772c54e4af82636672e 100644
+--- a/src/main/java/net/minecraft/server/EntityPufferFish.java
++++ b/src/main/java/net/minecraft/server/EntityPufferFish.java
+@@ -1,5 +1,7 @@
+ package net.minecraft.server;
+ 
++import mx.kenzie.wellspring.packet.meta.MetaField;
++
+ import java.util.Iterator;
+ import java.util.List;
+ import java.util.function.Predicate;
+@@ -7,6 +9,9 @@ import java.util.function.Predicate;
+ public class EntityPufferFish extends EntityFish {
+ 
+     private static final DataWatcherObject<Integer> b = DataWatcher.a(EntityPufferFish.class, DataWatcherRegistry.b);
++    static { // Kenzie - init datawatchers
++        MetaField.PUFFER_FISH_SIZE = b;
++    }
+     private int c;
+     private int d;
+     private static final Predicate<EntityLiving> bo = (entityliving) -> {
+diff --git a/src/main/java/net/minecraft/server/EntityRabbit.java b/src/main/java/net/minecraft/server/EntityRabbit.java
+index a7456890e36e7c0d15e85d901a9513a87cd5d167..a591274132809c295127fcf40ca5bb1296ba47b9 100644
+--- a/src/main/java/net/minecraft/server/EntityRabbit.java
++++ b/src/main/java/net/minecraft/server/EntityRabbit.java
+@@ -1,11 +1,16 @@
+ package net.minecraft.server;
+ 
++import mx.kenzie.wellspring.packet.meta.MetaField;
++
+ import java.util.Random;
+ import javax.annotation.Nullable;
+ 
+ public class EntityRabbit extends EntityAnimal {
+ 
+     private static final DataWatcherObject<Integer> bo = DataWatcher.a(EntityRabbit.class, DataWatcherRegistry.b);
++    static { // Kenzie - init datawatchers
++        MetaField.RABBIT_TYPE = bo;
++    }
+     private static final MinecraftKey bp = new MinecraftKey("killer_bunny");
+     private int bq;
+     private int br;
+diff --git a/src/main/java/net/minecraft/server/EntityRaider.java b/src/main/java/net/minecraft/server/EntityRaider.java
+index 68eaaf86b515a52720c481d77e651c1bde1e8c6c..a45a326bd18cb25096aaf3f387805c5f2c0e1964 100644
+--- a/src/main/java/net/minecraft/server/EntityRaider.java
++++ b/src/main/java/net/minecraft/server/EntityRaider.java
+@@ -1,6 +1,8 @@
+ package net.minecraft.server;
+ 
+ import com.google.common.collect.Lists;
++import mx.kenzie.wellspring.packet.meta.MetaField;
++
+ import java.util.EnumSet;
+ import java.util.Iterator;
+ import java.util.List;
+@@ -12,6 +14,9 @@ import javax.annotation.Nullable;
+ public abstract class EntityRaider extends EntityMonsterPatrolling {
+ 
+     protected static final DataWatcherObject<Boolean> c = DataWatcher.a(EntityRaider.class, DataWatcherRegistry.i);
++    static { // Kenzie - init datawatchers
++        MetaField.RAIDER_CELEBRATING = c;
++    }
+     private static final Predicate<EntityItem> b = (entityitem) -> {
+         return !entityitem.p() && entityitem.isAlive() && ItemStack.matches(entityitem.getItemStack(), Raid.s());
+     };
+diff --git a/src/main/java/net/minecraft/server/EntitySheep.java b/src/main/java/net/minecraft/server/EntitySheep.java
+index 2908e9cc47947daad19391d38da3c2a300f67fe5..b1feb788243a225cc3cc37596bcca71212cae0f2 100644
+--- a/src/main/java/net/minecraft/server/EntitySheep.java
++++ b/src/main/java/net/minecraft/server/EntitySheep.java
+@@ -9,6 +9,7 @@ import java.util.stream.Collectors;
+ import javax.annotation.Nullable;
+ 
+ // CraftBukkit start
++import mx.kenzie.wellspring.packet.meta.MetaField;
+ import org.bukkit.craftbukkit.event.CraftEventFactory;
+ import org.bukkit.event.entity.SheepRegrowWoolEvent;
+ import org.bukkit.inventory.InventoryView;
+@@ -17,6 +18,9 @@ import org.bukkit.inventory.InventoryView;
+ public class EntitySheep extends EntityAnimal implements IShearable {
+ 
+     private static final DataWatcherObject<Byte> bo = DataWatcher.a(EntitySheep.class, DataWatcherRegistry.a);
++    static { // Kenzie - init datawatchers
++        MetaField.SHEEP_FLAGS = bo;
++    }
+     private static final Map<EnumColor, IMaterial> bp = (Map) SystemUtils.a(Maps.newEnumMap(EnumColor.class), (enummap) -> { // CraftBukkit - decompile error
+         enummap.put(EnumColor.WHITE, Blocks.WHITE_WOOL);
+         enummap.put(EnumColor.ORANGE, Blocks.ORANGE_WOOL);
+diff --git a/src/main/java/net/minecraft/server/EntityShulker.java b/src/main/java/net/minecraft/server/EntityShulker.java
+index f0394fe52141453765244025bcf89232bc74331d..d5e270ba4d1277b27072dca23cf095f118b49c30 100644
+--- a/src/main/java/net/minecraft/server/EntityShulker.java
++++ b/src/main/java/net/minecraft/server/EntityShulker.java
+@@ -7,6 +7,7 @@ import java.util.Optional;
+ import java.util.UUID;
+ import javax.annotation.Nullable;
+ // CraftBukkit start
++import mx.kenzie.wellspring.packet.meta.MetaField;
+ import org.bukkit.Location;
+ import org.bukkit.event.entity.EntityTeleportEvent;
+ // CraftBukkit end
+@@ -19,6 +20,12 @@ public class EntityShulker extends EntityGolem implements IMonster {
+     protected static final DataWatcherObject<Optional<BlockPosition>> c = DataWatcher.a(EntityShulker.class, DataWatcherRegistry.m);
+     protected static final DataWatcherObject<Byte> d = DataWatcher.a(EntityShulker.class, DataWatcherRegistry.a);
+     public static final DataWatcherObject<Byte> COLOR = DataWatcher.a(EntityShulker.class, DataWatcherRegistry.a);
++    static { // Kenzie - init datawatchers
++        MetaField.SHULKER_ATTACH_FACE = b;
++        MetaField.SHULKER_ATTACH_POSITION = (DataWatcherObject<Optional<?>>) (DataWatcherObject<?>) b;
++        MetaField.SHULKER_PEEK = d;
++        MetaField.SHULKER_COLOR = COLOR;
++    }
+     private float br;
+     private float bs;
+     private BlockPosition bt = null;
+diff --git a/src/main/java/net/minecraft/server/EntitySlime.java b/src/main/java/net/minecraft/server/EntitySlime.java
+index f74c827850ebb894af94aecadcaa0e3ff8c6254c..94f933b571eed1d42b14c108da005ac9722d432d 100644
+--- a/src/main/java/net/minecraft/server/EntitySlime.java
++++ b/src/main/java/net/minecraft/server/EntitySlime.java
+@@ -10,6 +10,7 @@ import com.destroystokyo.paper.event.entity.SlimeChangeDirectionEvent;
+ import com.destroystokyo.paper.event.entity.SlimeSwimEvent;
+ import com.destroystokyo.paper.event.entity.SlimeTargetLivingEntityEvent;
+ import com.destroystokyo.paper.event.entity.SlimeWanderEvent;
++import mx.kenzie.wellspring.packet.meta.MetaField;
+ import org.bukkit.entity.LivingEntity;
+ import org.bukkit.entity.Slime;
+ // Paper end
+@@ -24,6 +25,9 @@ import org.bukkit.event.entity.SlimeSplitEvent;
+ public class EntitySlime extends EntityInsentient implements IMonster {
+ 
+     private static final DataWatcherObject<Integer> bo = DataWatcher.a(EntitySlime.class, DataWatcherRegistry.b);
++    static { // Kenzie - init datawatchers
++        MetaField.SLIME_SIZE = bo;
++    }
+     public float b;
+     public float c;
+     public float d;
+diff --git a/src/main/java/net/minecraft/server/EntitySnowman.java b/src/main/java/net/minecraft/server/EntitySnowman.java
+index 15b886d9b399f534779ec72057b66134047ec85f..f3c60fedb3aa3cd43eee49dbe2c1d13d58100e8b 100644
+--- a/src/main/java/net/minecraft/server/EntitySnowman.java
++++ b/src/main/java/net/minecraft/server/EntitySnowman.java
+@@ -2,12 +2,16 @@ package net.minecraft.server;
+ 
+ import javax.annotation.Nullable;
+ // CraftBukkit start
++import mx.kenzie.wellspring.packet.meta.MetaField;
+ import org.bukkit.craftbukkit.event.CraftEventFactory;
+ // CraftBukkit end
+ 
+ public class EntitySnowman extends EntityGolem implements IShearable, IRangedEntity {
+ 
+     private static final DataWatcherObject<Byte> b = DataWatcher.a(EntitySnowman.class, DataWatcherRegistry.a);
++    static { // Kenzie - init datawatchers
++        MetaField.SNOWMAN_PUMPKIN = b;
++    }
+ 
+     public EntitySnowman(EntityTypes<? extends EntitySnowman> entitytypes, World world) {
+         super(entitytypes, world);
+diff --git a/src/main/java/net/minecraft/server/EntitySpider.java b/src/main/java/net/minecraft/server/EntitySpider.java
+index 42f02b03b14a5df4e336156717a5a82003397ee0..ce2478351ff4a403869adcc87f7db290bec9fdc4 100644
+--- a/src/main/java/net/minecraft/server/EntitySpider.java
++++ b/src/main/java/net/minecraft/server/EntitySpider.java
+@@ -1,11 +1,16 @@
+ package net.minecraft.server;
+ 
++import mx.kenzie.wellspring.packet.meta.MetaField;
++
+ import java.util.Random;
+ import javax.annotation.Nullable;
+ 
+ public class EntitySpider extends EntityMonster {
+ 
+     private static final DataWatcherObject<Byte> b = DataWatcher.a(EntitySpider.class, DataWatcherRegistry.a);
++    static { // Kenzie - init datawatchers
++        MetaField.SPIDER_FLAGS = b;
++    }
+ 
+     public EntitySpider(EntityTypes<? extends EntitySpider> entitytypes, World world) {
+         super(entitytypes, world);
+diff --git a/src/main/java/net/minecraft/server/EntityTNTPrimed.java b/src/main/java/net/minecraft/server/EntityTNTPrimed.java
+index 3e71332c47000b21ff90aec6937f90dc639a41bd..36b9442dcfbf189a7895205e7ac748fe22329be3 100644
+--- a/src/main/java/net/minecraft/server/EntityTNTPrimed.java
++++ b/src/main/java/net/minecraft/server/EntityTNTPrimed.java
+@@ -1,11 +1,16 @@
+ package net.minecraft.server;
+ 
+ import javax.annotation.Nullable;
++
++import mx.kenzie.wellspring.packet.meta.MetaField;
+ import org.bukkit.event.entity.ExplosionPrimeEvent; // CraftBukkit
+ 
+ public class EntityTNTPrimed extends Entity {
+ 
+     private static final DataWatcherObject<Integer> FUSE_TICKS = DataWatcher.a(EntityTNTPrimed.class, DataWatcherRegistry.b);
++    static { // Kenzie - init datawatchers
++        MetaField.TNT_FUSE_TICKS = FUSE_TICKS;
++    }
+     @Nullable
+     private EntityLiving source;
+     private int fuseTicks;
+diff --git a/src/main/java/net/minecraft/server/EntityThrownTrident.java b/src/main/java/net/minecraft/server/EntityThrownTrident.java
+index a3150bd1cee91b9b0f9192a4da394ac9585c0d41..d3aa0f89cb8b9c2db234df14c8c56ab161b5bc2c 100644
+--- a/src/main/java/net/minecraft/server/EntityThrownTrident.java
++++ b/src/main/java/net/minecraft/server/EntityThrownTrident.java
+@@ -1,11 +1,17 @@
+ package net.minecraft.server;
+ 
++import mx.kenzie.wellspring.packet.meta.MetaField;
++
+ import javax.annotation.Nullable;
+ 
+ public class EntityThrownTrident extends EntityArrow {
+ 
+     private static final DataWatcherObject<Byte> g = DataWatcher.a(EntityThrownTrident.class, DataWatcherRegistry.a);
+     private static final DataWatcherObject<Boolean> ag = DataWatcher.a(EntityThrownTrident.class, DataWatcherRegistry.i);
++    static { // Kenzie - init datawatchers
++        MetaField.TRIDENT_LOYALTY = g;
++        MetaField.TRIDENT_ENCHANTED = ag;
++    }
+     public ItemStack trident;
+     private boolean ai;
+     public int f;
+diff --git a/src/main/java/net/minecraft/server/EntityTippedArrow.java b/src/main/java/net/minecraft/server/EntityTippedArrow.java
+index 85d5b68cfe9aee258a2331788b133a92911a9c11..a83d0bc99cc53597dea7a8bed38b65a6d73b7293 100644
+--- a/src/main/java/net/minecraft/server/EntityTippedArrow.java
++++ b/src/main/java/net/minecraft/server/EntityTippedArrow.java
+@@ -1,6 +1,8 @@
+ package net.minecraft.server;
+ 
+ import com.google.common.collect.Sets;
++import mx.kenzie.wellspring.packet.meta.MetaField;
++
+ import java.util.Collection;
+ import java.util.Iterator;
+ import java.util.Set;
+@@ -8,6 +10,9 @@ import java.util.Set;
+ public class EntityTippedArrow extends EntityArrow {
+ 
+     private static final DataWatcherObject<Integer> COLOR = DataWatcher.a(EntityTippedArrow.class, DataWatcherRegistry.b);
++    static { // Kenzie - init datawatchers
++        MetaField.TIPPED_ARROW_COLOR = COLOR;
++    }
+     private PotionRegistry potionRegistry;
+     public final Set<MobEffect> effects;
+     private boolean hasColor;
+diff --git a/src/main/java/net/minecraft/server/EntityTurtle.java b/src/main/java/net/minecraft/server/EntityTurtle.java
+index e025eef4761faa946c6bb39e3ab151ac6e3f4557..67c88fada8e22cde6a9c56ac31ac11995d454f0b 100644
+--- a/src/main/java/net/minecraft/server/EntityTurtle.java
++++ b/src/main/java/net/minecraft/server/EntityTurtle.java
+@@ -1,6 +1,8 @@
+ package net.minecraft.server;
+ 
+ import com.google.common.collect.Sets;
++import mx.kenzie.wellspring.packet.meta.MetaField;
++
+ import java.util.EnumSet;
+ import java.util.Random;
+ import java.util.Set;
+@@ -15,6 +17,14 @@ public class EntityTurtle extends EntityAnimal {
+     private static final DataWatcherObject<BlockPosition> bs = DataWatcher.a(EntityTurtle.class, DataWatcherRegistry.l);
+     private static final DataWatcherObject<Boolean> bt = DataWatcher.a(EntityTurtle.class, DataWatcherRegistry.i);
+     private static final DataWatcherObject<Boolean> bu = DataWatcher.a(EntityTurtle.class, DataWatcherRegistry.i);
++    static { // Kenzie - init datawatchers
++        MetaField.TURTLE_HOME_POSITION = bp;
++        MetaField.TURTLE_HAS_EGGS = bq;
++        MetaField.TURTLE_LAYING_EGGS = br;
++        MetaField.TURTLE_GO_POSITION = bp;
++        MetaField.TURTLE_RETURNING = bt;
++        MetaField.TURTLE_GOING = bu;
++    }
+     private int bv;
+     public static final Predicate<EntityLiving> bo = (entityliving) -> {
+         return entityliving.isBaby() && !entityliving.isInWater();
+diff --git a/src/main/java/net/minecraft/server/EntityVex.java b/src/main/java/net/minecraft/server/EntityVex.java
+index ae05856f25b092d193ec709ac6971c1089482242..fef66aad0e1f27482af5f2ab957bc52a9be87276 100644
+--- a/src/main/java/net/minecraft/server/EntityVex.java
++++ b/src/main/java/net/minecraft/server/EntityVex.java
+@@ -2,11 +2,16 @@ package net.minecraft.server;
+ 
+ import java.util.EnumSet;
+ import javax.annotation.Nullable;
++
++import mx.kenzie.wellspring.packet.meta.MetaField;
+ import org.bukkit.event.entity.EntityTargetEvent;
+ 
+ public class EntityVex extends EntityMonster {
+ 
+     protected static final DataWatcherObject<Byte> b = DataWatcher.a(EntityVex.class, DataWatcherRegistry.a);
++    static { // Kenzie - init datawatchers
++        MetaField.VEX_FLAGS = b;
++    }
+     private EntityInsentient c;
+     @Nullable
+     private BlockPosition d;
+diff --git a/src/main/java/net/minecraft/server/EntityVillager.java b/src/main/java/net/minecraft/server/EntityVillager.java
+index c10ff09dd005c0c8b3cd374d9de82e77efcd9097..63ca29279f1f85ced7e66b686b94a66939a06b12 100644
+--- a/src/main/java/net/minecraft/server/EntityVillager.java
++++ b/src/main/java/net/minecraft/server/EntityVillager.java
+@@ -17,21 +17,23 @@ import java.util.Set;
+ import java.util.function.BiPredicate;
+ import java.util.stream.Collectors;
+ import javax.annotation.Nullable;
++
++import mx.kenzie.wellspring.packet.meta.MetaField;
+ import org.apache.logging.log4j.Logger;
+ // CraftBukkit start
+ import org.bukkit.Bukkit;
+-import org.bukkit.craftbukkit.entity.CraftVillager;
+ import org.bukkit.craftbukkit.event.CraftEventFactory;
+-import org.bukkit.craftbukkit.inventory.CraftMerchantRecipe;
+ import org.bukkit.entity.Villager;
+ import org.bukkit.event.entity.EntityTransformEvent;
+-import org.bukkit.event.entity.VillagerAcquireTradeEvent;
+ import org.bukkit.event.entity.VillagerReplenishTradeEvent;
+ // CraftBukkit end
+ 
+ public class EntityVillager extends EntityVillagerAbstract implements ReputationHandler, VillagerDataHolder {
+ 
+     private static final DataWatcherObject<VillagerData> br = DataWatcher.a(EntityVillager.class, DataWatcherRegistry.q);
++    static { // Kenzie - init datawatchers
++        MetaField.VILLAGER_DATA = br;
++    }
+     public static final Map<Item, Integer> bp = ImmutableMap.of(Items.BREAD, 4, Items.POTATO, 1, Items.CARROT, 1, Items.BEETROOT, 1);
+     private static final Set<Item> bs = ImmutableSet.of(Items.BREAD, Items.POTATO, Items.CARROT, Items.WHEAT, Items.WHEAT_SEEDS, Items.BEETROOT, new Item[]{Items.BEETROOT_SEEDS});
+     private int bt;
+diff --git a/src/main/java/net/minecraft/server/EntityVillagerAbstract.java b/src/main/java/net/minecraft/server/EntityVillagerAbstract.java
+index 68fd780bc76ecf3c463f38c137fd8d4f036cdcbd..06836abc53835ce73ed75b67ab9be1039a11e3e0 100644
+--- a/src/main/java/net/minecraft/server/EntityVillagerAbstract.java
++++ b/src/main/java/net/minecraft/server/EntityVillagerAbstract.java
+@@ -5,6 +5,7 @@ import java.util.Iterator;
+ import java.util.Set;
+ import javax.annotation.Nullable;
+ // CraftBukkit start
++import mx.kenzie.wellspring.packet.meta.MetaField;
+ import org.bukkit.Bukkit;
+ import org.bukkit.craftbukkit.inventory.CraftMerchant;
+ import org.bukkit.craftbukkit.inventory.CraftMerchantRecipe;
+@@ -23,6 +24,9 @@ public abstract class EntityVillagerAbstract extends EntityAgeable implements NP
+     }
+     // CraftBukkit end
+     private static final DataWatcherObject<Integer> bp = DataWatcher.a(EntityVillagerAbstract.class, DataWatcherRegistry.b);
++    static { // Kenzie - init datawatchers
++        MetaField.VILLAGER_ANGRY_COUNT = bp;
++    }
+     @Nullable
+     private EntityHuman tradingPlayer;
+     @Nullable
+diff --git a/src/main/java/net/minecraft/server/EntityWitch.java b/src/main/java/net/minecraft/server/EntityWitch.java
+index 0ef981e5ad1c928fbcf32e83e28285e690df1775..3a2897955e44a615c2059961d8460bb101bdbf3b 100644
+--- a/src/main/java/net/minecraft/server/EntityWitch.java
++++ b/src/main/java/net/minecraft/server/EntityWitch.java
+@@ -2,6 +2,7 @@ package net.minecraft.server;
+ 
+ // Paper start
+ import com.destroystokyo.paper.event.entity.WitchReadyPotionEvent;
++import mx.kenzie.wellspring.packet.meta.MetaField;
+ import org.bukkit.craftbukkit.inventory.CraftItemStack;
+ import org.bukkit.entity.Witch;
+ // Paper end
+@@ -16,6 +17,9 @@ public class EntityWitch extends EntityRaider implements IRangedEntity {
+     private static final UUID b = UUID.fromString("5CD17E52-A79A-43D3-A529-90FDE04B181E");
+     private static final AttributeModifier bo = new AttributeModifier(EntityWitch.b, "Drinking speed penalty", -0.25D, AttributeModifier.Operation.ADDITION);
+     private static final DataWatcherObject<Boolean> bp = DataWatcher.a(EntityWitch.class, DataWatcherRegistry.i);
++    static { // Kenzie - init datawatchers
++        MetaField.WITCH_USING_ITEM = bp;
++    }
+     private int bq; public int getPotionUseTimeLeft() { return bq; } public void setPotionUseTimeLeft(int timeLeft) { bq = timeLeft; } // Paper - OBFHELPER
+     private PathfinderGoalNearestHealableRaider<EntityRaider> br;
+     private PathfinderGoalNearestAttackableTargetWitch<EntityHuman> bs;
+diff --git a/src/main/java/net/minecraft/server/EntityWither.java b/src/main/java/net/minecraft/server/EntityWither.java
+index 29bb74e51e73ab5b1ccc814b6599e0baf4d8094c..db49a69747dfb53c7a98517bdff26ad455d9c245 100644
+--- a/src/main/java/net/minecraft/server/EntityWither.java
++++ b/src/main/java/net/minecraft/server/EntityWither.java
+@@ -7,6 +7,7 @@ import java.util.function.Predicate;
+ import javax.annotation.Nullable;
+ 
+ // CraftBukkit start
++import mx.kenzie.wellspring.packet.meta.MetaField;
+ import org.bukkit.craftbukkit.event.CraftEventFactory;
+ import org.bukkit.event.entity.EntityRegainHealthEvent;
+ import org.bukkit.event.entity.EntityTargetEvent;
+@@ -20,6 +21,12 @@ public class EntityWither extends EntityMonster implements IRangedEntity {
+     private static final DataWatcherObject<Integer> d = DataWatcher.a(EntityWither.class, DataWatcherRegistry.b);
+     private static final List<DataWatcherObject<Integer>> bo = ImmutableList.of(EntityWither.b, EntityWither.c, EntityWither.d);
+     private static final DataWatcherObject<Integer> bp = DataWatcher.a(EntityWither.class, DataWatcherRegistry.b);
++    static { // Kenzie - init datawatchers
++        MetaField.WITHER_TARGET_1 = b;
++        MetaField.WITHER_TARGET_2 = c;
++        MetaField.WITHER_TARGET_3 = d;
++        MetaField.WITHER_INVULNERABLE_TICKS = bp;
++    }
+     private final float[] bq = new float[2];
+     private final float[] br = new float[2];
+     private final float[] bs = new float[2];
+diff --git a/src/main/java/net/minecraft/server/EntityWitherSkull.java b/src/main/java/net/minecraft/server/EntityWitherSkull.java
+index 2c02e114cce1f49b643e75e7ab3c05be716d7dba..1debc4e0c22ae205ea3bdaec67f2643ed63d701c 100644
+--- a/src/main/java/net/minecraft/server/EntityWitherSkull.java
++++ b/src/main/java/net/minecraft/server/EntityWitherSkull.java
+@@ -1,10 +1,14 @@
+ package net.minecraft.server;
+ 
++import mx.kenzie.wellspring.packet.meta.MetaField;
+ import org.bukkit.event.entity.ExplosionPrimeEvent; // CraftBukkit
+ 
+ public class EntityWitherSkull extends EntityFireball {
+ 
+     private static final DataWatcherObject<Boolean> e = DataWatcher.a(EntityWitherSkull.class, DataWatcherRegistry.i);
++    static { // Kenzie - init datawatchers
++        MetaField.WITHER_SKULL_CHARGED = e;
++    }
+ 
+     public EntityWitherSkull(EntityTypes<? extends EntityWitherSkull> entitytypes, World world) {
+         super(entitytypes, world);
+diff --git a/src/main/java/net/minecraft/server/EntityWolf.java b/src/main/java/net/minecraft/server/EntityWolf.java
+index 5779d1c9f93ce366687ee6dc94d4fd49c9b34715..d37dcbe24ba807eedda6d5d719b9e1fcb44a6b8c 100644
+--- a/src/main/java/net/minecraft/server/EntityWolf.java
++++ b/src/main/java/net/minecraft/server/EntityWolf.java
+@@ -5,6 +5,7 @@ import java.util.function.Predicate;
+ import javax.annotation.Nullable;
+ 
+ // CraftBukkit start
++import mx.kenzie.wellspring.packet.meta.MetaField;
+ import org.bukkit.craftbukkit.event.CraftEventFactory;
+ import org.bukkit.event.entity.EntityTargetEvent.TargetReason;
+ // CraftBukkit end
+@@ -14,6 +15,11 @@ public class EntityWolf extends EntityTameableAnimal implements IEntityAngerable
+     private static final DataWatcherObject<Boolean> br = DataWatcher.a(EntityWolf.class, DataWatcherRegistry.i);
+     private static final DataWatcherObject<Integer> bs = DataWatcher.a(EntityWolf.class, DataWatcherRegistry.b);
+     private static final DataWatcherObject<Integer> bt = DataWatcher.a(EntityWolf.class, DataWatcherRegistry.b);
++    static { // Kenzie - init datawatchers
++        MetaField.WOLF_INTEREST = br;
++        MetaField.WOLF_COLLAR = bs;
++        MetaField.WOLF_ANGER_TICKS = bt;
++    }
+     public static final Predicate<EntityLiving> bq = (entityliving) -> {
+         EntityTypes<?> entitytypes = entityliving.getEntityType();
+ 
+diff --git a/src/main/java/net/minecraft/server/EntityZombie.java b/src/main/java/net/minecraft/server/EntityZombie.java
+index a11612fa05f171bbdcc3ad525d9f371cc099ac50..5ca813ae534c0009cf6b8388c28b0ad69eaae5fc 100644
+--- a/src/main/java/net/minecraft/server/EntityZombie.java
++++ b/src/main/java/net/minecraft/server/EntityZombie.java
+@@ -10,7 +10,7 @@ import java.util.function.Predicate;
+ import javax.annotation.Nullable;
+ 
+ // CraftBukkit start
+-import org.bukkit.craftbukkit.event.CraftEventFactory;
++import mx.kenzie.wellspring.packet.meta.MetaField;
+ import org.bukkit.entity.Zombie;
+ import org.bukkit.event.entity.CreatureSpawnEvent;
+ import org.bukkit.event.entity.EntityCombustByEntityEvent;
+@@ -25,6 +25,11 @@ public class EntityZombie extends EntityMonster {
+     private static final DataWatcherObject<Boolean> d = DataWatcher.a(EntityZombie.class, DataWatcherRegistry.i);
+     private static final DataWatcherObject<Integer> bo = DataWatcher.a(EntityZombie.class, DataWatcherRegistry.b);
+     public static final DataWatcherObject<Boolean> DROWN_CONVERTING = DataWatcher.a(EntityZombie.class, DataWatcherRegistry.i);
++    static { // Kenzie - init datawatchers
++        MetaField.ZOMBIE_BABY = d;
++        MetaField.ZOMBIE_SPECIAL_ID = bo;
++        MetaField.ZOMBIE_DROWN_CONVERTING = DROWN_CONVERTING;
++    }
+     private static final Predicate<EnumDifficulty> bq = (enumdifficulty) -> {
+         return enumdifficulty == EnumDifficulty.HARD;
+     };
+diff --git a/src/main/java/net/minecraft/server/EntityZombieVillager.java b/src/main/java/net/minecraft/server/EntityZombieVillager.java
+index b52b8d0d84b5afb38911af9066b2c7e622258ef9..26bcd4ce439f70ce7fb2a75acc2a4d6eeb3fd64e 100644
+--- a/src/main/java/net/minecraft/server/EntityZombieVillager.java
++++ b/src/main/java/net/minecraft/server/EntityZombieVillager.java
+@@ -4,6 +4,8 @@ import com.mojang.serialization.DataResult;
+ import com.mojang.serialization.Dynamic;
+ import java.util.UUID;
+ import javax.annotation.Nullable;
++
++import mx.kenzie.wellspring.packet.meta.MetaField;
+ import org.apache.logging.log4j.Logger;
+ // CraftBukkit start
+ import org.bukkit.craftbukkit.event.CraftEventFactory;
+@@ -16,6 +18,10 @@ public class EntityZombieVillager extends EntityZombie implements VillagerDataHo
+ 
+     public static final DataWatcherObject<Boolean> CONVERTING = DataWatcher.a(EntityZombieVillager.class, DataWatcherRegistry.i);
+     private static final DataWatcherObject<VillagerData> c = DataWatcher.a(EntityZombieVillager.class, DataWatcherRegistry.q);
++    static { // Kenzie - init datawatchers
++        MetaField.ZOMBIE_VILLAGER_CURING = CONVERTING;
++        MetaField.ZOMBIE_VILLAGER_DATA = c;
++    }
+     public int conversionTime;
+     public UUID conversionPlayer;
+     private NBTBase bp;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutEntityMetadata.java b/src/main/java/net/minecraft/server/PacketPlayOutEntityMetadata.java
+index dfdd5f8fde090c25e86fed3c01cd3d162de13423..3272d6549f7268d1e0a79d04c22708180cd67b66 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutEntityMetadata.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutEntityMetadata.java
+@@ -2,6 +2,7 @@ package net.minecraft.server;
+ 
+ import mx.kenzie.wellspring.packet.meta.MetaField;
+ import mx.kenzie.wellspring.packet.specific.OutgoingEntityMetadata;
++import org.bukkit.entity.Entity;
+ 
+ import java.io.IOException;
+ import java.util.HashMap;
