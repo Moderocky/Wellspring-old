@@ -1,0 +1,456 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Sat, 24 Oct 2020 17:28:54 +0100
+Subject: [PATCH] Scoreboard packets and team actions.
+
+
+diff --git a/src/main/java/mx/kenzie/server/packet/PacketFactoryImpl.java b/src/main/java/mx/kenzie/server/packet/PacketFactoryImpl.java
+index 5c55404ad9594cf4c9eefd6eeec7f83743db5c35..866cc26f4efc37545d29276db4ed25abc1eff221 100644
+--- a/src/main/java/mx/kenzie/server/packet/PacketFactoryImpl.java
++++ b/src/main/java/mx/kenzie/server/packet/PacketFactoryImpl.java
+@@ -10,10 +10,7 @@ import mx.kenzie.wellspring.packet.PacketFactory;
+ import mx.kenzie.wellspring.packet.PacketType;
+ import mx.kenzie.wellspring.packet.data.GameState;
+ import mx.kenzie.wellspring.packet.data.TitleAction;
+-import mx.kenzie.wellspring.packet.specific.EntityPacket;
+-import mx.kenzie.wellspring.packet.specific.OutgoingEntityMetadata;
+-import mx.kenzie.wellspring.packet.specific.OutgoingLightUpdate;
+-import mx.kenzie.wellspring.packet.specific.OutgoingUpdateAttributes;
++import mx.kenzie.wellspring.packet.specific.*;
+ import mx.kenzie.wellspring.tile.TileEntity;
+ import mx.kenzie.wellspring.tile.TileType;
+ import net.md_5.bungee.api.ChatMessageType;
+@@ -33,11 +30,13 @@ import org.bukkit.craftbukkit.advancement.CraftAdvancementProgress;
+ import org.bukkit.craftbukkit.block.data.CraftBlockData;
+ import org.bukkit.craftbukkit.entity.CraftEntity;
+ import org.bukkit.craftbukkit.entity.CraftPlayer;
++import org.bukkit.craftbukkit.scoreboard.CraftTeam;
+ import org.bukkit.craftbukkit.util.CraftMagicNumbers;
+ import org.bukkit.entity.Entity;
+ import org.bukkit.entity.EntityType;
+ import org.bukkit.potion.PotionEffect;
+ import org.bukkit.potion.PotionEffectType;
++import org.bukkit.scoreboard.Team;
+ import org.bukkit.util.Vector;
+ 
+ import java.lang.reflect.Field;
+@@ -510,6 +509,31 @@ public class PacketFactoryImpl extends PacketFactory {
+         return new PacketPlayOutGameStateChange(action, value);
+     }
+ 
++    @Override
++    public OutgoingScoreboardTeam packetPlayOutScoreboardTeam() {
++        return new PacketPlayOutScoreboardTeam();
++    }
++
++    @Override
++    public OutgoingScoreboardTeam packetPlayOutScoreboardTeam(Team team, byte action) {
++        return new PacketPlayOutScoreboardTeam(((CraftTeam) team).getHandle(), action);
++    }
++
++    @Override
++    public OutgoingScoreboardScore packetPlayOutScoreboardScore() {
++        return new PacketPlayOutScoreboardScore();
++    }
++
++    @Override
++    public OutgoingScoreboardObjective packetPlayOutScoreboardObjective() {
++        return new PacketPlayOutScoreboardObjective();
++    }
++
++    @Override
++    public OutgoingScoreboardDisplayObjective packetPlayOutScoreboardDisplayObjective() {
++        return new PacketPlayOutScoreboardDisplayObjective();
++    }
++
+     @Override
+     public mx.kenzie.wellspring.packet.Packet createFrom(PacketType type, Object... fieldInputs) {
+         try {
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutScoreboardDisplayObjective.java b/src/main/java/net/minecraft/server/PacketPlayOutScoreboardDisplayObjective.java
+index 045a1d909c3fd7a8cc0611fc6a5a9c6bd85404ad..e30360021d8396cfa3fad4e3a5f7c87d7e968047 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutScoreboardDisplayObjective.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutScoreboardDisplayObjective.java
+@@ -1,9 +1,12 @@
+ package net.minecraft.server;
+ 
++import mx.kenzie.wellspring.packet.specific.OutgoingScoreboardDisplayObjective;
++import org.bukkit.scoreboard.DisplaySlot;
++
+ import java.io.IOException;
+ import javax.annotation.Nullable;
+ 
+-public class PacketPlayOutScoreboardDisplayObjective implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
++public class PacketPlayOutScoreboardDisplayObjective implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket, OutgoingScoreboardDisplayObjective { // Kenzie
+ 
+     private int a;
+     private String b;
+@@ -35,4 +38,27 @@ public class PacketPlayOutScoreboardDisplayObjective implements Packet<PacketLis
+     public void a(PacketListenerPlayOut packetlistenerplayout) {
+         packetlistenerplayout.a(this);
+     }
++
++    // Kenzie start
++    @Override
++    public String getName() {
++        return b != null ? b : "";
++    }
++
++    @Override
++    public void setName(String name) {
++        b = name;
++    }
++
++    @Override
++    public DisplaySlot getSlot() {
++        return a == 0 ? DisplaySlot.PLAYER_LIST : a == 1 ? DisplaySlot.SIDEBAR : DisplaySlot.BELOW_NAME;
++    }
++
++    @Override
++    public void setSlot(DisplaySlot slot) {
++        a = slot == DisplaySlot.PLAYER_LIST ? 0 : slot == DisplaySlot.SIDEBAR ? 1 : 2;
++    }
++
++    // Kenzie end
+ }
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutScoreboardObjective.java b/src/main/java/net/minecraft/server/PacketPlayOutScoreboardObjective.java
+index f62ec91f00ba8ae255a9fecbd9dce9744f2687f7..fa584f605ae1c05a64bc061023b52e1447a59345 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutScoreboardObjective.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutScoreboardObjective.java
+@@ -1,14 +1,63 @@
+ package net.minecraft.server;
+ 
++import mx.kenzie.wellspring.Wellspring;
++import mx.kenzie.wellspring.packet.data.ObjectiveAction;
++import mx.kenzie.wellspring.packet.specific.OutgoingScoreboardObjective;
++import net.md_5.bungee.api.chat.BaseComponent;
++import net.md_5.bungee.chat.ComponentSerializer;
++
+ import java.io.IOException;
+ 
+-public class PacketPlayOutScoreboardObjective implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
++public class PacketPlayOutScoreboardObjective implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket, OutgoingScoreboardObjective { // Kenzie
+ 
+     private String a;
+     private IChatBaseComponent b;
+     private IScoreboardCriteria.EnumScoreboardHealthDisplay c;
+     private int d;
+ 
++    // Kenzie start
++    @Override
++    public BaseComponent[] getDisplayName() {
++        return ComponentSerializer.parse(IChatBaseComponent.ChatSerializer.componentToJson(b != null ? b : ChatComponentText.d));
++    }
++
++    @Override
++    public void setDisplayName(BaseComponent[] name) {
++        b = name != null ? Wellspring.bridge().typeInputConversion(name) : ChatComponentText.d;
++    }
++
++    @Override
++    public String getName() {
++        return a != null ? a : "";
++    }
++
++    @Override
++    public void setName(String name) {
++        a = name;
++    }
++
++    @Override
++    public boolean displayAsHearts() {
++        return c == IScoreboardCriteria.EnumScoreboardHealthDisplay.HEARTS;
++    }
++
++    @Override
++    public void displayAsHearts(boolean boo) {
++        c = boo ? IScoreboardCriteria.EnumScoreboardHealthDisplay.HEARTS : IScoreboardCriteria.EnumScoreboardHealthDisplay.INTEGER;
++    }
++
++    @Override
++    public ObjectiveAction getAction() {
++        return d == 0 ? ObjectiveAction.CREATE : d == 1 ? ObjectiveAction.REMOVE : ObjectiveAction.UPDATE;
++    }
++
++    @Override
++    public void setAction(ObjectiveAction action) {
++        d = action.ordinal();
++    }
++
++    // Kenzie end
++
+     public PacketPlayOutScoreboardObjective() {}
+ 
+     public PacketPlayOutScoreboardObjective(ScoreboardObjective scoreboardobjective, int i) {
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutScoreboardScore.java b/src/main/java/net/minecraft/server/PacketPlayOutScoreboardScore.java
+index 08ed1e6197f5218c1b7275a4c3d60cd3e5513b01..ae1a89e3f88bebafad5a0ac76f4ba9aefff44529 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutScoreboardScore.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutScoreboardScore.java
+@@ -1,10 +1,14 @@
+ package net.minecraft.server;
+ 
++import mx.kenzie.wellspring.packet.PacketType;
++import mx.kenzie.wellspring.packet.data.ScoreAction;
++import mx.kenzie.wellspring.packet.specific.OutgoingScoreboardScore;
++
+ import java.io.IOException;
+ import java.util.Objects;
+ import javax.annotation.Nullable;
+ 
+-public class PacketPlayOutScoreboardScore implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
++public class PacketPlayOutScoreboardScore implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket, OutgoingScoreboardScore { // Kenzie
+ 
+     private String a = "";
+     @Nullable
+@@ -12,6 +16,50 @@ public class PacketPlayOutScoreboardScore implements Packet<PacketListenerPlayOu
+     private int c;
+     private ScoreboardServer.Action d;
+ 
++    // Kenzie start
++
++    @Override
++    public ScoreAction getAction() {
++        return ScoreAction.valueOf(d.name());
++    }
++
++    @Override
++    public void setAction(ScoreAction action) {
++        d = ScoreboardServer.Action.valueOf(action.name());
++    }
++
++    @Override
++    public String getName() {
++        return b;
++    }
++
++    @Override
++    public void setName(String name) {
++        b = name;
++    }
++
++    @Override
++    public String getOwner() {
++        return a;
++    }
++
++    @Override
++    public void setOwner(String owner) {
++        a = owner;
++    }
++
++    @Override
++    public int getScore() {
++        return c;
++    }
++
++    @Override
++    public void setScore(int score) {
++        c = score;
++    }
++
++    // Kenzie end
++
+     public PacketPlayOutScoreboardScore() {}
+ 
+     public PacketPlayOutScoreboardScore(ScoreboardServer.Action scoreboardserver_action, @Nullable String s, String s1, int i) {
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutScoreboardTeam.java b/src/main/java/net/minecraft/server/PacketPlayOutScoreboardTeam.java
+index be3c8283108d25bc3fd5ba10f6380d8de4f6980e..073618cd3b935b702e6985af5c7d1915f1fd11b4 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutScoreboardTeam.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutScoreboardTeam.java
+@@ -1,11 +1,21 @@
+ package net.minecraft.server;
+ 
+ import com.google.common.collect.Lists;
++import mx.kenzie.wellspring.Wellspring;
++import mx.kenzie.wellspring.annotation.See;
++import mx.kenzie.wellspring.packet.data.TitleAction;
++import mx.kenzie.wellspring.packet.specific.OutgoingScoreboardTeam;
++import net.md_5.bungee.api.chat.BaseComponent;
++import net.md_5.bungee.chat.ComponentSerializer;
++import org.bukkit.ChatColor;
++import org.bukkit.DyeColor;
++import org.bukkit.scoreboard.Team;
++
+ import java.io.IOException;
+ import java.util.Collection;
+ import java.util.Iterator;
+ 
+-public class PacketPlayOutScoreboardTeam implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
++public class PacketPlayOutScoreboardTeam implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket, OutgoingScoreboardTeam { // Kenzie
+ 
+     private String a = "";
+     private IChatBaseComponent b;
+@@ -18,6 +28,159 @@ public class PacketPlayOutScoreboardTeam implements Packet<PacketListenerPlayOut
+     private int i;
+     private int j;
+ 
++    // Kenzie start
++    @Override
++    public BaseComponent[] getDisplayName() {
++        return ComponentSerializer.parse(IChatBaseComponent.ChatSerializer.componentToJson(b));
++    }
++
++    @Override
++    public void setDisplayName(BaseComponent[] name) {
++        b = name != null ? Wellspring.bridge().typeInputConversion(name) : ChatComponentText.d;
++    }
++
++    @Override
++    public BaseComponent[] getPrefix() {
++        return ComponentSerializer.parse(IChatBaseComponent.ChatSerializer.componentToJson(c));
++    }
++
++    @Override
++    public void setPrefix(BaseComponent[] prefix) {
++        c = prefix != null ? Wellspring.bridge().typeInputConversion(prefix) : ChatComponentText.d;
++    }
++
++    @Override
++    public BaseComponent[] getSuffix() {
++        return ComponentSerializer.parse(IChatBaseComponent.ChatSerializer.componentToJson(d));
++    }
++
++    @Override
++    public void setSuffix(BaseComponent[] suffix) {
++        d = suffix != null ? Wellspring.bridge().typeInputConversion(suffix) : ChatComponentText.d;
++    }
++
++    @Override
++    public boolean isAllowFriendlyFire() {
++        return (j & 1) == 1;
++    }
++
++    @Override
++    public void setAllowFriendlyFire(boolean boo) {
++        if (boo) j |= 1;
++        else j &= ~1;
++    }
++
++    @Override
++    public boolean canSeeFriendlyInvisible() {
++        return (j & 2) == 2;
++    }
++
++    @Override
++    public void setCanSeeFriendlyInvisible(boolean boo) {
++        if (boo) j |= 2;
++        else j &= ~2;
++    }
++
++    @Override
++    public String getName() {
++        return a;
++    }
++
++    @Override
++    public void setName(String name) {
++        a = name;
++    }
++
++    @Override
++    public Collection<String> entries() {
++        return h;
++    }
++
++    @Override
++    public void setAction(@See(TitleAction.class) byte action) {
++        i = action;
++    }
++
++    @Override
++    public @See(TitleAction.class) byte getAction() {
++        return (byte) i;
++    }
++
++    @Override
++    public ChatColor getColor() {
++        return ChatColor.valueOf(g.name());
++    }
++
++    @Override
++    public void setColor(ChatColor color) {
++        g = EnumChatFormat.valueOf(color.name());
++    }
++
++    @Override
++    public Team.OptionStatus getStatus(Team.Option option) {
++        try {
++            switch (option) {
++                case COLLISION_RULE:
++                    switch (ScoreboardTeamBase.EnumTeamPush.a(f)) {
++                        case NEVER:
++                            return Team.OptionStatus.NEVER;
++                        case ALWAYS:
++                            return Team.OptionStatus.ALWAYS;
++                        case PUSH_OWN_TEAM:
++                            return Team.OptionStatus.FOR_OWN_TEAM;
++                        case PUSH_OTHER_TEAMS:
++                            return Team.OptionStatus.FOR_OTHER_TEAMS;
++                    }
++                case NAME_TAG_VISIBILITY:
++                    switch (ScoreboardTeamBase.EnumNameTagVisibility.a(e)) {
++                        case NEVER:
++                            return Team.OptionStatus.NEVER;
++                        case ALWAYS:
++                            return Team.OptionStatus.ALWAYS;
++                        case HIDE_FOR_OWN_TEAM:
++                            return Team.OptionStatus.FOR_OWN_TEAM;
++                        case HIDE_FOR_OTHER_TEAMS:
++                            return Team.OptionStatus.FOR_OTHER_TEAMS;
++                    }
++            }
++        } catch (Throwable ignore) {
++        }
++        return Team.OptionStatus.NEVER;
++    }
++
++    @Override
++    public void setStatus(Team.Option option, Team.OptionStatus status) {
++        try {
++            switch (option) {
++                case COLLISION_RULE:
++                    switch (status) {
++                        case NEVER:
++                            f = ScoreboardTeamBase.EnumTeamPush.NEVER.e;
++                        case ALWAYS:
++                            f = ScoreboardTeamBase.EnumTeamPush.ALWAYS.e;
++                        case FOR_OWN_TEAM:
++                            f = ScoreboardTeamBase.EnumTeamPush.PUSH_OWN_TEAM.e;
++                        case FOR_OTHER_TEAMS:
++                            f = ScoreboardTeamBase.EnumTeamPush.PUSH_OTHER_TEAMS.e;
++                    }
++                case NAME_TAG_VISIBILITY:
++                    switch (status) {
++                        case NEVER:
++                            e = ScoreboardTeamBase.EnumNameTagVisibility.NEVER.e;
++                        case ALWAYS:
++                            e = ScoreboardTeamBase.EnumNameTagVisibility.ALWAYS.e;
++                        case FOR_OWN_TEAM:
++                            e = ScoreboardTeamBase.EnumNameTagVisibility.HIDE_FOR_OWN_TEAM.e;
++                        case FOR_OTHER_TEAMS:
++                            e = ScoreboardTeamBase.EnumNameTagVisibility.HIDE_FOR_OTHER_TEAMS.e;
++                    }
++            }
++        } catch (Throwable ignore) {
++        }
++    }
++
++    // Kenzie end
++
+     public PacketPlayOutScoreboardTeam() {
+         this.b = ChatComponentText.d;
+         this.c = ChatComponentText.d;
+diff --git a/src/main/java/org/bukkit/craftbukkit/scoreboard/CraftTeam.java b/src/main/java/org/bukkit/craftbukkit/scoreboard/CraftTeam.java
+index 0315ea5ad8dcccf067e5419e2387e497b29bccb1..2595604b08af2248fba92d99dd3b9c9f71752b46 100644
+--- a/src/main/java/org/bukkit/craftbukkit/scoreboard/CraftTeam.java
++++ b/src/main/java/org/bukkit/craftbukkit/scoreboard/CraftTeam.java
+@@ -13,8 +13,8 @@ import org.bukkit.craftbukkit.util.CraftChatMessage;
+ import org.bukkit.scoreboard.NameTagVisibility;
+ import org.bukkit.scoreboard.Team;
+ 
+-final class CraftTeam extends CraftScoreboardComponent implements Team {
+-    private final ScoreboardTeam team;
++public final class CraftTeam extends CraftScoreboardComponent implements Team { // Kenzie - make public
++    private final ScoreboardTeam team; public ScoreboardTeam getHandle() { return team; } // Kenzie - handle
+ 
+     CraftTeam(CraftScoreboard scoreboard, ScoreboardTeam team) {
+         super(scoreboard);

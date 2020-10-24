@@ -1,0 +1,286 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Sat, 24 Oct 2020 17:31:11 +0100
+Subject: [PATCH] Scoreboard packets and team actions.
+
+Squash. Missed annotations.
+
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java b/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java
+index bcbdf82b77358ed58b7e6be8383afd070f4a195c..4bdfb6afa033a389a82a06cf3df1c752f60df594 100644
+--- a/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java
++++ b/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java
+@@ -8,11 +8,9 @@ import mx.kenzie.wellspring.conversion.Converter;
+ import mx.kenzie.wellspring.nbt.NBTCompound;
+ import mx.kenzie.wellspring.packet.data.GameState;
+ import mx.kenzie.wellspring.packet.data.PlayerInfoAction;
++import mx.kenzie.wellspring.packet.data.TeamAction;
+ import mx.kenzie.wellspring.packet.data.TitleAction;
+-import mx.kenzie.wellspring.packet.specific.EntityPacket;
+-import mx.kenzie.wellspring.packet.specific.OutgoingEntityMetadata;
+-import mx.kenzie.wellspring.packet.specific.OutgoingLightUpdate;
+-import mx.kenzie.wellspring.packet.specific.OutgoingUpdateAttributes;
++import mx.kenzie.wellspring.packet.specific.*;
+ import mx.kenzie.wellspring.tile.TileEntity;
+ import mx.kenzie.wellspring.tile.TileType;
+ import net.md_5.bungee.api.ChatMessageType;
+@@ -28,6 +26,7 @@ import org.bukkit.entity.Entity;
+ import org.bukkit.entity.EntityType;
+ import org.bukkit.potion.PotionEffect;
+ import org.bukkit.potion.PotionEffectType;
++import org.bukkit.scoreboard.Team;
+ import org.bukkit.util.Vector;
+ import org.jetbrains.annotations.Contract;
+ import org.jetbrains.annotations.NotNull;
+@@ -318,6 +317,27 @@ public abstract class PacketFactory {
+     public abstract @NotNull
+     Packet packetPlayOutGameStateChange(@See(GameState.class) byte action, float value);
+ 
++    @Contract(pure = true)
++    public abstract @NotNull
++    OutgoingScoreboardTeam packetPlayOutScoreboardTeam();
++
++    @Contract(pure = true)
++    @See(TeamAction.class)
++    public abstract @NotNull
++    OutgoingScoreboardTeam packetPlayOutScoreboardTeam(@NotNull Team team, @See(TeamAction.class) byte action);
++
++    @Contract(pure = true)
++    public abstract @NotNull
++    OutgoingScoreboardScore packetPlayOutScoreboardScore();
++
++    @Contract(pure = true)
++    public abstract @NotNull
++    OutgoingScoreboardObjective packetPlayOutScoreboardObjective();
++
++    @Contract(pure = true)
++    public abstract @NotNull
++    OutgoingScoreboardDisplayObjective packetPlayOutScoreboardDisplayObjective();
++
+     public abstract void send(@NotNull Packet packet, @NotNull NetworkClient... recipients) throws IllegalArgumentException;
+ 
+     @Contract(pure = true)
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/data/ObjectiveAction.java b/src/main/java/mx/kenzie/wellspring/packet/data/ObjectiveAction.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..3dc873ea237a1a3628347eb1350fe75fd83a930e
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/packet/data/ObjectiveAction.java
+@@ -0,0 +1,5 @@
++package mx.kenzie.wellspring.packet.data;
++
++public enum ObjectiveAction {
++    CREATE, REMOVE, UPDATE;
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/data/ScoreAction.java b/src/main/java/mx/kenzie/wellspring/packet/data/ScoreAction.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..de1705b53e0d6c4c89ab567204c59f602369a863
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/packet/data/ScoreAction.java
+@@ -0,0 +1,5 @@
++package mx.kenzie.wellspring.packet.data;
++
++public enum ScoreAction {
++    CHANGE, REMOVE;
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/data/TeamAction.java b/src/main/java/mx/kenzie/wellspring/packet/data/TeamAction.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..21b635d8f1a3dd3bc28e053fde2b0dd3a24b1a4d
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/packet/data/TeamAction.java
+@@ -0,0 +1,9 @@
++package mx.kenzie.wellspring.packet.data;
++
++public final class TeamAction {
++    public static final int ADD = 0;
++    public static final int REMOVE = 1;
++    public static final int CHANGE = 2;
++    public static final int JOIN = 3;
++    public static final int LEAVE = 4;
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/specific/OutgoingScoreboardDisplayObjective.java b/src/main/java/mx/kenzie/wellspring/packet/specific/OutgoingScoreboardDisplayObjective.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..a8d46620ed5bacd7c6f824f9598850e5c49dbf47
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/packet/specific/OutgoingScoreboardDisplayObjective.java
+@@ -0,0 +1,20 @@
++package mx.kenzie.wellspring.packet.specific;
++
++import mx.kenzie.wellspring.packet.PacketType;
++import org.bukkit.scoreboard.DisplaySlot;
++import org.jetbrains.annotations.NotNull;
++
++public interface OutgoingScoreboardDisplayObjective extends OutgoingPacket, ScoreboardPacket {
++
++    @Override
++    @NotNull
++    default PacketType getType() {
++        return PacketType.Outgoing.SCOREBOARD_DISPLAY_OBJECTIVE;
++    }
++
++    @NotNull
++    DisplaySlot getSlot();
++
++    void setSlot(@NotNull DisplaySlot slot);
++
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/specific/OutgoingScoreboardObjective.java b/src/main/java/mx/kenzie/wellspring/packet/specific/OutgoingScoreboardObjective.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..3facbe16eab092a3b158bd7670efbc1bbb27957f
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/packet/specific/OutgoingScoreboardObjective.java
+@@ -0,0 +1,31 @@
++package mx.kenzie.wellspring.packet.specific;
++
++import mx.kenzie.wellspring.packet.PacketType;
++import mx.kenzie.wellspring.packet.data.ObjectiveAction;
++import net.md_5.bungee.api.chat.BaseComponent;
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
++
++public interface OutgoingScoreboardObjective extends OutgoingPacket, ScoreboardPacket {
++
++    @NotNull
++    BaseComponent[] getDisplayName();
++
++    void setDisplayName(@Nullable BaseComponent[] name);
++
++    @Override
++    @NotNull
++    default PacketType getType() {
++        return PacketType.Outgoing.SCOREBOARD_OBJECTIVE;
++    }
++
++    boolean displayAsHearts();
++
++    void displayAsHearts(boolean boo);
++
++    @NotNull
++    ObjectiveAction getAction();
++
++    void setAction(@NotNull ObjectiveAction action);
++
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/specific/OutgoingScoreboardScore.java b/src/main/java/mx/kenzie/wellspring/packet/specific/OutgoingScoreboardScore.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..d5038cfb385f10e61de20730748295f9084fb397
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/packet/specific/OutgoingScoreboardScore.java
+@@ -0,0 +1,28 @@
++package mx.kenzie.wellspring.packet.specific;
++
++import mx.kenzie.wellspring.packet.PacketType;
++import mx.kenzie.wellspring.packet.data.ScoreAction;
++import org.jetbrains.annotations.NotNull;
++
++public interface OutgoingScoreboardScore extends OutgoingPacket, ScoreboardPacket {
++
++    @Override
++    @NotNull
++    default PacketType getType() {
++        return PacketType.Outgoing.SCOREBOARD_SCORE;
++    }
++
++    @NotNull String getOwner();
++
++    void setOwner(@NotNull String owner);
++
++    int getScore();
++
++    void setScore(int score);
++
++    @NotNull
++    ScoreAction getAction();
++
++    void setAction(@NotNull ScoreAction action);
++
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/specific/OutgoingScoreboardTeam.java b/src/main/java/mx/kenzie/wellspring/packet/specific/OutgoingScoreboardTeam.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..9cf06914d0b2a59cefe026bc99b32ab31ce87dae
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/packet/specific/OutgoingScoreboardTeam.java
+@@ -0,0 +1,68 @@
++package mx.kenzie.wellspring.packet.specific;
++
++import mx.kenzie.wellspring.annotation.Backed;
++import mx.kenzie.wellspring.annotation.See;
++import mx.kenzie.wellspring.packet.PacketType;
++import mx.kenzie.wellspring.packet.data.TitleAction;
++import net.md_5.bungee.api.chat.BaseComponent;
++import org.bukkit.ChatColor;
++import org.bukkit.scoreboard.Team;
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
++
++import java.util.Collection;
++
++public interface OutgoingScoreboardTeam extends OutgoingPacket, ScoreboardPacket {
++
++    @Override
++    @NotNull
++    default PacketType getType() {
++        return PacketType.Outgoing.SCOREBOARD_TEAM;
++    }
++
++    void setAction(@See(TitleAction.class) byte action);
++
++    @See(TitleAction.class) byte getAction();
++
++    @NotNull
++    Team.OptionStatus getStatus(@NotNull Team.Option option);
++
++    void setStatus(@NotNull Team.Option option, @NotNull Team.OptionStatus status);
++
++    @NotNull
++    ChatColor getColor();
++
++    void setColor(@NotNull ChatColor color);
++
++    @NotNull String getName();
++
++    void setName(@NotNull String name);
++
++    @NotNull
++    @Backed
++    Collection<String> entries();
++
++    boolean isAllowFriendlyFire();
++
++    void setAllowFriendlyFire(boolean boo);
++
++    boolean canSeeFriendlyInvisible();
++
++    void setCanSeeFriendlyInvisible(boolean boo);
++
++    @NotNull
++    BaseComponent[] getDisplayName();
++
++    void setDisplayName(@Nullable BaseComponent[] name);
++
++    @NotNull
++    BaseComponent[] getPrefix();
++
++    void setPrefix(@Nullable BaseComponent[] prefix);
++
++    @NotNull
++    BaseComponent[] getSuffix();
++
++    void setSuffix(@Nullable BaseComponent[] suffix);
++
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/specific/ScoreboardPacket.java b/src/main/java/mx/kenzie/wellspring/packet/specific/ScoreboardPacket.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..28bfc98699ef8b4c6b69bb95e394f3bd244912ee
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/packet/specific/ScoreboardPacket.java
+@@ -0,0 +1,11 @@
++package mx.kenzie.wellspring.packet.specific;
++
++import org.jetbrains.annotations.NotNull;
++
++public interface ScoreboardPacket {
++
++    @NotNull String getName();
++
++    void setName(@NotNull String name);
++
++}
