@@ -1,0 +1,31 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Sat, 24 Oct 2020 14:32:45 +0100
+Subject: [PATCH] Ray trace to target position.
+
+
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
+index 8182fca9ebca3944f16ba785d374dbad38aad898..1b71099e9df147a8dfef5695fb974e996b7c5f40 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
+@@ -1301,6 +1301,20 @@ public class CraftWorld implements World {
+         return CraftRayTraceResult.fromNMS(this, nmsHitResult);
+     }
+ 
++    // Kenzie start
++    @Override
++    public RayTraceResult rayTraceBlocks(Location start, Location end, FluidCollisionMode fluidCollisionMode, boolean ignorePassableBlocks) {
++        Validate.notNull(start, "Start location is null!");
++        Validate.isTrue(this.equals(start.getWorld()), "Start location is from different world!");
++        start.checkFinite();
++        Validate.notNull(fluidCollisionMode, "Fluid collision mode is null!");
++        Vec3D startPos = new Vec3D(start.getX(), start.getY(), start.getZ());
++        Vec3D endPos = new Vec3D(end.getX(), end.getY(), end.getZ());
++        MovingObjectPosition nmsHitResult = this.getHandle().rayTrace(new RayTrace(startPos, endPos, ignorePassableBlocks ? RayTrace.BlockCollisionOption.COLLIDER : RayTrace.BlockCollisionOption.OUTLINE, CraftFluidCollisionMode.toNMS(fluidCollisionMode), null));
++        return CraftRayTraceResult.fromNMS(this, nmsHitResult);
++    }
++    // Kenzie end
++
+     @Override
+     public RayTraceResult rayTrace(Location start, Vector direction, double maxDistance, FluidCollisionMode fluidCollisionMode, boolean ignorePassableBlocks, double raySize, Predicate<Entity> filter) {
+         RayTraceResult blockHit = this.rayTraceBlocks(start, direction, maxDistance, fluidCollisionMode, ignorePassableBlocks);
