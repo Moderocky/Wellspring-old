@@ -1,0 +1,830 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Sat, 24 Oct 2020 11:54:35 +0100
+Subject: [PATCH] Add new packet factory methods.
+
+Squash meta field change.
+
+Squash new packet factory methods.
+
+Squash.
+
+Light engine packets.
+
+
+Wrong annotation used. Squash.
+
+
+Fix. Squash.
+
+
+Array indices relevelling fix
+
+
+Squash game states and light fixes.
+
+diff --git a/src/main/java/mx/kenzie/wellspring/Wellspring.java b/src/main/java/mx/kenzie/wellspring/Wellspring.java
+index 9f56d6ad84f4fc0ec521a227f93f882ad4a03d4d..20315b6facb74b1af6387cae8099e1ce0aa636c3 100644
+--- a/src/main/java/mx/kenzie/wellspring/Wellspring.java
++++ b/src/main/java/mx/kenzie/wellspring/Wellspring.java
+@@ -2,7 +2,7 @@ package mx.kenzie.wellspring;
+ 
+ import mx.kenzie.wellspring.enchantment.EnchantmentBuilder;
+ import mx.kenzie.wellspring.nbt.NBTCompound;
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ import mx.kenzie.wellspring.structure.*;
+ import org.bukkit.*;
+ import org.bukkit.attribute.Attribute;
+diff --git a/src/main/java/mx/kenzie/wellspring/annotation/Backed.java b/src/main/java/mx/kenzie/wellspring/annotation/Backed.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..cf469de465e92266e1e692147d3d04a8c991183f
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/annotation/Backed.java
+@@ -0,0 +1,18 @@
++package mx.kenzie.wellspring.annotation;
++
++import java.lang.annotation.*;
++
++/**
++ * Marks an object (usually a method return value)
++ * as being backed by the original thing. This will often be used
++ * for collections, where rather than returning a copy of the collection
++ * and using getters/setters, the original collection itself may be
++ * returned for manipulation.
++ *
++ * @author Moderocky
++ */
++@Inherited
++@Retention(RetentionPolicy.RUNTIME)
++@Target({ElementType.LOCAL_VARIABLE, ElementType.FIELD, ElementType.METHOD})
++public @interface Backed {
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/annotation/See.java b/src/main/java/mx/kenzie/wellspring/annotation/See.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..7ca9b6b6929d11cabceb7f03b5d345062140980d
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/annotation/See.java
+@@ -0,0 +1,19 @@
++package mx.kenzie.wellspring.annotation;
++
++import java.lang.annotation.*;
++
++/**
++ * Provide a reference to the correct class to use for
++ * something.
++ * This ought to be retained even in decompiled sources.
++ *
++ * @author Moderocky
++ */
++@Inherited
++@Target({ElementType.TYPE, ElementType.PARAMETER, ElementType.TYPE_PARAMETER, ElementType.TYPE_USE, ElementType.METHOD, ElementType.FIELD, ElementType.LOCAL_VARIABLE})
++@Retention(RetentionPolicy.RUNTIME)
++public @interface See {
++
++    Class<?> value();
++
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/Packet.java b/src/main/java/mx/kenzie/wellspring/packet/Packet.java
+index 58698de0237ae736dea4244b804ea25dcdc01f24..160b0aac3c7d6610a618e21d314c387d6c322adb 100644
+--- a/src/main/java/mx/kenzie/wellspring/packet/Packet.java
++++ b/src/main/java/mx/kenzie/wellspring/packet/Packet.java
+@@ -1,6 +1,7 @@
+ package mx.kenzie.wellspring.packet;
+ 
+ import com.destroystokyo.paper.network.NetworkClient;
++import mx.kenzie.wellspring.packet.specific.IncomingPacket;
+ import org.bukkit.Bukkit;
+ import org.jetbrains.annotations.NotNull;
+ 
+@@ -22,6 +23,7 @@ public interface Packet {
+     }
+ 
+     default void send(@NotNull NetworkClient... recipients) {
++        if (this instanceof IncomingPacket || this.getDirection() == Direction.INCOMING) return;
+         Bukkit.getPacketFactory().send(this, recipients);
+     }
+ 
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java b/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java
+index a67517b2c652491d67eff71512f76b974a92913f..bcbdf82b77358ed58b7e6be8383afd070f4a195c 100644
+--- a/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java
++++ b/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java
+@@ -1,22 +1,33 @@
+ package mx.kenzie.wellspring.packet;
+ 
+ import com.destroystokyo.paper.network.NetworkClient;
++import com.destroystokyo.paper.profile.PlayerProfile;
++import mx.kenzie.wellspring.annotation.See;
+ import mx.kenzie.wellspring.conversion.BiConverter;
+ import mx.kenzie.wellspring.conversion.Converter;
+ import mx.kenzie.wellspring.nbt.NBTCompound;
++import mx.kenzie.wellspring.packet.data.GameState;
++import mx.kenzie.wellspring.packet.data.PlayerInfoAction;
++import mx.kenzie.wellspring.packet.data.TitleAction;
++import mx.kenzie.wellspring.packet.specific.EntityPacket;
+ import mx.kenzie.wellspring.packet.specific.OutgoingEntityMetadata;
++import mx.kenzie.wellspring.packet.specific.OutgoingLightUpdate;
++import mx.kenzie.wellspring.packet.specific.OutgoingUpdateAttributes;
+ import mx.kenzie.wellspring.tile.TileEntity;
+ import mx.kenzie.wellspring.tile.TileType;
+ import net.md_5.bungee.api.ChatMessageType;
+ import net.md_5.bungee.api.chat.BaseComponent;
+-import org.bukkit.Location;
+-import org.bukkit.NamespacedKey;
++import org.bukkit.*;
+ import org.bukkit.advancement.Advancement;
+ import org.bukkit.advancement.AdvancementProgress;
++import org.bukkit.attribute.Attribute;
++import org.bukkit.attribute.AttributeModifier;
+ import org.bukkit.block.Block;
+ import org.bukkit.block.data.BlockData;
+ import org.bukkit.entity.Entity;
+ import org.bukkit.entity.EntityType;
++import org.bukkit.potion.PotionEffect;
++import org.bukkit.potion.PotionEffectType;
+ import org.bukkit.util.Vector;
+ import org.jetbrains.annotations.Contract;
+ import org.jetbrains.annotations.NotNull;
+@@ -214,12 +225,105 @@ public abstract class PacketFactory {
+     public abstract @NotNull
+     Packet packetPlayOutBlockBreakAnimation(@NotNull Block block, int stage, int id);
+ 
++    @Contract(pure = true)
++    public abstract @NotNull
++    Packet packetPlayOutBlockChange(@NotNull Location location, @NotNull BlockData data);
++
++    @Contract(pure = true)
++    public abstract @NotNull
++    Packet packetPlayOutBlockAction(@NotNull Location location, @NotNull Material material, int id, int parameter);
++
++    @Contract(pure = true)
++    @See(PlayerInfoAction.class)
++    public abstract @NotNull
++    Packet packetPlayOutPlayerInfo(@NotNull PlayerProfile profile, @See(PlayerInfoAction.class) byte action, int ping, @NotNull GameMode mode, @NotNull BaseComponent[] name);
++
++    @Contract(pure = true)
++    public abstract @NotNull
++    Packet packetPlayOutNamedEntitySpawn(int id, @NotNull UUID uuid, @NotNull Location location);
++
+     @Contract(pure = true)
+     public abstract @NotNull
+     Packet packetPlayOutChat(@NotNull BaseComponent[] message, @NotNull ChatMessageType type);
+ 
++    @Contract(pure = true)
++    @See(TitleAction.class)
++    public abstract @NotNull
++    Packet packetPlayOutTitle(@See(TitleAction.class) byte action);
++
++    @Contract(pure = true)
++    @See(TitleAction.class)
++    public abstract @NotNull
++    Packet packetPlayOutTitle(@See(TitleAction.class) byte action, @Nullable BaseComponent[] message);
++
++    @Contract(pure = true)
++    @See(TitleAction.class)
++    public abstract @NotNull
++    Packet packetPlayOutTitle(int fadeIn, int stay, int fadeOut);
++
++    @Contract(pure = true)
++    public abstract @NotNull
++    Packet packetPlayOutEntityEffect(int entityId, @NotNull PotionEffect effect);
++
++    @Contract(pure = true)
++    public abstract @NotNull
++    Packet packetPlayOutAttachEntity(int source, int target);
++
++    @Contract(pure = true)
++    public abstract @NotNull
++    Packet packetPlayOutRemoveEntityEffect(int entityId, @NotNull PotionEffectType type);
++
++    @Contract(pure = true)
++    public abstract @NotNull
++    EntityPacket packetPlayOutEntityStatus(int entityId, @NotNull EntityEffect status);
++
++    @Contract(pure = true)
++    public @NotNull
++    EntityPacket packetPlayOutEntityStatus(@NotNull Entity entity, @NotNull EntityEffect status) {
++        return packetPlayOutEntityStatus(entity.getEntityId(), status);
++    }
++
++    @Contract(pure = true)
++    public abstract @NotNull
++    Packet packetPlayOutCollect(int collected, int collector, int amount);
++
++    @Contract(pure = true)
++    public abstract @NotNull
++    EntityPacket packetPlayOutCamera(int entityId);
++
++    @Contract(pure = true)
++    public @NotNull
++    EntityPacket packetPlayOutCamera(@NotNull Entity target) {
++        return packetPlayOutCamera(target.getEntityId());
++    }
++
++    @Contract(pure = true)
++    public abstract @NotNull
++    OutgoingUpdateAttributes packetPlayOutUpdateAttributes(int entityId);
++
++    @Contract(pure = true)
++    public abstract @NotNull
++    OutgoingUpdateAttributes packetPlayOutUpdateAttributes(int entityId, @NotNull TreeMap<Attribute, AttributeModifier> attributes);
++
++    @Contract(pure = true)
++    public abstract @NotNull
++    OutgoingLightUpdate packetPlayOutLightUpdate(@NotNull Chunk chunk, boolean trustEdgeUpdates);
++
++    @Contract(pure = true)
++    public abstract @NotNull
++    OutgoingLightUpdate packetPlayOutLightUpdate(int chunkX, int chunkZ, boolean trustEdgeUpdates);
++
++    @Contract(pure = true)
++    @See(GameState.class)
++    public abstract @NotNull
++    Packet packetPlayOutGameStateChange(@See(GameState.class) byte action, float value);
++
+     public abstract void send(@NotNull Packet packet, @NotNull NetworkClient... recipients) throws IllegalArgumentException;
+ 
++    @Contract(pure = true)
++    public abstract @NotNull
++    Packet changeSignText(@NotNull Block block, @NotNull Collection<BaseComponent[]> lines);
++
+     protected static class ConversionEntry<X, Y> {
+         @NotNull
+         public final Converter<X, Y> converter;
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/PacketType.java b/src/main/java/mx/kenzie/wellspring/packet/PacketType.java
+index 5d0d093e7fa090dd16d7c903e2a99809042f692c..0c21e7812bd11f91e735443feb46c6067bdac445 100644
+--- a/src/main/java/mx/kenzie/wellspring/packet/PacketType.java
++++ b/src/main/java/mx/kenzie/wellspring/packet/PacketType.java
+@@ -2,9 +2,7 @@ package mx.kenzie.wellspring.packet;
+ 
+ import org.jetbrains.annotations.NotNull;
+ 
+-import java.util.Arrays;
+-import java.util.HashMap;
+-import java.util.Map;
++import java.util.*;
+ 
+ public class PacketType {
+ 
+@@ -138,12 +136,15 @@ public class PacketType {
+         public static PacketType VEHICLE_MOVE;
+         public static PacketType WINDOW_CLICK;
+ 
++        public static final Set<PacketType> INCOMING_TYPES = new HashSet<>();
++
+         public Incoming(@NotNull Class<?> cls, @NotNull PacketConstructor<?> constructor, @NotNull Class<?>... fields) {
+             this(cls, Packet.Direction.INCOMING, constructor, fields);
+         }
+ 
+         Incoming(@NotNull Class<?> cls, @NotNull Packet.Direction direction, @NotNull PacketConstructor<?> constructor, @NotNull Class<?>... fields) {
+             super(cls, direction, constructor, fields);
++            INCOMING_TYPES.add(this);
+         }
+     }
+ 
+@@ -242,12 +243,15 @@ public class PacketType {
+         public static PacketType WORLD_EVENT;
+         public static PacketType WORLD_PARTICLES;
+ 
++        public static final Set<PacketType> OUTGOING_TYPES = new HashSet<>();
++
+         public Outgoing(@NotNull Class<?> cls, @NotNull PacketConstructor<?> constructor, @NotNull Class<?>... fields) {
+             this(cls, Packet.Direction.OUTGOING, constructor, fields);
+         }
+ 
+         Outgoing(@NotNull Class<?> cls, @NotNull Packet.Direction direction, @NotNull PacketConstructor<?> constructor, @NotNull Class<?>... fields) {
+             super(cls, direction, constructor, fields);
++            OUTGOING_TYPES.add(this);
+         }
+     }
+ }
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/data/GameState.java b/src/main/java/mx/kenzie/wellspring/packet/data/GameState.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..3278c89c6f604ca194feabd181b34e55791984f3
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/packet/data/GameState.java
+@@ -0,0 +1,18 @@
++package mx.kenzie.wellspring.packet.data;
++
++public final class GameState {
++
++    public static final byte NO_RESPAWN_POINT = 0;
++    public static final byte END_RAIN = 1;
++    public static final byte START_RAIN = 2;
++    public static final byte CHANGE_GAMEMODE = 3;
++    public static final byte WIN_GAME = 4;
++    public static final byte DEMO_EVENT = 5;
++    public static final byte ARROW_HIT = 6;
++    public static final byte RAIN_CHANGE = 7;
++    public static final byte THUNDER_CHANGE = 8;
++    public static final byte PUFFERFISH_STING = 9;
++    public static final byte ELDER_GUARDIAN = 10;
++    public static final byte RESPAWN_SCREEN = 11;
++
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/meta/MetaField.java b/src/main/java/mx/kenzie/wellspring/packet/data/MetaField.java
+similarity index 99%
+rename from src/main/java/mx/kenzie/wellspring/packet/meta/MetaField.java
+rename to src/main/java/mx/kenzie/wellspring/packet/data/MetaField.java
+index 6946dd7f485ae5617eea057f41dd7bfb7f15a5a4..428bb6497cb2246cec12f9c3c7c0b2d03714d656 100644
+--- a/src/main/java/mx/kenzie/wellspring/packet/meta/MetaField.java
++++ b/src/main/java/mx/kenzie/wellspring/packet/data/MetaField.java
+@@ -1,4 +1,4 @@
+-package mx.kenzie.wellspring.packet.meta;
++package mx.kenzie.wellspring.packet.data;
+ 
+ import mx.kenzie.wellspring.Wellspring;
+ import mx.kenzie.wellspring.nbt.NBTCompound;
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/data/PlayerInfoAction.java b/src/main/java/mx/kenzie/wellspring/packet/data/PlayerInfoAction.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..4f100600751a512b0b6f746cf6761e0f0bf37c11
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/packet/data/PlayerInfoAction.java
+@@ -0,0 +1,13 @@
++package mx.kenzie.wellspring.packet.data;
++
++public final class PlayerInfoAction {
++
++    public static final byte ADD_PLAYER = 0;
++    public static final byte UPDATE_GAME_MODE = 1;
++    public static final byte UPDATE_LATENCY = 2;
++    public static final byte UPDATE_DISPLAY_NAME = 3;
++    public static final byte REMOVE_PLAYER = 4;
++
++    private PlayerInfoAction() {}
++
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/data/TitleAction.java b/src/main/java/mx/kenzie/wellspring/packet/data/TitleAction.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..ec6a0e531bd709caba65ecf0a989899cd76161cb
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/packet/data/TitleAction.java
+@@ -0,0 +1,31 @@
++package mx.kenzie.wellspring.packet.data;
++
++public final class TitleAction {
++
++    /**
++     * This sets the title message.
++     * Use AFTER {@link #TIMES}.
++     */
++    public static final byte TITLE = 0;
++
++    /**
++     * This sets the subtitle message.
++     * Use AFTER {@link #TIMES}.
++     */
++    public static final byte SUBTITLE = 1;
++
++    /**
++     * This sets the action bar message.
++     */
++    public static final byte ACTIONBAR = 2;
++
++    /**
++     * This sets the timings for the message.
++     * Use BEFORE {@link #TITLE} or {@link #SUBTITLE}.
++     */
++    public static final byte TIMES = 3;
++    public static final byte CLEAR = 4;
++    public static final byte RESET = 5;
++
++    private TitleAction() {}
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/specific/EntityPacket.java b/src/main/java/mx/kenzie/wellspring/packet/specific/EntityPacket.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..b0014c4160af21d0a81e6e8dc8e8962ff9da7532
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/packet/specific/EntityPacket.java
+@@ -0,0 +1,20 @@
++package mx.kenzie.wellspring.packet.specific;
++
++import mx.kenzie.wellspring.packet.Packet;
++import org.bukkit.World;
++import org.bukkit.entity.Entity;
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
++
++public interface EntityPacket extends Packet {
++
++    int getEntityId();
++
++    void setEntityId(int id);
++
++    default @Nullable
++    Entity getEntity(@NotNull World world) {
++        return world.getEntityById(getEntityId());
++    }
++
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/specific/IncomingPacket.java b/src/main/java/mx/kenzie/wellspring/packet/specific/IncomingPacket.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..f125f1a0f15cda063564a1760d2b3f92d82cb4a9
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/packet/specific/IncomingPacket.java
+@@ -0,0 +1,18 @@
++package mx.kenzie.wellspring.packet.specific;
++
++import com.destroystokyo.paper.network.NetworkClient;
++import mx.kenzie.wellspring.packet.Packet;
++import org.jetbrains.annotations.NotNull;
++
++public interface IncomingPacket extends Packet {
++
++    @NotNull
++    @Override
++    default Packet.Direction getDirection() {
++        return Packet.Direction.INCOMING;
++    }
++
++    @Override
++    default void send(@NotNull NetworkClient... recipients) {
++    }
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/specific/IncomingSteerVehicle.java b/src/main/java/mx/kenzie/wellspring/packet/specific/IncomingSteerVehicle.java
+index e1ac1f65a32c70608e27fe298d0a74b9362b42f0..db4db59a9182e48dcd95f2721e398539a6cf2c24 100644
+--- a/src/main/java/mx/kenzie/wellspring/packet/specific/IncomingSteerVehicle.java
++++ b/src/main/java/mx/kenzie/wellspring/packet/specific/IncomingSteerVehicle.java
+@@ -13,13 +13,7 @@ import static mx.kenzie.wellspring.packet.specific.IncomingSteerVehicle.Directio
+  * Sent when a player presses movement key input while
+  * mounted.
+  */
+-public interface IncomingSteerVehicle extends Packet {
+-
+-    @NotNull
+-    @Override
+-    default Packet.Direction getDirection() {
+-        return Packet.Direction.INCOMING;
+-    }
++public interface IncomingSteerVehicle extends IncomingPacket {
+ 
+     @NotNull
+     @Override
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/specific/OutgoingEntityMetadata.java b/src/main/java/mx/kenzie/wellspring/packet/specific/OutgoingEntityMetadata.java
+index 92dadd39361b392c3d644ad9428ef877b80212d3..ff06f45e2a8fe6c9a26e866f654ba3910215bffc 100644
+--- a/src/main/java/mx/kenzie/wellspring/packet/specific/OutgoingEntityMetadata.java
++++ b/src/main/java/mx/kenzie/wellspring/packet/specific/OutgoingEntityMetadata.java
+@@ -1,20 +1,13 @@
+ package mx.kenzie.wellspring.packet.specific;
+ 
+-import mx.kenzie.wellspring.packet.Packet;
+ import mx.kenzie.wellspring.packet.PacketType;
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ import org.bukkit.UndefinedNullability;
+ import org.jetbrains.annotations.NotNull;
+ 
+ import java.util.Map;
+ 
+-public interface OutgoingEntityMetadata extends Packet {
+-
+-    @NotNull
+-    @Override
+-    default Packet.Direction getDirection() {
+-        return Direction.OUTGOING;
+-    }
++public interface OutgoingEntityMetadata extends OutgoingPacket, EntityPacket {
+ 
+     @NotNull
+     @Override
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/specific/OutgoingLightUpdate.java b/src/main/java/mx/kenzie/wellspring/packet/specific/OutgoingLightUpdate.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..968b60bdb4ab44828494155df2d5e9579551011e
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/packet/specific/OutgoingLightUpdate.java
+@@ -0,0 +1,211 @@
++package mx.kenzie.wellspring.packet.specific;
++
++import mx.kenzie.wellspring.annotation.Backed;
++import mx.kenzie.wellspring.packet.PacketType;
++import org.bukkit.Chunk;
++import org.bukkit.World;
++import org.jetbrains.annotations.NotNull;
++
++import java.util.List;
++import java.util.concurrent.CompletableFuture;
++
++/**
++ * This is an incredibly complex and dangerous packet to
++ * manipulate. It allows for the sending of light updates
++ * and changes to the client.
++ *
++ * See https://wiki.vg/Protocol#Update_Light for some more
++ * information concerning this this.
++ * BE CAREFUL - wiki.vg is outdated and wrong, so some information
++ * here is incorrect.
++ *
++ * The general idea is that this packet can be used to tell
++ * the client the sky/block light values of every position
++ * within a chunk. This information is given using a complex
++ * system of bits and arrays.
++ *
++ * Users should be familiar with bit manipulation when using
++ * this this.
++ *
++ * @author Moderocky
++ */
++public interface OutgoingLightUpdate extends OutgoingPacket {
++
++    @NotNull
++    @Override
++    default PacketType getType() {
++        return PacketType.Outgoing.LIGHT_UPDATE;
++    }
++
++    int getChunkX();
++
++    int getChunkZ();
++
++    @NotNull
++    Chunk getChunk(@NotNull World world);
++
++    @NotNull
++    CompletableFuture<Chunk> getChunkAsync(@NotNull World world);
++
++    enum LightType {
++        SKY, BLOCK;
++    }
++
++    /**
++     * Gets the currently-specified light level at a position within
++     * this chunk.
++     * @param type the type
++     * @param x x-coord in chunk (0 to 15)
++     * @param y y-coord in chunk (-16 to 271)
++     * @param z z-coord in chunk (0 to 15)
++     * @return the light level (0 to 15)
++     */
++    default int getLightLevel(@NotNull LightType type, int x, int y, int z) {
++        if (x < 0 || x > 15) throw new IllegalArgumentException("X-coordinate outside chunk 0-15 range!");
++        if (z < 0 || z > 15) throw new IllegalArgumentException("Z-coordinate outside chunk 0-15 range!");
++        if (y < -16 || y > 271) throw new IllegalArgumentException("Y-coordinate outside chunk -16-271 range!");
++        final int aY = y + 16, section = (int) ((aY / 288.0F)*18), mask;
++        final byte fX = (byte) x, fY = (byte) (aY & 0x000F), fZ = (byte) z;
++        mask = (type == OutgoingLightUpdate.LightType.SKY) ? this.getSkyMask() : this.getBlockMask();
++        if (!((mask & (1 << section)) > 0)) return 0;
++        final List<byte[]> manifold = (type == OutgoingLightUpdate.LightType.SKY) ? this.skyUpdates() : this.blockUpdates();
++        int get = 0;
++        for (int i = 0; i < 18; i++) {
++            if (i == section) break;
++            if ((mask & (1 << i)) > 0) get++;
++        }
++        final byte[] bloc = manifold.get(get);
++        final float index = ((fX + fZ*16 + fY*256)/2.0F);
++        final boolean top = index != (int) index;
++        if (top) return (bloc[(int) index] & 0xF0) >> 4;
++        else return bloc[(int) index] & 0x0f;
++    }
++
++    /**
++     * Sets the light level at a position within this chunk.
++     * If there was no proposed entry for this ChunkSection, a
++     * new entry will be created.
++     *
++     * @param type the type, SKY or BLOCK light
++     * @param x x-coord in chunk (0 to 15)
++     * @param y y-coord in chunk (-16 to 271)
++     * @param z z-coord in chunk (0 to 15)
++     */
++    default void setLightLevel(@NotNull LightType type, int x, int y, int z, int level) {
++        if (level < 0 || level > 15) throw new IllegalArgumentException("Light level outside 0-15 range!");
++        if (x < 0 || x > 15) throw new IllegalArgumentException("X-coordinate outside chunk 0-15 range!");
++        if (z < 0 || z > 15) throw new IllegalArgumentException("Z-coordinate outside chunk 0-15 range!");
++        if (y < -16 || y > 271) throw new IllegalArgumentException("Y-coordinate outside chunk -16-271 range!");
++        final int aY = y + 16, section = (int) ((aY / 288.0F)*18), mask;
++        final byte fX = (byte) x, fY = (byte) (aY & 0x000F), fZ = (byte) z;
++        mask = (type == OutgoingLightUpdate.LightType.SKY) ? this.getSkyMask() : this.getBlockMask();
++        final List<byte[]> manifold = (type == OutgoingLightUpdate.LightType.SKY) ? this.skyUpdates() : this.blockUpdates();
++        final byte[] bloc;
++        if ((mask & (1 << section)) > 0) {
++            int get = 0;
++            for (int i = 0; i < 18; i++) {
++                if (i == section) break;
++                if ((mask & (1 << i)) > 0) get++;
++            }
++            bloc = manifold.get(get);
++        } else {
++            int get = 0;
++            for (int i = 0; i < 18; i++) {
++                if (i == section) break;
++                if ((mask & (1 << i)) > 0) get++;
++            }
++            bloc = new byte[2048];
++            manifold.add(get, bloc);
++            if (type == OutgoingLightUpdate.LightType.SKY) this.setSkyMask(mask | (1 << section));
++            else this.setBlockMask(mask | (1 << section));
++        }
++        final float index = ((fX + fZ*16 + fY*256)/2.0F);
++        final boolean top = index != (int) index;
++        if (!top) {
++            bloc[(int) index] &= 0xF0;
++            bloc[(int) index] |= (level & 0x0F);
++        } else {
++            bloc[(int) index] &= 0x0F;
++            bloc[(int) index] |= ((level << 4) & 0xF0);
++        }
++        final int empty;
++        if (type == OutgoingLightUpdate.LightType.SKY) empty = this.getEmptySkyMask();
++        else empty = this.getEmptyBlockMask();
++        if ((empty & (1 << section)) > 0) {
++            if (type == OutgoingLightUpdate.LightType.SKY)
++                this.setEmptySkyMask(empty ^ (1 << section));
++            else
++                this.setEmptyBlockMask(empty ^ (1 << section));
++        }
++    }
++
++    /**
++     * This is to do with light spilling over from adjacent chunks.
++     * @return boo
++     */
++    boolean trustEdgeUpdates();
++
++    /**
++     * This is to do with light spilling over from adjacent chunks.
++     * @param boo true/false
++     */
++    void setTrustEdgeUpdates(boolean boo);
++
++    /**
++     * Rather than an int, this is instead four bytes that provide a bit-mask
++     * for every sky block with a nonzero light value.
++     *
++     * For any 1-value bit, the corresponding array must be included in
++     * {@link #skyUpdates()}.
++     * @return the sky-mask
++     */
++    int getSkyMask();
++
++    void setSkyMask(int mask);
++
++    /**
++     * Rather than an int, this is instead four bytes that provide a bit-mask
++     * for every block with a nonzero light value.
++     *
++     * For any 1-value bit, the corresponding array must be included in
++     * {@link #blockUpdates()}.
++     * @return the block-mask
++     */
++    int getBlockMask();
++
++    void setBlockMask(int mask);
++
++    /**
++     * @return every space with zero sky light
++     */
++    int getEmptySkyMask();
++
++    void setEmptySkyMask(int mask);
++
++    /**
++     * @return every space with zero block light
++     */
++    int getEmptyBlockMask();
++
++    void setEmptyBlockMask(int mask);
++
++    /**
++     * A collection of bytes. This is backed by the original list.
++     * Every four bits provide the light level for a block.
++     *
++     * @return the sky updates
++     */
++    @Backed
++    @NotNull
++    List<byte[]> skyUpdates();
++
++    /**
++     * A collection of bytes. This is backed by the original list.
++     * Every four bits provide the light level for a block.
++     *
++     * @return the block updates
++     */
++    @Backed
++    @NotNull
++    List<byte[]> blockUpdates();
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/specific/OutgoingPacket.java b/src/main/java/mx/kenzie/wellspring/packet/specific/OutgoingPacket.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..56a6f14040b56ca5a7f2ba79da54205e8830dd3f
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/packet/specific/OutgoingPacket.java
+@@ -0,0 +1,20 @@
++package mx.kenzie.wellspring.packet.specific;
++
++import com.destroystokyo.paper.network.NetworkClient;
++import mx.kenzie.wellspring.packet.Packet;
++import org.bukkit.Bukkit;
++import org.jetbrains.annotations.NotNull;
++
++public interface OutgoingPacket extends Packet {
++
++    @NotNull
++    @Override
++    default Packet.Direction getDirection() {
++        return Direction.OUTGOING;
++    }
++
++    @Override
++    default void send(@NotNull NetworkClient... recipients) {
++        Bukkit.getPacketFactory().send(this, recipients);
++    }
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/specific/OutgoingUpdateAttributes.java b/src/main/java/mx/kenzie/wellspring/packet/specific/OutgoingUpdateAttributes.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..2c9f78edfe6c2f64f7edd62b7d1a12429ad623fb
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/packet/specific/OutgoingUpdateAttributes.java
+@@ -0,0 +1,25 @@
++package mx.kenzie.wellspring.packet.specific;
++
++import mx.kenzie.wellspring.packet.Packet;
++import mx.kenzie.wellspring.packet.PacketType;
++import org.bukkit.attribute.Attribute;
++import org.bukkit.attribute.AttributeModifier;
++import org.jetbrains.annotations.NotNull;
++
++public interface OutgoingUpdateAttributes extends OutgoingPacket, EntityPacket {
++
++    @NotNull
++    @Override
++    default PacketType getType() {
++        return PacketType.Outgoing.ENTITY_METADATA;
++    }
++
++    void add(@NotNull Attribute attribute, double defaultValue, @NotNull AttributeModifier... modifiers);
++
++    void remove(@NotNull Attribute attribute);
++
++    boolean has(@NotNull Attribute attribute);
++
++    int attributeCount();
++
++}
+diff --git a/src/main/java/org/bukkit/EntityEffect.java b/src/main/java/org/bukkit/EntityEffect.java
+index 0d8ee0cb1aae826fae0a920cdbf4152550c7375c..be9150e08342a7ae94c15511aafdeb8149d8daf6 100644
+--- a/src/main/java/org/bukkit/EntityEffect.java
++++ b/src/main/java/org/bukkit/EntityEffect.java
+@@ -210,7 +210,19 @@ public enum EntityEffect {
+     /**
+      * Entity breaks item in boot slot
+      */
+-    BREAK_EQUIPMENT_BOOTS(52, LivingEntity.class);
++    BREAK_EQUIPMENT_BOOTS(52, LivingEntity.class),
++    /**
++     * Spawns honey block slide particles at the entity's feet.
++     */
++    HONEY_SLIDE_PARTICLES(53, Entity.class),
++    /**
++     * Spawns honey block slide particles at the entity's feet.
++     */
++    HONEY_SLIDE_PARTICLES_LIVING(54, LivingEntity.class),
++    /**
++     * Swaps the hand items of the entity.
++     */
++    SWAP_HAND_ITEMS(55, LivingEntity.class);
+ 
+     private final byte data;
+     private final Class<? extends Entity> applicable;
+diff --git a/src/main/java/org/bukkit/World.java b/src/main/java/org/bukkit/World.java
+index e800b7c422842667ad751d2c470cc9b196ee3ec8..87fece99582457ae156f00dc46e04ddcdfb66681 100644
+--- a/src/main/java/org/bukkit/World.java
++++ b/src/main/java/org/bukkit/World.java
+@@ -3561,6 +3561,8 @@ public interface World extends PluginMessageRecipient, Metadatable, Attachable,
+     }
+ 
+     void setCustomBossNBT(@NotNull NBTCompound compound);
++
++    @Nullable Entity getEntityById(int id);
+     // Kenzie end
+ 
+ }
+diff --git a/src/main/java/org/bukkit/block/Block.java b/src/main/java/org/bukkit/block/Block.java
+index 1b13d8d86a32b16cf6db97dc9a7f81346da387bb..51ad1f0806953187da8ad878795f4f37023ce297 100644
+--- a/src/main/java/org/bukkit/block/Block.java
++++ b/src/main/java/org/bukkit/block/Block.java
+@@ -602,6 +602,24 @@ public interface Block extends Metadatable, NBTHolder { // Kenzie
+     @NotNull
+     @Override
+     NBTCompound getNBT();
++
++    /**
++     * Provides the block's x-coordinate relative to its chunk.
++     * This will be between 0 and 15, inclusive.
++     * @return the last 4 bits of the block's x coordinate
++     */
++    default int getChunkRelativeX() {
++        return this.getX() & 0x000F;
++    }
++
++    /**
++     * Provides the block's z-coordinate relative to its chunk.
++     * This will be between 0 and 15, inclusive.
++     * @return the last 4 bits of the block's z coordinate
++     */
++    default int getChunkRelativeZ() {
++        return this.getZ() & 0x000F;
++    }
+     // Kenzie end
+     
+ }

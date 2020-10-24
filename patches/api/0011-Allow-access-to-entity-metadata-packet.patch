@@ -5,7 +5,6 @@ Subject: [PATCH] Allow access to entity metadata packet.
 
 Expose meta-fields and the outgoing metadata packet.
 
-
 Missed extending packet.
 
 diff --git a/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java b/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java
