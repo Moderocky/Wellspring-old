@@ -1,0 +1,3538 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Sat, 24 Oct 2020 11:54:50 +0100
+Subject: [PATCH] Add new packet factory methods.
+
+Squash meta field change.
+
+Squash new packet factory methods.
+
+Squash.
+
+Light engine packets.
+
+
+Fix deobf. Squash.
+
+
+Fix deobf. Squash.
+
+
+Fix deobf. Squash.
+
+
+Fix deobf. Squash.
+
+
+Fix error in initialiser.
+
+
+Add byte array cleaner.
+
+
+Squash game states and light fixes.
+
+diff --git a/src/main/java/mx/kenzie/server/CraftBridge.java b/src/main/java/mx/kenzie/server/CraftBridge.java
+index 78b7a48868b7f5266fb14d00c519fd4dedcbfd29..ea159e365a5783a441b1d5c36c16f90ab4f4b49a 100644
+--- a/src/main/java/mx/kenzie/server/CraftBridge.java
++++ b/src/main/java/mx/kenzie/server/CraftBridge.java
+@@ -2,7 +2,7 @@ package mx.kenzie.server;
+ 
+ import mx.kenzie.wellspring.Wellspring;
+ import mx.kenzie.wellspring.nbt.NBTCompound;
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ import mx.kenzie.wellspring.structure.*;
+ import net.md_5.bungee.api.chat.BaseComponent;
+ import net.md_5.bungee.chat.ComponentSerializer;
+@@ -11,7 +11,6 @@ import org.bukkit.Location;
+ import org.bukkit.NamespacedKey;
+ import org.bukkit.attribute.Attribute;
+ import org.bukkit.block.BlockFace;
+-import org.bukkit.block.data.BlockData;
+ import org.bukkit.craftbukkit.CraftWorld;
+ import org.bukkit.craftbukkit.block.data.CraftBlockData;
+ import org.bukkit.craftbukkit.entity.CraftEntity;
+@@ -21,12 +20,10 @@ import org.bukkit.enchantments.Enchantment;
+ import org.bukkit.entity.EntityType;
+ import org.bukkit.entity.Pose;
+ import org.bukkit.entity.Villager;
+-import org.bukkit.util.EulerAngle;
+ import org.bukkit.util.Vector;
+ 
+ import java.io.InputStream;
+ import java.util.HashMap;
+-import java.util.Iterator;
+ import java.util.Map;
+ 
+ public class CraftBridge extends Wellspring.Bridge {
+diff --git a/src/main/java/mx/kenzie/server/packet/PacketFactoryImpl.java b/src/main/java/mx/kenzie/server/packet/PacketFactoryImpl.java
+index 4b3026edfe1af1c1d6dd697aa3820ef47868fbe3..5c55404ad9594cf4c9eefd6eeec7f83743db5c35 100644
+--- a/src/main/java/mx/kenzie/server/packet/PacketFactoryImpl.java
++++ b/src/main/java/mx/kenzie/server/packet/PacketFactoryImpl.java
+@@ -2,33 +2,42 @@ package mx.kenzie.server.packet;
+ 
+ import com.destroystokyo.paper.network.NetworkClient;
+ import com.destroystokyo.paper.network.PaperNetworkClient;
+-import mx.kenzie.server.CraftBridge;
++import com.destroystokyo.paper.profile.PlayerProfile;
+ import mx.kenzie.wellspring.Wellspring;
+-import mx.kenzie.wellspring.conversion.Converter;
++import mx.kenzie.wellspring.annotation.See;
+ import mx.kenzie.wellspring.nbt.NBTCompound;
+ import mx.kenzie.wellspring.packet.PacketFactory;
+ import mx.kenzie.wellspring.packet.PacketType;
++import mx.kenzie.wellspring.packet.data.GameState;
++import mx.kenzie.wellspring.packet.data.TitleAction;
++import mx.kenzie.wellspring.packet.specific.EntityPacket;
+ import mx.kenzie.wellspring.packet.specific.OutgoingEntityMetadata;
++import mx.kenzie.wellspring.packet.specific.OutgoingLightUpdate;
++import mx.kenzie.wellspring.packet.specific.OutgoingUpdateAttributes;
+ import mx.kenzie.wellspring.tile.TileEntity;
+ import mx.kenzie.wellspring.tile.TileType;
+ import net.md_5.bungee.api.ChatMessageType;
+ import net.md_5.bungee.api.chat.BaseComponent;
+ import net.md_5.bungee.chat.ComponentSerializer;
+ import net.minecraft.server.*;
+-import org.bukkit.Location;
+-import org.bukkit.NamespacedKey;
++import org.bukkit.*;
++import org.bukkit.Chunk;
++import org.bukkit.Material;
+ import org.bukkit.advancement.Advancement;
+ import org.bukkit.advancement.AdvancementProgress;
++import org.bukkit.attribute.Attribute;
++import org.bukkit.attribute.AttributeModifier;
+ import org.bukkit.block.data.BlockData;
+-import org.bukkit.craftbukkit.CraftServer;
+ import org.bukkit.craftbukkit.advancement.CraftAdvancement;
+ import org.bukkit.craftbukkit.advancement.CraftAdvancementProgress;
++import org.bukkit.craftbukkit.block.data.CraftBlockData;
+ import org.bukkit.craftbukkit.entity.CraftEntity;
+ import org.bukkit.craftbukkit.entity.CraftPlayer;
+ import org.bukkit.craftbukkit.util.CraftMagicNumbers;
+ import org.bukkit.entity.Entity;
+ import org.bukkit.entity.EntityType;
+-import org.bukkit.entity.Player;
++import org.bukkit.potion.PotionEffect;
++import org.bukkit.potion.PotionEffectType;
+ import org.bukkit.util.Vector;
+ 
+ import java.lang.reflect.Field;
+@@ -370,7 +379,7 @@ public class PacketFactoryImpl extends PacketFactory {
+ 
+     @Override
+     public OutgoingEntityMetadata playOutEntityMetadata(Entity entity) {
+-        return (OutgoingEntityMetadata) new PacketPlayOutEntityMetadata(entity.getEntityId(), ((CraftEntity) entity).getHandle().getDataWatcher(), false);
++        return new PacketPlayOutEntityMetadata(entity.getEntityId(), ((CraftEntity) entity).getHandle().getDataWatcher(), false);
+     }
+ 
+     @Override
+@@ -400,11 +409,107 @@ public class PacketFactoryImpl extends PacketFactory {
+         return new PacketPlayOutBlockBreakAnimation(id, position, stage);
+     }
+ 
++    @Override
++    public mx.kenzie.wellspring.packet.Packet packetPlayOutBlockAction(Location location, Material material, int id, int parameter) {
++        return new PacketPlayOutBlockAction(new BlockPosition(location.getBlockX(), location.getBlockY(), location.getBlockZ()), IRegistry.BLOCK.get(MinecraftKey.a(material.getKey().toString())), id, parameter);
++    }
++
++    @Override
++    public mx.kenzie.wellspring.packet.Packet packetPlayOutBlockChange(Location location, BlockData data) {
++        return new PacketPlayOutBlockChange(new BlockPosition(location.getBlockX(), location.getBlockY(), location.getBlockZ()), ((CraftBlockData) data).getState());
++    }
++
++    @Override
++    public mx.kenzie.wellspring.packet.Packet packetPlayOutPlayerInfo(PlayerProfile profile, byte action, int ping, GameMode mode, BaseComponent[] name) {
++        return new PacketPlayOutPlayerInfo(action, profile, ping, EnumGamemode.valueOf(mode.name()), Wellspring.bridge().typeInputConversion(name));
++    }
++
++    @Override
++    public mx.kenzie.wellspring.packet.Packet packetPlayOutNamedEntitySpawn(int id, UUID uuid, Location location) {
++        return new PacketPlayOutNamedEntitySpawn(id, uuid, location.getX(), location.getY(), location.getZ(), location.getYaw(), location.getPitch());
++    }
++
+     @Override
+     public mx.kenzie.wellspring.packet.Packet packetPlayOutChat(BaseComponent[] message, ChatMessageType type) {
+         return new PacketPlayOutChat(Wellspring.bridge().typeInputConversion(message), net.minecraft.server.ChatMessageType.valueOf(type.name()), null);
+     }
+ 
++    @Override
++    public mx.kenzie.wellspring.packet.Packet packetPlayOutTitle(@See(TitleAction.class) byte action, BaseComponent[] message) {
++        return new PacketPlayOutTitle(PacketPlayOutTitle.EnumTitleAction.values()[action], Wellspring.bridge().typeInputConversion(message));
++    }
++
++    @Override
++    public mx.kenzie.wellspring.packet.@See(TitleAction.class) Packet packetPlayOutTitle(@See(TitleAction.class) byte action) {
++        return new PacketPlayOutTitle(PacketPlayOutTitle.EnumTitleAction.values()[action], null);
++    }
++
++    @Override
++    @See(TitleAction.class)
++    public mx.kenzie.wellspring.packet.Packet packetPlayOutTitle(int fadeIn, int stay, int fadeOut) {
++        return new PacketPlayOutTitle(PacketPlayOutTitle.EnumTitleAction.TIMES, (BaseComponent[]) null, fadeIn, stay, fadeOut);
++    }
++
++    @Override
++    public mx.kenzie.wellspring.packet.Packet packetPlayOutEntityEffect(int entityId, PotionEffect effect) {
++        final MobEffect eff = new MobEffect(MobEffectList.fromId(effect.getType().getId()), effect.getDuration(), effect.getAmplifier(), effect.isAmbient(), effect.hasParticles(), effect.hasIcon());
++        return new PacketPlayOutEntityEffect(entityId, eff);
++    }
++
++    @Override
++    public mx.kenzie.wellspring.packet.Packet packetPlayOutRemoveEntityEffect(int entityId, PotionEffectType type) {
++        return new PacketPlayOutRemoveEntityEffect(entityId, IRegistry.MOB_EFFECT.fromId(type.getId()));
++    }
++
++    @Override
++    public mx.kenzie.wellspring.packet.Packet packetPlayOutAttachEntity(int source, int target) {
++        return new PacketPlayOutAttachEntity(source, target);
++    }
++
++    @Override
++    public mx.kenzie.wellspring.packet.Packet packetPlayOutCollect(int collected, int collector, int amount) {
++        return new PacketPlayOutCollect(collected, collector, amount);
++    }
++
++    @Override
++    public OutgoingUpdateAttributes packetPlayOutUpdateAttributes(int entityId, TreeMap<Attribute, AttributeModifier> attributes) {
++        OutgoingUpdateAttributes packet = new PacketPlayOutUpdateAttributes(entityId);
++        for (Map.Entry<Attribute, AttributeModifier> entry : attributes.entrySet()) {
++            packet.add(entry.getKey(), entry.getValue().getAmount(), entry.getValue());
++        }
++        return packet;
++    }
++
++    @Override
++    public OutgoingUpdateAttributes packetPlayOutUpdateAttributes(int entityId) {
++        return new PacketPlayOutUpdateAttributes(entityId);
++    }
++
++    @Override
++    public EntityPacket packetPlayOutEntityStatus(int entityId, EntityEffect status) {
++        return new PacketPlayOutEntityStatus(entityId, status.getData());
++    }
++
++    @Override
++    public OutgoingLightUpdate packetPlayOutLightUpdate(int chunkX, int chunkZ, boolean trustEdgeUpdates) {
++        return new PacketPlayOutLightUpdate(chunkX, chunkZ, trustEdgeUpdates);
++    }
++
++    @Override
++    public OutgoingLightUpdate packetPlayOutLightUpdate(Chunk chunk, boolean trustEdgeUpdates) {
++        return new PacketPlayOutLightUpdate(chunk.getX(), chunk.getZ(), trustEdgeUpdates);
++    }
++
++    @Override
++    public EntityPacket packetPlayOutCamera(int entityId) {
++        return new PacketPlayOutCamera(entityId);
++    }
++
++    @Override
++    public @See(GameState.class) mx.kenzie.wellspring.packet.Packet packetPlayOutGameStateChange(@See(GameState.class) byte action, float value) {
++        return new PacketPlayOutGameStateChange(action, value);
++    }
++
+     @Override
+     public mx.kenzie.wellspring.packet.Packet createFrom(PacketType type, Object... fieldInputs) {
+         try {
+@@ -427,6 +532,21 @@ public class PacketFactoryImpl extends PacketFactory {
+         }
+     }
+ 
++    @Override
++    public mx.kenzie.wellspring.packet.Packet changeSignText(org.bukkit.block.Block block, Collection<BaseComponent[]> orig) {
++        IChatBaseComponent[] lines = new IChatBaseComponent[4];
++        int n = 0;
++        for (BaseComponent[] line : orig) {
++            lines[n] = IChatBaseComponent.ChatSerializer.jsonToComponent(ComponentSerializer.toString(line));
++        }
++        NBTTagCompound compound = new NBTTagCompound();
++        for (int i = 0; i < 4; ++i) {
++            String s = IChatBaseComponent.ChatSerializer.a(lines[i]);
++            compound.setString("Text" + (i + 1), s);
++        }
++        return packetPlayOutTileEntityData(block, TileType.SIGN, compound);
++    }
++
+     @Override
+     public void send(mx.kenzie.wellspring.packet.Packet packet, NetworkClient... recipients) throws IllegalArgumentException {
+         for (NetworkClient recipient : recipients) {
+diff --git a/src/main/java/net/minecraft/server/DataWatcherObject.java b/src/main/java/net/minecraft/server/DataWatcherObject.java
+index b1105c59973d5a17dd8171665fd988ff2b476112..7ed4a2ae011d91c2e93cce7b9afbdecc4e54da7b 100644
+--- a/src/main/java/net/minecraft/server/DataWatcherObject.java
++++ b/src/main/java/net/minecraft/server/DataWatcherObject.java
+@@ -1,7 +1,6 @@
+ package net.minecraft.server;
+ 
+-import mx.kenzie.wellspring.packet.meta.MetaField;
+-import org.bukkit.entity.Entity;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ 
+ public class DataWatcherObject<T> extends MetaField<T> {
+ 
+diff --git a/src/main/java/net/minecraft/server/Entity.java b/src/main/java/net/minecraft/server/Entity.java
+index 6f04337208f454b1c3f11f38d07b36d0827e74bb..0e2f59b594c79f298c5adb0aa447ec839c139a8e 100644
+--- a/src/main/java/net/minecraft/server/Entity.java
++++ b/src/main/java/net/minecraft/server/Entity.java
+@@ -20,7 +20,7 @@ import java.util.stream.Stream;
+ import javax.annotation.Nullable;
+ 
+ import mx.kenzie.wellspring.event.EntityLandEvent;
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+ 
+diff --git a/src/main/java/net/minecraft/server/EntityAgeable.java b/src/main/java/net/minecraft/server/EntityAgeable.java
+index 13ece318933e3086a4c319c5e01b32e429b2813b..17741085193c5c356e39b3630971a32fc3866496 100644
+--- a/src/main/java/net/minecraft/server/EntityAgeable.java
++++ b/src/main/java/net/minecraft/server/EntityAgeable.java
+@@ -1,6 +1,6 @@
+ package net.minecraft.server;
+ 
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ 
+ import javax.annotation.Nullable;
+ 
+diff --git a/src/main/java/net/minecraft/server/EntityAreaEffectCloud.java b/src/main/java/net/minecraft/server/EntityAreaEffectCloud.java
+index 3f287f21be57320732f7056380800ac08544f0c5..fe3b165d9264b3261659198be95b851d0308a63c 100644
+--- a/src/main/java/net/minecraft/server/EntityAreaEffectCloud.java
++++ b/src/main/java/net/minecraft/server/EntityAreaEffectCloud.java
+@@ -12,7 +12,7 @@ import java.util.Map.Entry;
+ import java.util.UUID;
+ import javax.annotation.Nullable;
+ 
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+ // CraftBukkit start
+diff --git a/src/main/java/net/minecraft/server/EntityArmorStand.java b/src/main/java/net/minecraft/server/EntityArmorStand.java
+index 5ac7f2b86ce9a1153835f250253fa5a98d53d20f..0698a02125a15fb5ef8a44d8b8d83dac182fb071 100644
+--- a/src/main/java/net/minecraft/server/EntityArmorStand.java
++++ b/src/main/java/net/minecraft/server/EntityArmorStand.java
+@@ -6,7 +6,7 @@ import java.util.function.Predicate;
+ import javax.annotation.Nullable;
+ 
+ // CraftBukkit start
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ import org.bukkit.inventory.EquipmentSlot;
+ import org.bukkit.craftbukkit.CraftEquipmentSlot;
+ import org.bukkit.craftbukkit.inventory.CraftItemStack;
+diff --git a/src/main/java/net/minecraft/server/EntityArrow.java b/src/main/java/net/minecraft/server/EntityArrow.java
+index 78d528012ffec5c9263bb0b10ba23bba2076849d..c09b84a2c409c97d4ccc33d99e7d7e936e7723a4 100644
+--- a/src/main/java/net/minecraft/server/EntityArrow.java
++++ b/src/main/java/net/minecraft/server/EntityArrow.java
+@@ -9,7 +9,7 @@ import java.util.List;
+ import javax.annotation.Nullable;
+ 
+ // CraftBukkit start
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ import org.bukkit.event.entity.EntityCombustByEntityEvent;
+ import org.bukkit.event.player.PlayerPickupArrowEvent;
+ // CraftBukkit end
+diff --git a/src/main/java/net/minecraft/server/EntityBat.java b/src/main/java/net/minecraft/server/EntityBat.java
+index 1126fd3736d15c656d0cc379406919d14b82b0b0..c698b3789ea75a1f38b3918091429a6bd2e3be08 100644
+--- a/src/main/java/net/minecraft/server/EntityBat.java
++++ b/src/main/java/net/minecraft/server/EntityBat.java
+@@ -5,7 +5,7 @@ import java.time.temporal.ChronoField;
+ import java.util.Random;
+ import javax.annotation.Nullable;
+ 
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ import org.bukkit.craftbukkit.event.CraftEventFactory; // CraftBukkit
+ 
+ public class EntityBat extends EntityAmbient {
+diff --git a/src/main/java/net/minecraft/server/EntityBee.java b/src/main/java/net/minecraft/server/EntityBee.java
+index 07d167555b328a093be838f5995c05be6fd2eda9..ca18a5884bad4dbb1ec587835671bc46d7d3db33 100644
+--- a/src/main/java/net/minecraft/server/EntityBee.java
++++ b/src/main/java/net/minecraft/server/EntityBee.java
+@@ -1,7 +1,7 @@
+ package net.minecraft.server;
+ 
+ import com.google.common.collect.Lists;
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ 
+ import java.util.Comparator;
+ import java.util.EnumSet;
+diff --git a/src/main/java/net/minecraft/server/EntityBoat.java b/src/main/java/net/minecraft/server/EntityBoat.java
+index 8bd54a42e9b2e27a7cb34f753a2bc858e012b451..3bb7a836cb462cedf00cf94a88c5d7b9d8deede7 100644
+--- a/src/main/java/net/minecraft/server/EntityBoat.java
++++ b/src/main/java/net/minecraft/server/EntityBoat.java
+@@ -5,7 +5,7 @@ import java.util.List;
+ import javax.annotation.Nullable;
+ 
+ // CraftBukkit start
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ import org.bukkit.Location;
+ import org.bukkit.entity.Vehicle;
+ import org.bukkit.event.vehicle.VehicleDamageEvent;
+diff --git a/src/main/java/net/minecraft/server/EntityCat.java b/src/main/java/net/minecraft/server/EntityCat.java
+index f8978abc9ffbbd4b2384e5ea029aa3b231cdc080..58314b46fb1119aa685da491d273576788d3b775 100644
+--- a/src/main/java/net/minecraft/server/EntityCat.java
++++ b/src/main/java/net/minecraft/server/EntityCat.java
+@@ -1,7 +1,7 @@
+ package net.minecraft.server;
+ 
+ import com.google.common.collect.Maps;
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ 
+ import java.util.Iterator;
+ import java.util.List;
+diff --git a/src/main/java/net/minecraft/server/EntityCreeper.java b/src/main/java/net/minecraft/server/EntityCreeper.java
+index dae0d1abce55da3acd4e9e226c51a1c44920a2dc..096b3b7584a103c63634542393ff2cc4008b6f5f 100644
+--- a/src/main/java/net/minecraft/server/EntityCreeper.java
++++ b/src/main/java/net/minecraft/server/EntityCreeper.java
+@@ -3,7 +3,7 @@ package net.minecraft.server;
+ import java.util.Collection;
+ import java.util.Iterator;
+ // CraftBukkit start
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ import org.bukkit.craftbukkit.event.CraftEventFactory;
+ import org.bukkit.event.entity.CreatureSpawnEvent;
+ import org.bukkit.event.entity.ExplosionPrimeEvent;
+diff --git a/src/main/java/net/minecraft/server/EntityDolphin.java b/src/main/java/net/minecraft/server/EntityDolphin.java
+index c0d21d46093631b421ce1ed07e50307c182c234c..41069836e2d0466b50b42d6b007901b0fb0e3361 100644
+--- a/src/main/java/net/minecraft/server/EntityDolphin.java
++++ b/src/main/java/net/minecraft/server/EntityDolphin.java
+@@ -1,6 +1,6 @@
+ package net.minecraft.server;
+ 
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ 
+ import java.util.EnumSet;
+ import java.util.List;
+diff --git a/src/main/java/net/minecraft/server/EntityEnderCrystal.java b/src/main/java/net/minecraft/server/EntityEnderCrystal.java
+index a552a34fa1866f28cf697bf22d38e994ceb92f46..4cfba6be3d805be0d2a32c1349ee715124105869 100644
+--- a/src/main/java/net/minecraft/server/EntityEnderCrystal.java
++++ b/src/main/java/net/minecraft/server/EntityEnderCrystal.java
+@@ -4,7 +4,7 @@ import java.util.Optional;
+ import javax.annotation.Nullable;
+ 
+ // CraftBukkit start
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ import org.bukkit.craftbukkit.event.CraftEventFactory;
+ import org.bukkit.event.entity.ExplosionPrimeEvent;
+ // CraftBukkit end
+diff --git a/src/main/java/net/minecraft/server/EntityEnderDragon.java b/src/main/java/net/minecraft/server/EntityEnderDragon.java
+index 1002501d4185cfcd58030706efb37a5cd3c869d0..76c04cf884a19e23c54c5c2735d8c09a06ebcefb 100644
+--- a/src/main/java/net/minecraft/server/EntityEnderDragon.java
++++ b/src/main/java/net/minecraft/server/EntityEnderDragon.java
+@@ -5,7 +5,7 @@ import java.util.Iterator;
+ import java.util.List;
+ import javax.annotation.Nullable;
+ 
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+ // CraftBukkit start
+diff --git a/src/main/java/net/minecraft/server/EntityEnderSignal.java b/src/main/java/net/minecraft/server/EntityEnderSignal.java
+index 62c5ef7e28c729c667166c7f83d812861c699ba2..a7326339723f80542527fc83e3ec8e95fc6fd81b 100644
+--- a/src/main/java/net/minecraft/server/EntityEnderSignal.java
++++ b/src/main/java/net/minecraft/server/EntityEnderSignal.java
+@@ -1,6 +1,6 @@
+ package net.minecraft.server;
+ 
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ 
+ public class EntityEnderSignal extends Entity {
+ 
+diff --git a/src/main/java/net/minecraft/server/EntityEnderman.java b/src/main/java/net/minecraft/server/EntityEnderman.java
+index 4a844ab920918cc0880fa7d47e4e3b7b16c7e92e..d2bd6bb4313fdceb134167a2c265c6e7f6a2ce75 100644
+--- a/src/main/java/net/minecraft/server/EntityEnderman.java
++++ b/src/main/java/net/minecraft/server/EntityEnderman.java
+@@ -3,7 +3,7 @@ package net.minecraft.server;
+ import java.util.EnumSet;
+ import java.util.Optional;
+ import com.destroystokyo.paper.event.entity.EndermanEscapeEvent; // Paper
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ 
+ import java.util.Random;
+ import java.util.UUID;
+diff --git a/src/main/java/net/minecraft/server/EntityFallingBlock.java b/src/main/java/net/minecraft/server/EntityFallingBlock.java
+index 8c32aa826581c9bdd0c62aba2f9cee1ea81f1b2f..ce60a8886119f4fd0f1ada499740ea1a9a91e702 100644
+--- a/src/main/java/net/minecraft/server/EntityFallingBlock.java
++++ b/src/main/java/net/minecraft/server/EntityFallingBlock.java
+@@ -4,7 +4,7 @@ import com.google.common.collect.Lists;
+ import java.util.Iterator;
+ import java.util.List;
+ 
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ import org.bukkit.craftbukkit.event.CraftEventFactory; // CraftBukkit
+ 
+ public class EntityFallingBlock extends Entity {
+diff --git a/src/main/java/net/minecraft/server/EntityFireballFireball.java b/src/main/java/net/minecraft/server/EntityFireballFireball.java
+index 7647659c96fb4a4b2b1deeabb920dd8cc471a390..a63bd5f4f5f25f9eab187e467fe435f62985fc98 100644
+--- a/src/main/java/net/minecraft/server/EntityFireballFireball.java
++++ b/src/main/java/net/minecraft/server/EntityFireballFireball.java
+@@ -1,6 +1,6 @@
+ package net.minecraft.server;
+ 
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ 
+ public abstract class EntityFireballFireball extends EntityFireball {
+ 
+diff --git a/src/main/java/net/minecraft/server/EntityFireworks.java b/src/main/java/net/minecraft/server/EntityFireworks.java
+index 32abffea4a59e313804eebe8098f49329a9752a6..a65cb0f5ce05eae3571e1daa1f7de7b144883e4a 100644
+--- a/src/main/java/net/minecraft/server/EntityFireworks.java
++++ b/src/main/java/net/minecraft/server/EntityFireworks.java
+@@ -5,7 +5,7 @@ import java.util.List;
+ import java.util.OptionalInt;
+ import javax.annotation.Nullable;
+ 
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ import org.bukkit.craftbukkit.event.CraftEventFactory; // CraftBukkit
+ 
+ public class EntityFireworks extends IProjectile {
+diff --git a/src/main/java/net/minecraft/server/EntityFish.java b/src/main/java/net/minecraft/server/EntityFish.java
+index 2525e40869e48294b6a6c6bd246935bc90d8cc5d..5b056e18d89552cc4a4075fa29c027f25f47446b 100644
+--- a/src/main/java/net/minecraft/server/EntityFish.java
++++ b/src/main/java/net/minecraft/server/EntityFish.java
+@@ -1,6 +1,6 @@
+ package net.minecraft.server;
+ 
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ 
+ import java.util.Random;
+ import java.util.function.Predicate;
+diff --git a/src/main/java/net/minecraft/server/EntityFishingHook.java b/src/main/java/net/minecraft/server/EntityFishingHook.java
+index c3d3d753fd354a2a215c3dcf86609b55d6349b63..ec4b2b3cfb5318a800e5f0fbd863960f55ebeaa1 100644
+--- a/src/main/java/net/minecraft/server/EntityFishingHook.java
++++ b/src/main/java/net/minecraft/server/EntityFishingHook.java
+@@ -7,7 +7,7 @@ import java.util.List;
+ import java.util.Random;
+ import javax.annotation.Nullable;
+ // CraftBukkit start
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ import org.bukkit.entity.Player;
+ import org.bukkit.entity.FishHook;
+ import org.bukkit.event.player.PlayerFishEvent;
+diff --git a/src/main/java/net/minecraft/server/EntityFox.java b/src/main/java/net/minecraft/server/EntityFox.java
+index 6e0983ef8bbc54542704b19e45e5c6610d897c00..1ebe1482021622af2cacc6e51c71d35d1b77830c 100644
+--- a/src/main/java/net/minecraft/server/EntityFox.java
++++ b/src/main/java/net/minecraft/server/EntityFox.java
+@@ -1,7 +1,7 @@
+ package net.minecraft.server;
+ 
+ import com.google.common.collect.Lists;
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ 
+ import java.util.Arrays;
+ import java.util.Comparator;
+diff --git a/src/main/java/net/minecraft/server/EntityGhast.java b/src/main/java/net/minecraft/server/EntityGhast.java
+index 3e8faaaa9f6fe058d83d08c4d3821be611de81c7..1691ba5a3d4dbbc9af157c2d008c9aa07c00005f 100644
+--- a/src/main/java/net/minecraft/server/EntityGhast.java
++++ b/src/main/java/net/minecraft/server/EntityGhast.java
+@@ -1,6 +1,6 @@
+ package net.minecraft.server;
+ 
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ 
+ import java.util.EnumSet;
+ import java.util.Random;
+diff --git a/src/main/java/net/minecraft/server/EntityHorseAbstract.java b/src/main/java/net/minecraft/server/EntityHorseAbstract.java
+index 49b0e1f20bb9daf15cb85f7d942926649e05e714..bc84b281e6326b528451fffd6890ebaa46ca5fea 100644
+--- a/src/main/java/net/minecraft/server/EntityHorseAbstract.java
++++ b/src/main/java/net/minecraft/server/EntityHorseAbstract.java
+@@ -7,7 +7,7 @@ import java.util.UUID;
+ import java.util.function.Predicate;
+ import javax.annotation.Nullable;
+ 
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ import org.bukkit.event.entity.EntityRegainHealthEvent.RegainReason; // CraftBukkit
+ 
+ public abstract class EntityHorseAbstract extends EntityAnimal implements IInventoryListener, IJumpable, ISaddleable {
+diff --git a/src/main/java/net/minecraft/server/EntityHorseChestedAbstract.java b/src/main/java/net/minecraft/server/EntityHorseChestedAbstract.java
+index c4304c299182f28b807eff91a7cdd4a70cbbe409..bf28d26ae497d9e8e7314bccc6ac92e64633b302 100644
+--- a/src/main/java/net/minecraft/server/EntityHorseChestedAbstract.java
++++ b/src/main/java/net/minecraft/server/EntityHorseChestedAbstract.java
+@@ -1,6 +1,6 @@
+ package net.minecraft.server;
+ 
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ 
+ public abstract class EntityHorseChestedAbstract extends EntityHorseAbstract {
+ 
+diff --git a/src/main/java/net/minecraft/server/EntityHuman.java b/src/main/java/net/minecraft/server/EntityHuman.java
+index 1d3badd203ebcbc55384251aa5b4bd5eae9cfcae..f173e58c9f87d2264590501111135c8864b2deea 100644
+--- a/src/main/java/net/minecraft/server/EntityHuman.java
++++ b/src/main/java/net/minecraft/server/EntityHuman.java
+@@ -18,7 +18,7 @@ import javax.annotation.Nullable;
+ 
+ // CraftBukkit start
+ import mx.kenzie.wellspring.nbt.NBTCompound;
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ import org.bukkit.craftbukkit.entity.CraftHumanEntity;
+ import org.bukkit.craftbukkit.util.CraftVector;
+ import org.bukkit.entity.Item;
+@@ -28,7 +28,6 @@ import org.bukkit.event.entity.EntityCombustByEntityEvent;
+ import org.bukkit.event.player.PlayerBedLeaveEvent;
+ import org.bukkit.event.player.PlayerDropItemEvent;
+ import org.bukkit.event.player.PlayerVelocityEvent;
+-import org.bukkit.util.Vector;
+ // CraftBukkit end
+ 
+ public abstract class EntityHuman extends EntityLiving {
+diff --git a/src/main/java/net/minecraft/server/EntityIllagerWizard.java b/src/main/java/net/minecraft/server/EntityIllagerWizard.java
+index 16e8facb25610335ccf1f4a9c6a12019fb8b0ddf..3c2d5874c6cecaa4604e775cfd14112003f1d140 100644
+--- a/src/main/java/net/minecraft/server/EntityIllagerWizard.java
++++ b/src/main/java/net/minecraft/server/EntityIllagerWizard.java
+@@ -1,7 +1,6 @@
+ package net.minecraft.server;
+ 
+-import mx.kenzie.wellspring.nbt.NBTCompound;
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ 
+ import java.util.EnumSet;
+ import javax.annotation.Nullable;
+diff --git a/src/main/java/net/minecraft/server/EntityInsentient.java b/src/main/java/net/minecraft/server/EntityInsentient.java
+index a306784fe4cf182989e4c22ec5a30a5bff2577cb..4310e26aee92349685166b1f8fa1ac0fd867385b 100644
+--- a/src/main/java/net/minecraft/server/EntityInsentient.java
++++ b/src/main/java/net/minecraft/server/EntityInsentient.java
+@@ -11,7 +11,7 @@ import java.util.UUID;
+ import javax.annotation.Nullable;
+ 
+ // CraftBukkit start
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ import org.bukkit.craftbukkit.event.CraftEventFactory;
+ import org.bukkit.craftbukkit.entity.CraftLivingEntity;
+ import org.bukkit.event.entity.CreatureSpawnEvent;
+diff --git a/src/main/java/net/minecraft/server/EntityIronGolem.java b/src/main/java/net/minecraft/server/EntityIronGolem.java
+index b5ca7f79c3f004de848345cfdbe376862efd2b34..15714ba8b7e8c7bed1cf61c0c0881824482aed33 100644
+--- a/src/main/java/net/minecraft/server/EntityIronGolem.java
++++ b/src/main/java/net/minecraft/server/EntityIronGolem.java
+@@ -1,7 +1,7 @@
+ package net.minecraft.server;
+ 
+ import com.google.common.collect.ImmutableList;
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ 
+ import java.util.Comparator;
+ import java.util.Iterator;
+diff --git a/src/main/java/net/minecraft/server/EntityItem.java b/src/main/java/net/minecraft/server/EntityItem.java
+index d683b053224497de4ff9c71c871bd30853bc1d7a..45d825e33bd38951490007d9232f324be363532a 100644
+--- a/src/main/java/net/minecraft/server/EntityItem.java
++++ b/src/main/java/net/minecraft/server/EntityItem.java
+@@ -6,7 +6,7 @@ import java.util.Objects;
+ import java.util.UUID;
+ import javax.annotation.Nullable;
+ // CraftBukkit start
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ import org.bukkit.Material; // Paper
+ import org.bukkit.event.entity.EntityPickupItemEvent;
+ import org.bukkit.event.player.PlayerPickupItemEvent;
+diff --git a/src/main/java/net/minecraft/server/EntityItemFrame.java b/src/main/java/net/minecraft/server/EntityItemFrame.java
+index 285088409ce686f26cb2832ec54af1d0d20a7ae8..4bd02e573a5c8404fe4a560325c117a26781cfc0 100644
+--- a/src/main/java/net/minecraft/server/EntityItemFrame.java
++++ b/src/main/java/net/minecraft/server/EntityItemFrame.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import javax.annotation.Nullable;
+ 
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ import org.apache.commons.lang3.Validate;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+diff --git a/src/main/java/net/minecraft/server/EntityLiving.java b/src/main/java/net/minecraft/server/EntityLiving.java
+index 4520158c284a24c28e3ad00d3732be30e4531779..e9082a5bab5c5593f1d77a2cb05ebfa5dd33eaaf 100644
+--- a/src/main/java/net/minecraft/server/EntityLiving.java
++++ b/src/main/java/net/minecraft/server/EntityLiving.java
+@@ -21,7 +21,7 @@ import java.util.UUID;
+ import java.util.function.Predicate;
+ import javax.annotation.Nullable;
+ 
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ import org.apache.logging.log4j.Logger;
+ 
+ // CraftBukkit start
+@@ -45,7 +45,6 @@ import org.bukkit.event.entity.EntityTeleportEvent;
+ import org.bukkit.event.player.PlayerItemConsumeEvent;
+ // CraftBukkit end
+ 
+-import co.aikar.timings.MinecraftTimings; // Paper
+ 
+ public abstract class EntityLiving extends Entity {
+ 
+diff --git a/src/main/java/net/minecraft/server/EntityLlama.java b/src/main/java/net/minecraft/server/EntityLlama.java
+index d7e9f2e069d8ea509b04960a9764f97fbb948785..3fc9d3255f76e572b4b7488ad06befb8b1a851d2 100644
+--- a/src/main/java/net/minecraft/server/EntityLlama.java
++++ b/src/main/java/net/minecraft/server/EntityLlama.java
+@@ -1,6 +1,6 @@
+ package net.minecraft.server;
+ 
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ 
+ import java.util.Iterator;
+ import javax.annotation.Nullable;
+diff --git a/src/main/java/net/minecraft/server/EntityMinecartAbstract.java b/src/main/java/net/minecraft/server/EntityMinecartAbstract.java
+index 266ab84dbab89b847ecc52201537603ab90fd66c..bda7508221f6af9dad305b0e171d8a9c47fcd509 100644
+--- a/src/main/java/net/minecraft/server/EntityMinecartAbstract.java
++++ b/src/main/java/net/minecraft/server/EntityMinecartAbstract.java
+@@ -11,7 +11,7 @@ import java.util.Map;
+ import javax.annotation.Nullable;
+ 
+ // CraftBukkit start
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ import org.bukkit.Location;
+ import org.bukkit.entity.Vehicle;
+ import org.bukkit.event.vehicle.VehicleDamageEvent;
+diff --git a/src/main/java/net/minecraft/server/EntityMinecartCommandBlock.java b/src/main/java/net/minecraft/server/EntityMinecartCommandBlock.java
+index 90fcea7c7b273268efc885047d9f2f2f68ad3b83..082bb37256e76c191bd3a471a1ce60f06fd651f3 100644
+--- a/src/main/java/net/minecraft/server/EntityMinecartCommandBlock.java
++++ b/src/main/java/net/minecraft/server/EntityMinecartCommandBlock.java
+@@ -1,6 +1,6 @@
+ package net.minecraft.server;
+ 
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ 
+ public class EntityMinecartCommandBlock extends EntityMinecartAbstract {
+ 
+diff --git a/src/main/java/net/minecraft/server/EntityMinecartFurnace.java b/src/main/java/net/minecraft/server/EntityMinecartFurnace.java
+index 6fb4cfb0867f12b47f4abb79d6d722b3cf79e15f..d30542eb2840411f5a7a4efca6ea888f7b1c3089 100644
+--- a/src/main/java/net/minecraft/server/EntityMinecartFurnace.java
++++ b/src/main/java/net/minecraft/server/EntityMinecartFurnace.java
+@@ -1,6 +1,6 @@
+ package net.minecraft.server;
+ 
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ 
+ public class EntityMinecartFurnace extends EntityMinecartAbstract {
+ 
+diff --git a/src/main/java/net/minecraft/server/EntityMushroomCow.java b/src/main/java/net/minecraft/server/EntityMushroomCow.java
+index 693a43ac328e11a27357bc9787949eac52ae51db..4d16ee1d25273208a47e5e4648dccdc3933b7138 100644
+--- a/src/main/java/net/minecraft/server/EntityMushroomCow.java
++++ b/src/main/java/net/minecraft/server/EntityMushroomCow.java
+@@ -4,7 +4,7 @@ import java.util.Optional;
+ import java.util.Random;
+ import java.util.UUID;
+ 
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ import org.apache.commons.lang3.tuple.Pair;
+ // CraftBukkit start
+ import org.bukkit.craftbukkit.event.CraftEventFactory;
+diff --git a/src/main/java/net/minecraft/server/EntityOcelot.java b/src/main/java/net/minecraft/server/EntityOcelot.java
+index 0731269e36ee622ce81066f78841b986541cc11b..d8a1af02da1563143174f024386fa4bfb948fe3f 100644
+--- a/src/main/java/net/minecraft/server/EntityOcelot.java
++++ b/src/main/java/net/minecraft/server/EntityOcelot.java
+@@ -1,9 +1,8 @@
+ package net.minecraft.server;
+ 
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ 
+ import java.util.Random;
+-import java.util.function.Predicate;
+ import javax.annotation.Nullable;
+ 
+ public class EntityOcelot extends EntityAnimal {
+diff --git a/src/main/java/net/minecraft/server/EntityPanda.java b/src/main/java/net/minecraft/server/EntityPanda.java
+index 28465f697194696e8436f179c8c40c6be19ab297..1fcb9c6f14ee7d1feb8a25085dcb9f6ddc9f9b0c 100644
+--- a/src/main/java/net/minecraft/server/EntityPanda.java
++++ b/src/main/java/net/minecraft/server/EntityPanda.java
+@@ -9,7 +9,7 @@ import java.util.Random;
+ import java.util.function.Predicate;
+ import javax.annotation.Nullable;
+ 
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ import org.bukkit.event.entity.EntityTargetEvent; // CraftBukkit
+ 
+ public class EntityPanda extends EntityAnimal {
+diff --git a/src/main/java/net/minecraft/server/EntityParrot.java b/src/main/java/net/minecraft/server/EntityParrot.java
+index 8e1a8a7be8f2934c6f5164b507659ee00dcef0a7..3e4675949d63658295932a3ff7fefa0e9f30b425 100644
+--- a/src/main/java/net/minecraft/server/EntityParrot.java
++++ b/src/main/java/net/minecraft/server/EntityParrot.java
+@@ -3,7 +3,7 @@ package net.minecraft.server;
+ import com.google.common.collect.Lists;
+ import com.google.common.collect.Maps;
+ import com.google.common.collect.Sets;
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ 
+ import java.util.List;
+ import java.util.Map;
+diff --git a/src/main/java/net/minecraft/server/EntityPhantom.java b/src/main/java/net/minecraft/server/EntityPhantom.java
+index 8c822fd32b1a122b27e2a433b97c1a8dea6145b3..29d7622bdb36f0aaefdd596a213ddf7bfbb430bb 100644
+--- a/src/main/java/net/minecraft/server/EntityPhantom.java
++++ b/src/main/java/net/minecraft/server/EntityPhantom.java
+@@ -1,6 +1,6 @@
+ package net.minecraft.server;
+ 
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ 
+ import java.util.Comparator;
+ import java.util.EnumSet;
+diff --git a/src/main/java/net/minecraft/server/EntityPig.java b/src/main/java/net/minecraft/server/EntityPig.java
+index 8d94f6d0df7aeb59417c6b7be257431304932c2c..04c7c903b9983bc6094a19e305fd07678d9bfbf6 100644
+--- a/src/main/java/net/minecraft/server/EntityPig.java
++++ b/src/main/java/net/minecraft/server/EntityPig.java
+@@ -4,7 +4,7 @@ import com.google.common.collect.UnmodifiableIterator;
+ import javax.annotation.Nullable;
+ 
+ // CraftBukkit start
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ import org.bukkit.craftbukkit.event.CraftEventFactory;
+ // CraftBukkit end
+ 
+diff --git a/src/main/java/net/minecraft/server/EntityPillager.java b/src/main/java/net/minecraft/server/EntityPillager.java
+index 1800ac41d23dbbd390527781d7addad3554b4f28..89c4ec72ae96dc8b28097194d00448754364a22a 100644
+--- a/src/main/java/net/minecraft/server/EntityPillager.java
++++ b/src/main/java/net/minecraft/server/EntityPillager.java
+@@ -1,7 +1,7 @@
+ package net.minecraft.server;
+ 
+ import com.google.common.collect.Maps;
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ 
+ import java.util.Map;
+ import javax.annotation.Nullable;
+diff --git a/src/main/java/net/minecraft/server/EntityProjectileThrowable.java b/src/main/java/net/minecraft/server/EntityProjectileThrowable.java
+index 65adf8b7a8358333c3050b5f642a7ef4002abd5a..defc35bf891c414ec39ec2c9da33385e276366ca 100644
+--- a/src/main/java/net/minecraft/server/EntityProjectileThrowable.java
++++ b/src/main/java/net/minecraft/server/EntityProjectileThrowable.java
+@@ -1,6 +1,6 @@
+ package net.minecraft.server;
+ 
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ 
+ public abstract class EntityProjectileThrowable extends EntityProjectile {
+ 
+diff --git a/src/main/java/net/minecraft/server/EntityPufferFish.java b/src/main/java/net/minecraft/server/EntityPufferFish.java
+index f1a557cb8792ff027c99b772c54e4af82636672e..07d181cbc661973517afc92894184e0f2fe96878 100644
+--- a/src/main/java/net/minecraft/server/EntityPufferFish.java
++++ b/src/main/java/net/minecraft/server/EntityPufferFish.java
+@@ -1,6 +1,6 @@
+ package net.minecraft.server;
+ 
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ 
+ import java.util.Iterator;
+ import java.util.List;
+diff --git a/src/main/java/net/minecraft/server/EntityRabbit.java b/src/main/java/net/minecraft/server/EntityRabbit.java
+index a591274132809c295127fcf40ca5bb1296ba47b9..b9288586e25fd71605a9e0b22be2f79bef4e4e30 100644
+--- a/src/main/java/net/minecraft/server/EntityRabbit.java
++++ b/src/main/java/net/minecraft/server/EntityRabbit.java
+@@ -1,6 +1,6 @@
+ package net.minecraft.server;
+ 
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ 
+ import java.util.Random;
+ import javax.annotation.Nullable;
+diff --git a/src/main/java/net/minecraft/server/EntityRaider.java b/src/main/java/net/minecraft/server/EntityRaider.java
+index a45a326bd18cb25096aaf3f387805c5f2c0e1964..cd73f3022d00eb9c0c2c36df0b8dfc22b48d16d4 100644
+--- a/src/main/java/net/minecraft/server/EntityRaider.java
++++ b/src/main/java/net/minecraft/server/EntityRaider.java
+@@ -1,7 +1,7 @@
+ package net.minecraft.server;
+ 
+ import com.google.common.collect.Lists;
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ 
+ import java.util.EnumSet;
+ import java.util.Iterator;
+diff --git a/src/main/java/net/minecraft/server/EntitySheep.java b/src/main/java/net/minecraft/server/EntitySheep.java
+index b1feb788243a225cc3cc37596bcca71212cae0f2..96cc58c4ad7097ccf6d1fe524b8f41d0e7343e1b 100644
+--- a/src/main/java/net/minecraft/server/EntitySheep.java
++++ b/src/main/java/net/minecraft/server/EntitySheep.java
+@@ -9,7 +9,7 @@ import java.util.stream.Collectors;
+ import javax.annotation.Nullable;
+ 
+ // CraftBukkit start
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ import org.bukkit.craftbukkit.event.CraftEventFactory;
+ import org.bukkit.event.entity.SheepRegrowWoolEvent;
+ import org.bukkit.inventory.InventoryView;
+diff --git a/src/main/java/net/minecraft/server/EntityShulker.java b/src/main/java/net/minecraft/server/EntityShulker.java
+index d5e270ba4d1277b27072dca23cf095f118b49c30..0ee384af6f09089f514d203b86cff2cc4cb934af 100644
+--- a/src/main/java/net/minecraft/server/EntityShulker.java
++++ b/src/main/java/net/minecraft/server/EntityShulker.java
+@@ -7,7 +7,7 @@ import java.util.Optional;
+ import java.util.UUID;
+ import javax.annotation.Nullable;
+ // CraftBukkit start
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ import org.bukkit.Location;
+ import org.bukkit.event.entity.EntityTeleportEvent;
+ // CraftBukkit end
+diff --git a/src/main/java/net/minecraft/server/EntitySlime.java b/src/main/java/net/minecraft/server/EntitySlime.java
+index 94f933b571eed1d42b14c108da005ac9722d432d..fc935744e2c641f7d1878080320467a879fb6b30 100644
+--- a/src/main/java/net/minecraft/server/EntitySlime.java
++++ b/src/main/java/net/minecraft/server/EntitySlime.java
+@@ -10,7 +10,7 @@ import com.destroystokyo.paper.event.entity.SlimeChangeDirectionEvent;
+ import com.destroystokyo.paper.event.entity.SlimeSwimEvent;
+ import com.destroystokyo.paper.event.entity.SlimeTargetLivingEntityEvent;
+ import com.destroystokyo.paper.event.entity.SlimeWanderEvent;
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ import org.bukkit.entity.LivingEntity;
+ import org.bukkit.entity.Slime;
+ // Paper end
+diff --git a/src/main/java/net/minecraft/server/EntitySnowman.java b/src/main/java/net/minecraft/server/EntitySnowman.java
+index f3c60fedb3aa3cd43eee49dbe2c1d13d58100e8b..2a63b93aa295bac5e2dc46bafbeb7fc76f41738e 100644
+--- a/src/main/java/net/minecraft/server/EntitySnowman.java
++++ b/src/main/java/net/minecraft/server/EntitySnowman.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import javax.annotation.Nullable;
+ // CraftBukkit start
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ import org.bukkit.craftbukkit.event.CraftEventFactory;
+ // CraftBukkit end
+ 
+diff --git a/src/main/java/net/minecraft/server/EntitySpider.java b/src/main/java/net/minecraft/server/EntitySpider.java
+index ce2478351ff4a403869adcc87f7db290bec9fdc4..b068e1ea7b237d0e967da89b999524a33e21d29e 100644
+--- a/src/main/java/net/minecraft/server/EntitySpider.java
++++ b/src/main/java/net/minecraft/server/EntitySpider.java
+@@ -1,6 +1,6 @@
+ package net.minecraft.server;
+ 
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ 
+ import java.util.Random;
+ import javax.annotation.Nullable;
+diff --git a/src/main/java/net/minecraft/server/EntityTNTPrimed.java b/src/main/java/net/minecraft/server/EntityTNTPrimed.java
+index 36b9442dcfbf189a7895205e7ac748fe22329be3..75a80ef7c860efa982dcc860519ee3b77155944f 100644
+--- a/src/main/java/net/minecraft/server/EntityTNTPrimed.java
++++ b/src/main/java/net/minecraft/server/EntityTNTPrimed.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import javax.annotation.Nullable;
+ 
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ import org.bukkit.event.entity.ExplosionPrimeEvent; // CraftBukkit
+ 
+ public class EntityTNTPrimed extends Entity {
+diff --git a/src/main/java/net/minecraft/server/EntityThrownTrident.java b/src/main/java/net/minecraft/server/EntityThrownTrident.java
+index d3aa0f89cb8b9c2db234df14c8c56ab161b5bc2c..0a344f0e51fca4d88938fd2a5cf72e5128e1e152 100644
+--- a/src/main/java/net/minecraft/server/EntityThrownTrident.java
++++ b/src/main/java/net/minecraft/server/EntityThrownTrident.java
+@@ -1,6 +1,6 @@
+ package net.minecraft.server;
+ 
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ 
+ import javax.annotation.Nullable;
+ 
+diff --git a/src/main/java/net/minecraft/server/EntityTippedArrow.java b/src/main/java/net/minecraft/server/EntityTippedArrow.java
+index a83d0bc99cc53597dea7a8bed38b65a6d73b7293..955a6253a870c0af9ee2c8b9d039bce4bf2f8ecd 100644
+--- a/src/main/java/net/minecraft/server/EntityTippedArrow.java
++++ b/src/main/java/net/minecraft/server/EntityTippedArrow.java
+@@ -1,7 +1,7 @@
+ package net.minecraft.server;
+ 
+ import com.google.common.collect.Sets;
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ 
+ import java.util.Collection;
+ import java.util.Iterator;
+diff --git a/src/main/java/net/minecraft/server/EntityTurtle.java b/src/main/java/net/minecraft/server/EntityTurtle.java
+index 67c88fada8e22cde6a9c56ac31ac11995d454f0b..b22e49668a3a5f3dc30a2545c9ff7f270641d24d 100644
+--- a/src/main/java/net/minecraft/server/EntityTurtle.java
++++ b/src/main/java/net/minecraft/server/EntityTurtle.java
+@@ -1,7 +1,7 @@
+ package net.minecraft.server;
+ 
+ import com.google.common.collect.Sets;
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ 
+ import java.util.EnumSet;
+ import java.util.Random;
+diff --git a/src/main/java/net/minecraft/server/EntityVex.java b/src/main/java/net/minecraft/server/EntityVex.java
+index fef66aad0e1f27482af5f2ab957bc52a9be87276..83d55cc3aca6e3af19b75cc6acfde09b88157d5a 100644
+--- a/src/main/java/net/minecraft/server/EntityVex.java
++++ b/src/main/java/net/minecraft/server/EntityVex.java
+@@ -3,7 +3,7 @@ package net.minecraft.server;
+ import java.util.EnumSet;
+ import javax.annotation.Nullable;
+ 
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ import org.bukkit.event.entity.EntityTargetEvent;
+ 
+ public class EntityVex extends EntityMonster {
+diff --git a/src/main/java/net/minecraft/server/EntityVillager.java b/src/main/java/net/minecraft/server/EntityVillager.java
+index 63ca29279f1f85ced7e66b686b94a66939a06b12..e9cf4bb5f67b366a604ef55204df03b9dd98c6fc 100644
+--- a/src/main/java/net/minecraft/server/EntityVillager.java
++++ b/src/main/java/net/minecraft/server/EntityVillager.java
+@@ -18,7 +18,7 @@ import java.util.function.BiPredicate;
+ import java.util.stream.Collectors;
+ import javax.annotation.Nullable;
+ 
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ import org.apache.logging.log4j.Logger;
+ // CraftBukkit start
+ import org.bukkit.Bukkit;
+diff --git a/src/main/java/net/minecraft/server/EntityVillagerAbstract.java b/src/main/java/net/minecraft/server/EntityVillagerAbstract.java
+index 06836abc53835ce73ed75b67ab9be1039a11e3e0..5ccb3ba0a86c9cb69457748fdbdc486dd555b464 100644
+--- a/src/main/java/net/minecraft/server/EntityVillagerAbstract.java
++++ b/src/main/java/net/minecraft/server/EntityVillagerAbstract.java
+@@ -5,7 +5,7 @@ import java.util.Iterator;
+ import java.util.Set;
+ import javax.annotation.Nullable;
+ // CraftBukkit start
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ import org.bukkit.Bukkit;
+ import org.bukkit.craftbukkit.inventory.CraftMerchant;
+ import org.bukkit.craftbukkit.inventory.CraftMerchantRecipe;
+diff --git a/src/main/java/net/minecraft/server/EntityWitch.java b/src/main/java/net/minecraft/server/EntityWitch.java
+index 3a2897955e44a615c2059961d8460bb101bdbf3b..470cfe8810d0c08f229d7ee8c33e67cc450a3539 100644
+--- a/src/main/java/net/minecraft/server/EntityWitch.java
++++ b/src/main/java/net/minecraft/server/EntityWitch.java
+@@ -1,10 +1,7 @@
+ package net.minecraft.server;
+ 
+ // Paper start
+-import com.destroystokyo.paper.event.entity.WitchReadyPotionEvent;
+-import mx.kenzie.wellspring.packet.meta.MetaField;
+-import org.bukkit.craftbukkit.inventory.CraftItemStack;
+-import org.bukkit.entity.Witch;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ // Paper end
+ 
+ import java.util.Iterator;
+diff --git a/src/main/java/net/minecraft/server/EntityWither.java b/src/main/java/net/minecraft/server/EntityWither.java
+index db49a69747dfb53c7a98517bdff26ad455d9c245..add15e997b02795a64c38838a2f403ada0eaf8de 100644
+--- a/src/main/java/net/minecraft/server/EntityWither.java
++++ b/src/main/java/net/minecraft/server/EntityWither.java
+@@ -7,7 +7,7 @@ import java.util.function.Predicate;
+ import javax.annotation.Nullable;
+ 
+ // CraftBukkit start
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ import org.bukkit.craftbukkit.event.CraftEventFactory;
+ import org.bukkit.event.entity.EntityRegainHealthEvent;
+ import org.bukkit.event.entity.EntityTargetEvent;
+diff --git a/src/main/java/net/minecraft/server/EntityWitherSkull.java b/src/main/java/net/minecraft/server/EntityWitherSkull.java
+index 1debc4e0c22ae205ea3bdaec67f2643ed63d701c..dbb0c9a7ee29c99f4519915cb26f3e9d066730c8 100644
+--- a/src/main/java/net/minecraft/server/EntityWitherSkull.java
++++ b/src/main/java/net/minecraft/server/EntityWitherSkull.java
+@@ -1,6 +1,6 @@
+ package net.minecraft.server;
+ 
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ import org.bukkit.event.entity.ExplosionPrimeEvent; // CraftBukkit
+ 
+ public class EntityWitherSkull extends EntityFireball {
+diff --git a/src/main/java/net/minecraft/server/EntityWolf.java b/src/main/java/net/minecraft/server/EntityWolf.java
+index d37dcbe24ba807eedda6d5d719b9e1fcb44a6b8c..37b2b22932997b18081c679d82c34a2d735646a1 100644
+--- a/src/main/java/net/minecraft/server/EntityWolf.java
++++ b/src/main/java/net/minecraft/server/EntityWolf.java
+@@ -5,7 +5,7 @@ import java.util.function.Predicate;
+ import javax.annotation.Nullable;
+ 
+ // CraftBukkit start
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ import org.bukkit.craftbukkit.event.CraftEventFactory;
+ import org.bukkit.event.entity.EntityTargetEvent.TargetReason;
+ // CraftBukkit end
+diff --git a/src/main/java/net/minecraft/server/EntityZombie.java b/src/main/java/net/minecraft/server/EntityZombie.java
+index 5ca813ae534c0009cf6b8388c28b0ad69eaae5fc..4e70a2afd058cad25194e7bd8b7defc759ff0f4a 100644
+--- a/src/main/java/net/minecraft/server/EntityZombie.java
++++ b/src/main/java/net/minecraft/server/EntityZombie.java
+@@ -10,7 +10,7 @@ import java.util.function.Predicate;
+ import javax.annotation.Nullable;
+ 
+ // CraftBukkit start
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ import org.bukkit.entity.Zombie;
+ import org.bukkit.event.entity.CreatureSpawnEvent;
+ import org.bukkit.event.entity.EntityCombustByEntityEvent;
+diff --git a/src/main/java/net/minecraft/server/EntityZombieVillager.java b/src/main/java/net/minecraft/server/EntityZombieVillager.java
+index 26bcd4ce439f70ce7fb2a75acc2a4d6eeb3fd64e..a009b11787624a8c624a3b849fb673ab427d8d6c 100644
+--- a/src/main/java/net/minecraft/server/EntityZombieVillager.java
++++ b/src/main/java/net/minecraft/server/EntityZombieVillager.java
+@@ -5,10 +5,9 @@ import com.mojang.serialization.Dynamic;
+ import java.util.UUID;
+ import javax.annotation.Nullable;
+ 
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ import org.apache.logging.log4j.Logger;
+ // CraftBukkit start
+-import org.bukkit.craftbukkit.event.CraftEventFactory;
+ import org.bukkit.entity.ZombieVillager;
+ import org.bukkit.event.entity.CreatureSpawnEvent;
+ import org.bukkit.event.entity.EntityTransformEvent;
+diff --git a/src/main/java/net/minecraft/server/PacketHandshakingInSetProtocol.java b/src/main/java/net/minecraft/server/PacketHandshakingInSetProtocol.java
+index 8545146fb1f093f821e3b966d9337049575c6773..20f1c91f7adcd25d43242be2ad3aa46a25f6b848 100644
+--- a/src/main/java/net/minecraft/server/PacketHandshakingInSetProtocol.java
++++ b/src/main/java/net/minecraft/server/PacketHandshakingInSetProtocol.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketHandshakingInSetProtocol implements Packet<PacketHandshakingInListener> {
++public class PacketHandshakingInSetProtocol implements Packet<PacketHandshakingInListener>, mx.kenzie.wellspring.packet.specific.IncomingPacket { // Kenzie
+ 
+     private int a;
+     public String hostname;
+diff --git a/src/main/java/net/minecraft/server/PacketLoginInCustomPayload.java b/src/main/java/net/minecraft/server/PacketLoginInCustomPayload.java
+index c1ca6f950162f53ebcb16efabb3064809472673f..272804b3b04bd868006a949f532d3c6ddbeac981 100644
+--- a/src/main/java/net/minecraft/server/PacketLoginInCustomPayload.java
++++ b/src/main/java/net/minecraft/server/PacketLoginInCustomPayload.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketLoginInCustomPayload implements Packet<PacketLoginInListener> {
++public class PacketLoginInCustomPayload implements Packet<PacketLoginInListener>, mx.kenzie.wellspring.packet.specific.IncomingPacket { // Kenzie
+ 
+     private int a; public int getId() { return a; } // Paper - OBFHELPER
+     private PacketDataSerializer b; public PacketDataSerializer getBuf() { return b; } // Paper - OBFHELPER
+diff --git a/src/main/java/net/minecraft/server/PacketLoginOutCustomPayload.java b/src/main/java/net/minecraft/server/PacketLoginOutCustomPayload.java
+index 990cfea6c2339cd3cf688e4645de76dcee1d351a..f73d3b4f951922fec1f4c8b2f93b90b8f94599f6 100644
+--- a/src/main/java/net/minecraft/server/PacketLoginOutCustomPayload.java
++++ b/src/main/java/net/minecraft/server/PacketLoginOutCustomPayload.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketLoginOutCustomPayload implements Packet<PacketLoginOutListener> {
++public class PacketLoginOutCustomPayload implements Packet<PacketLoginOutListener>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private int a;
+     private MinecraftKey b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayInAbilities.java b/src/main/java/net/minecraft/server/PacketPlayInAbilities.java
+index 98a8812b348fe6adc89664f30d698596b515e38f..b99f2c7ae2cf674044d1b90c5854d3d8054a0d55 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayInAbilities.java
++++ b/src/main/java/net/minecraft/server/PacketPlayInAbilities.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayInAbilities implements Packet<PacketListenerPlayIn> {
++public class PacketPlayInAbilities implements Packet<PacketListenerPlayIn>, mx.kenzie.wellspring.packet.specific.IncomingPacket { // Kenzie
+ 
+     private boolean a;
+ 
+diff --git a/src/main/java/net/minecraft/server/PacketPlayInAdvancements.java b/src/main/java/net/minecraft/server/PacketPlayInAdvancements.java
+index f193a64602c5865ef057ffb7c5acd7d69a02f035..77a9db128a8d4f6a473f0221eacc56c601f17c61 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayInAdvancements.java
++++ b/src/main/java/net/minecraft/server/PacketPlayInAdvancements.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayInAdvancements implements Packet<PacketListenerPlayIn> {
++public class PacketPlayInAdvancements implements Packet<PacketListenerPlayIn>, mx.kenzie.wellspring.packet.specific.IncomingPacket { // Kenzie
+ 
+     private PacketPlayInAdvancements.Status a;
+     private MinecraftKey b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayInArmAnimation.java b/src/main/java/net/minecraft/server/PacketPlayInArmAnimation.java
+index ff636322a634c93a0ef58cc9c9961a4e7721c3ab..c24b682b300757750d3e71a117ac62f433683d53 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayInArmAnimation.java
++++ b/src/main/java/net/minecraft/server/PacketPlayInArmAnimation.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayInArmAnimation implements Packet<PacketListenerPlayIn> {
++public class PacketPlayInArmAnimation implements Packet<PacketListenerPlayIn>, mx.kenzie.wellspring.packet.specific.IncomingPacket { // Kenzie
+ 
+     private EnumHand a;
+ 
+diff --git a/src/main/java/net/minecraft/server/PacketPlayInAutoRecipe.java b/src/main/java/net/minecraft/server/PacketPlayInAutoRecipe.java
+index 83c0e81e0b95bb35c5d30ca4fec57f3b4770705c..bef22b6ef8da839c83217f24574f54ffb28295af 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayInAutoRecipe.java
++++ b/src/main/java/net/minecraft/server/PacketPlayInAutoRecipe.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayInAutoRecipe implements Packet<PacketListenerPlayIn> {
++public class PacketPlayInAutoRecipe implements Packet<PacketListenerPlayIn>, mx.kenzie.wellspring.packet.specific.IncomingPacket { // Kenzie
+ 
+     private int a;
+     private MinecraftKey b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayInBEdit.java b/src/main/java/net/minecraft/server/PacketPlayInBEdit.java
+index a73d44b48793a1679ac17bb1cb329e672391c28e..4ca2f8c3a678c6403e808b9d5c5f4d592a71bf0a 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayInBEdit.java
++++ b/src/main/java/net/minecraft/server/PacketPlayInBEdit.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayInBEdit implements Packet<PacketListenerPlayIn> {
++public class PacketPlayInBEdit implements Packet<PacketListenerPlayIn>, mx.kenzie.wellspring.packet.specific.IncomingPacket { // Kenzie
+ 
+     private ItemStack a;
+     private boolean b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayInBeacon.java b/src/main/java/net/minecraft/server/PacketPlayInBeacon.java
+index 802f7c690d992a74a226221760b2884da1a89743..9e8cac74cff5a27ea7badcaddf45abe9ae704226 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayInBeacon.java
++++ b/src/main/java/net/minecraft/server/PacketPlayInBeacon.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayInBeacon implements Packet<PacketListenerPlayIn> {
++public class PacketPlayInBeacon implements Packet<PacketListenerPlayIn>, mx.kenzie.wellspring.packet.specific.IncomingPacket { // Kenzie
+ 
+     private int a;
+     private int b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayInBlockDig.java b/src/main/java/net/minecraft/server/PacketPlayInBlockDig.java
+index 9329b17dd442d6c6a5a71692ff7b65b83594aae0..81fba67d55eb3727d3045bfcf6121d11da82bc8c 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayInBlockDig.java
++++ b/src/main/java/net/minecraft/server/PacketPlayInBlockDig.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayInBlockDig implements Packet<PacketListenerPlayIn> {
++public class PacketPlayInBlockDig implements Packet<PacketListenerPlayIn>, mx.kenzie.wellspring.packet.specific.IncomingPacket { // Kenzie
+ 
+     private BlockPosition a;
+     private EnumDirection b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayInBlockPlace.java b/src/main/java/net/minecraft/server/PacketPlayInBlockPlace.java
+index 194576502b4142ecd19bb4ec879d8855d0722365..5ae4e038a5aa4d9a4115444f3e63522e6460e6e0 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayInBlockPlace.java
++++ b/src/main/java/net/minecraft/server/PacketPlayInBlockPlace.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayInBlockPlace implements Packet<PacketListenerPlayIn> {
++public class PacketPlayInBlockPlace implements Packet<PacketListenerPlayIn>, mx.kenzie.wellspring.packet.specific.IncomingPacket { // Kenzie
+ 
+     private EnumHand a;
+     public long timestamp; // Spigot
+diff --git a/src/main/java/net/minecraft/server/PacketPlayInBoatMove.java b/src/main/java/net/minecraft/server/PacketPlayInBoatMove.java
+index 898c7db363f9b00534bea6595fb90c14647d29d3..2be43c01edfe9ddd23b5539ace173f7cb9da9d13 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayInBoatMove.java
++++ b/src/main/java/net/minecraft/server/PacketPlayInBoatMove.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayInBoatMove implements Packet<PacketListenerPlayIn> {
++public class PacketPlayInBoatMove implements Packet<PacketListenerPlayIn>, mx.kenzie.wellspring.packet.specific.IncomingPacket { // Kenzie
+ 
+     private boolean a;
+     private boolean b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayInChat.java b/src/main/java/net/minecraft/server/PacketPlayInChat.java
+index b2ca841b4b4aee73779aaaf271dc64eb7510ad5f..105a7de03bb399c8c68434d3b429d85e8c0c2709 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayInChat.java
++++ b/src/main/java/net/minecraft/server/PacketPlayInChat.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayInChat implements Packet<PacketListenerPlayIn> {
++public class PacketPlayInChat implements Packet<PacketListenerPlayIn>, mx.kenzie.wellspring.packet.specific.IncomingPacket { // Kenzie
+ 
+     private String a;
+ 
+diff --git a/src/main/java/net/minecraft/server/PacketPlayInClientCommand.java b/src/main/java/net/minecraft/server/PacketPlayInClientCommand.java
+index 1dbd3d1584df3518ca3f6e634b49f02ff82809e3..4fdc2f18dac15571b763b91f84b15ed898723051 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayInClientCommand.java
++++ b/src/main/java/net/minecraft/server/PacketPlayInClientCommand.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayInClientCommand implements Packet<PacketListenerPlayIn> {
++public class PacketPlayInClientCommand implements Packet<PacketListenerPlayIn>, mx.kenzie.wellspring.packet.specific.IncomingPacket { // Kenzie
+ 
+     private PacketPlayInClientCommand.EnumClientCommand a;
+ 
+diff --git a/src/main/java/net/minecraft/server/PacketPlayInCloseWindow.java b/src/main/java/net/minecraft/server/PacketPlayInCloseWindow.java
+index 03f4e32ed70e6cf467877584daad66133df9f3d5..5e035e324f23d3149fdf321b9ad9f99a63eee534 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayInCloseWindow.java
++++ b/src/main/java/net/minecraft/server/PacketPlayInCloseWindow.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayInCloseWindow implements Packet<PacketListenerPlayIn> {
++public class PacketPlayInCloseWindow implements Packet<PacketListenerPlayIn>, mx.kenzie.wellspring.packet.specific.IncomingPacket { // Kenzie
+ 
+     private int id;
+ 
+diff --git a/src/main/java/net/minecraft/server/PacketPlayInCustomPayload.java b/src/main/java/net/minecraft/server/PacketPlayInCustomPayload.java
+index c6320f04a47e0d70d2cd62a31bb54c4e77c90059..be1b6545d58ba30a476333ee30d65de15aede602 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayInCustomPayload.java
++++ b/src/main/java/net/minecraft/server/PacketPlayInCustomPayload.java
+@@ -3,7 +3,7 @@ package net.minecraft.server;
+ import io.netty.buffer.ByteBuf;
+ import java.io.IOException;
+ 
+-public class PacketPlayInCustomPayload implements Packet<PacketListenerPlayIn> {
++public class PacketPlayInCustomPayload implements Packet<PacketListenerPlayIn>, mx.kenzie.wellspring.packet.specific.IncomingPacket { // Kenzie
+ 
+     public static final MinecraftKey a = new MinecraftKey("brand");
+     public MinecraftKey tag;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayInDifficultyChange.java b/src/main/java/net/minecraft/server/PacketPlayInDifficultyChange.java
+index 18baaceda2f953d60cb4f0f2dacf79b45f92f4b5..523d5b2163ac9f54766b7294b84c47b4c82a7386 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayInDifficultyChange.java
++++ b/src/main/java/net/minecraft/server/PacketPlayInDifficultyChange.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayInDifficultyChange implements Packet<PacketListenerPlayIn> {
++public class PacketPlayInDifficultyChange implements Packet<PacketListenerPlayIn>, mx.kenzie.wellspring.packet.specific.IncomingPacket { // Kenzie
+ 
+     private EnumDifficulty a;
+ 
+diff --git a/src/main/java/net/minecraft/server/PacketPlayInDifficultyLock.java b/src/main/java/net/minecraft/server/PacketPlayInDifficultyLock.java
+index 0d36d86bc0b048c6792c89dbe5bf4c278a24f603..25bafcc40f43cf0fd27e092e7d919c357900b508 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayInDifficultyLock.java
++++ b/src/main/java/net/minecraft/server/PacketPlayInDifficultyLock.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayInDifficultyLock implements Packet<PacketListenerPlayIn> {
++public class PacketPlayInDifficultyLock implements Packet<PacketListenerPlayIn>, mx.kenzie.wellspring.packet.specific.IncomingPacket { // Kenzie
+ 
+     private boolean a;
+ 
+diff --git a/src/main/java/net/minecraft/server/PacketPlayInEnchantItem.java b/src/main/java/net/minecraft/server/PacketPlayInEnchantItem.java
+index 40197d6adaf5e1764c7115957c8cf30110002206..e8cd3b225a444fe7d14790a6702424b5e62dcf73 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayInEnchantItem.java
++++ b/src/main/java/net/minecraft/server/PacketPlayInEnchantItem.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayInEnchantItem implements Packet<PacketListenerPlayIn> {
++public class PacketPlayInEnchantItem implements Packet<PacketListenerPlayIn>, mx.kenzie.wellspring.packet.specific.IncomingPacket { // Kenzie
+ 
+     private int a;
+     private int b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayInEntityAction.java b/src/main/java/net/minecraft/server/PacketPlayInEntityAction.java
+index 05f04c3d55f31ce43cb5e903494ed80ab0c6adde..816cdf278d4f0f7d0c37f7720abcc9efc1c98656 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayInEntityAction.java
++++ b/src/main/java/net/minecraft/server/PacketPlayInEntityAction.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayInEntityAction implements Packet<PacketListenerPlayIn> {
++public class PacketPlayInEntityAction implements Packet<PacketListenerPlayIn>, mx.kenzie.wellspring.packet.specific.IncomingPacket { // Kenzie
+ 
+     private int a;
+     private PacketPlayInEntityAction.EnumPlayerAction animation;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayInEntityNBTQuery.java b/src/main/java/net/minecraft/server/PacketPlayInEntityNBTQuery.java
+index 8ec31c9cbf29322bdeeee52e083d575396ee1de0..d38669d1f39e7cf703f00545b7e94dceab9921c5 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayInEntityNBTQuery.java
++++ b/src/main/java/net/minecraft/server/PacketPlayInEntityNBTQuery.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayInEntityNBTQuery implements Packet<PacketListenerPlayIn> {
++public class PacketPlayInEntityNBTQuery implements Packet<PacketListenerPlayIn>, mx.kenzie.wellspring.packet.specific.IncomingPacket { // Kenzie
+ 
+     private int a;
+     private int b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayInFlying.java b/src/main/java/net/minecraft/server/PacketPlayInFlying.java
+index cf107793c8f303444630de2bd4a8d22da5f14eb1..009aae1b6c1e846110230fbcc1ca220f2f2e6327 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayInFlying.java
++++ b/src/main/java/net/minecraft/server/PacketPlayInFlying.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayInFlying implements Packet<PacketListenerPlayIn> {
++public class PacketPlayInFlying implements Packet<PacketListenerPlayIn>, mx.kenzie.wellspring.packet.specific.IncomingPacket { // Kenzie
+ 
+     protected double x;
+     protected double y;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayInHeldItemSlot.java b/src/main/java/net/minecraft/server/PacketPlayInHeldItemSlot.java
+index f34ed9ebf51f91ac7bfa5031275c2b5f312f6b39..b21a93792e312f4ce7fec0a9c08f6bc8b510e639 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayInHeldItemSlot.java
++++ b/src/main/java/net/minecraft/server/PacketPlayInHeldItemSlot.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayInHeldItemSlot implements Packet<PacketListenerPlayIn> {
++public class PacketPlayInHeldItemSlot implements Packet<PacketListenerPlayIn>, mx.kenzie.wellspring.packet.specific.IncomingPacket { // Kenzie
+ 
+     private int itemInHandIndex;
+ 
+diff --git a/src/main/java/net/minecraft/server/PacketPlayInItemName.java b/src/main/java/net/minecraft/server/PacketPlayInItemName.java
+index 8b9422dba9f417fcef60b448071f748cab090053..894047926101094cc617750508d10824b5ee243f 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayInItemName.java
++++ b/src/main/java/net/minecraft/server/PacketPlayInItemName.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayInItemName implements Packet<PacketListenerPlayIn> {
++public class PacketPlayInItemName implements Packet<PacketListenerPlayIn>, mx.kenzie.wellspring.packet.specific.IncomingPacket { // Kenzie
+ 
+     private String a;
+ 
+diff --git a/src/main/java/net/minecraft/server/PacketPlayInJigsawGenerate.java b/src/main/java/net/minecraft/server/PacketPlayInJigsawGenerate.java
+index 2acc3ee19c47576bb032bd6a45371bd43b589dcc..4e7af948fed304a6f986a46030ff951ed91eb557 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayInJigsawGenerate.java
++++ b/src/main/java/net/minecraft/server/PacketPlayInJigsawGenerate.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayInJigsawGenerate implements Packet<PacketListenerPlayIn> {
++public class PacketPlayInJigsawGenerate implements Packet<PacketListenerPlayIn>, mx.kenzie.wellspring.packet.specific.IncomingPacket { // Kenzie
+ 
+     private BlockPosition a;
+     private int b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayInKeepAlive.java b/src/main/java/net/minecraft/server/PacketPlayInKeepAlive.java
+index 8e93f1540ba5f995489c1fbcec70d10b011cd9c3..5e750a1eebe94a5c70c7d6e6fa72bca78663bcca 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayInKeepAlive.java
++++ b/src/main/java/net/minecraft/server/PacketPlayInKeepAlive.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayInKeepAlive implements Packet<PacketListenerPlayIn> {
++public class PacketPlayInKeepAlive implements Packet<PacketListenerPlayIn>, mx.kenzie.wellspring.packet.specific.IncomingPacket { // Kenzie
+ 
+     private long a;
+ 
+diff --git a/src/main/java/net/minecraft/server/PacketPlayInPickItem.java b/src/main/java/net/minecraft/server/PacketPlayInPickItem.java
+index 167837b3459023fe6cbd80424cef8e4653129c02..755ca315295e56ab9551a40778d395fb164c1fdc 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayInPickItem.java
++++ b/src/main/java/net/minecraft/server/PacketPlayInPickItem.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayInPickItem implements Packet<PacketListenerPlayIn> {
++public class PacketPlayInPickItem implements Packet<PacketListenerPlayIn>, mx.kenzie.wellspring.packet.specific.IncomingPacket { // Kenzie
+ 
+     private int a;
+ 
+diff --git a/src/main/java/net/minecraft/server/PacketPlayInRecipeDisplayed.java b/src/main/java/net/minecraft/server/PacketPlayInRecipeDisplayed.java
+index ba355702b131907b2a3cb385bfc685b04e36d956..ea2180bc57c1b264881febf8275ac930fc0a9884 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayInRecipeDisplayed.java
++++ b/src/main/java/net/minecraft/server/PacketPlayInRecipeDisplayed.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayInRecipeDisplayed implements Packet<PacketListenerPlayIn> {
++public class PacketPlayInRecipeDisplayed implements Packet<PacketListenerPlayIn>, mx.kenzie.wellspring.packet.specific.IncomingPacket { // Kenzie
+ 
+     private MinecraftKey a;
+ 
+diff --git a/src/main/java/net/minecraft/server/PacketPlayInRecipeSettings.java b/src/main/java/net/minecraft/server/PacketPlayInRecipeSettings.java
+index 0ccfa281aafd040aebadc615b56d308f8466500c..ed7ef3357543d102ad72cd466e3a84202867ad04 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayInRecipeSettings.java
++++ b/src/main/java/net/minecraft/server/PacketPlayInRecipeSettings.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayInRecipeSettings implements Packet<PacketListenerPlayIn> {
++public class PacketPlayInRecipeSettings implements Packet<PacketListenerPlayIn>, mx.kenzie.wellspring.packet.specific.IncomingPacket { // Kenzie
+ 
+     private RecipeBookType a;
+     private boolean b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayInResourcePackStatus.java b/src/main/java/net/minecraft/server/PacketPlayInResourcePackStatus.java
+index 755fb99f51e5b253528de3b549d00d755c8b87f7..6db3e1cdaf7fffc56cc528270ba79a425c3d6af0 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayInResourcePackStatus.java
++++ b/src/main/java/net/minecraft/server/PacketPlayInResourcePackStatus.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayInResourcePackStatus implements Packet<PacketListenerPlayIn> {
++public class PacketPlayInResourcePackStatus implements Packet<PacketListenerPlayIn>, mx.kenzie.wellspring.packet.specific.IncomingPacket { // Kenzie
+ 
+     public PacketPlayInResourcePackStatus.EnumResourcePackStatus status;
+ 
+diff --git a/src/main/java/net/minecraft/server/PacketPlayInSetCommandBlock.java b/src/main/java/net/minecraft/server/PacketPlayInSetCommandBlock.java
+index 5dbe837cf8c898117db2390a8ea456772b93084d..7d757a35f881c8213b6145ea740d970ddc83c9fb 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayInSetCommandBlock.java
++++ b/src/main/java/net/minecraft/server/PacketPlayInSetCommandBlock.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayInSetCommandBlock implements Packet<PacketListenerPlayIn> {
++public class PacketPlayInSetCommandBlock implements Packet<PacketListenerPlayIn>, mx.kenzie.wellspring.packet.specific.IncomingPacket { // Kenzie
+ 
+     private BlockPosition a;
+     private String b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayInSetCommandMinecart.java b/src/main/java/net/minecraft/server/PacketPlayInSetCommandMinecart.java
+index f69f8269b2a294ba6226126ca0ac47ff43432d30..513927598a40377485d7343aeb2e85d85cbf09b5 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayInSetCommandMinecart.java
++++ b/src/main/java/net/minecraft/server/PacketPlayInSetCommandMinecart.java
+@@ -3,7 +3,7 @@ package net.minecraft.server;
+ import java.io.IOException;
+ import javax.annotation.Nullable;
+ 
+-public class PacketPlayInSetCommandMinecart implements Packet<PacketListenerPlayIn> {
++public class PacketPlayInSetCommandMinecart implements Packet<PacketListenerPlayIn>, mx.kenzie.wellspring.packet.specific.IncomingPacket { // Kenzie
+ 
+     private int a;
+     private String b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayInSetCreativeSlot.java b/src/main/java/net/minecraft/server/PacketPlayInSetCreativeSlot.java
+index 62ee222090c1bd58ee09badb03875e1e88b7a978..d9ee360d3a0114ecd5f626705edf5ce810b51248 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayInSetCreativeSlot.java
++++ b/src/main/java/net/minecraft/server/PacketPlayInSetCreativeSlot.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayInSetCreativeSlot implements Packet<PacketListenerPlayIn> {
++public class PacketPlayInSetCreativeSlot implements Packet<PacketListenerPlayIn>, mx.kenzie.wellspring.packet.specific.IncomingPacket { // Kenzie
+ 
+     private int slot;
+     private ItemStack b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayInSetJigsaw.java b/src/main/java/net/minecraft/server/PacketPlayInSetJigsaw.java
+index 2b4bac789232b8e4f57d52dee36d2f5e6df8676b..f9366cddbcc1d2f4b78a31108909100e4fa266de 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayInSetJigsaw.java
++++ b/src/main/java/net/minecraft/server/PacketPlayInSetJigsaw.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayInSetJigsaw implements Packet<PacketListenerPlayIn> {
++public class PacketPlayInSetJigsaw implements Packet<PacketListenerPlayIn>, mx.kenzie.wellspring.packet.specific.IncomingPacket { // Kenzie
+ 
+     private BlockPosition a;
+     private MinecraftKey b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayInSettings.java b/src/main/java/net/minecraft/server/PacketPlayInSettings.java
+index 87ec3987d4b6de836016e91ef90383e3e5bb2d16..239b9352332c9a4753169ea569fad6feca272af1 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayInSettings.java
++++ b/src/main/java/net/minecraft/server/PacketPlayInSettings.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayInSettings implements Packet<PacketListenerPlayIn> {
++public class PacketPlayInSettings implements Packet<PacketListenerPlayIn>, mx.kenzie.wellspring.packet.specific.IncomingPacket { // Kenzie
+ 
+     public String locale;
+     public int viewDistance;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayInSpectate.java b/src/main/java/net/minecraft/server/PacketPlayInSpectate.java
+index a07f4ff10f3e0e239352051d116def3d8ef4aa8c..c2ec330a52c2703258d032262ec9bd192b8fcf6f 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayInSpectate.java
++++ b/src/main/java/net/minecraft/server/PacketPlayInSpectate.java
+@@ -4,7 +4,7 @@ import java.io.IOException;
+ import java.util.UUID;
+ import javax.annotation.Nullable;
+ 
+-public class PacketPlayInSpectate implements Packet<PacketListenerPlayIn> {
++public class PacketPlayInSpectate implements Packet<PacketListenerPlayIn>, mx.kenzie.wellspring.packet.specific.IncomingPacket { // Kenzie
+ 
+     private UUID a;
+ 
+diff --git a/src/main/java/net/minecraft/server/PacketPlayInStruct.java b/src/main/java/net/minecraft/server/PacketPlayInStruct.java
+index 9ae5f86b9d6005de9c2d1220844ec981347baa52..827a6053a19eb124d2cf11455ee227e91a4fff22 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayInStruct.java
++++ b/src/main/java/net/minecraft/server/PacketPlayInStruct.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayInStruct implements Packet<PacketListenerPlayIn> {
++public class PacketPlayInStruct implements Packet<PacketListenerPlayIn>, mx.kenzie.wellspring.packet.specific.IncomingPacket { // Kenzie
+ 
+     private BlockPosition a;
+     private TileEntityStructure.UpdateType b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayInTabComplete.java b/src/main/java/net/minecraft/server/PacketPlayInTabComplete.java
+index 71daa0cb08d69c16bded510d1a49053477faf600..7e6694fa00b1f0ba4c35250f4365d6be631ebd9a 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayInTabComplete.java
++++ b/src/main/java/net/minecraft/server/PacketPlayInTabComplete.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayInTabComplete implements Packet<PacketListenerPlayIn> {
++public class PacketPlayInTabComplete implements Packet<PacketListenerPlayIn>, mx.kenzie.wellspring.packet.specific.IncomingPacket { // Kenzie
+ 
+     private int a;
+     private String b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayInTeleportAccept.java b/src/main/java/net/minecraft/server/PacketPlayInTeleportAccept.java
+index 014810296f452a144c5569cabe474813f4ac38db..a4ef2e6082a098afc1f36fe729cdaeb5a4a99327 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayInTeleportAccept.java
++++ b/src/main/java/net/minecraft/server/PacketPlayInTeleportAccept.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayInTeleportAccept implements Packet<PacketListenerPlayIn> {
++public class PacketPlayInTeleportAccept implements Packet<PacketListenerPlayIn>, mx.kenzie.wellspring.packet.specific.IncomingPacket { // Kenzie
+ 
+     private int a;
+ 
+diff --git a/src/main/java/net/minecraft/server/PacketPlayInTileNBTQuery.java b/src/main/java/net/minecraft/server/PacketPlayInTileNBTQuery.java
+index 7793b82d28928725e3074766bb28eb2ceecae2a8..189c8cf8ed117f61acb8cf0988fb39030259b251 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayInTileNBTQuery.java
++++ b/src/main/java/net/minecraft/server/PacketPlayInTileNBTQuery.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayInTileNBTQuery implements Packet<PacketListenerPlayIn> {
++public class PacketPlayInTileNBTQuery implements Packet<PacketListenerPlayIn>, mx.kenzie.wellspring.packet.specific.IncomingPacket { // Kenzie
+ 
+     private int a;
+     private BlockPosition b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayInTrSel.java b/src/main/java/net/minecraft/server/PacketPlayInTrSel.java
+index 74bae389e17420cadebcb2d00459b64dcb10d417..8780f81482b7dc229b92a6d9eb4591c9204adacd 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayInTrSel.java
++++ b/src/main/java/net/minecraft/server/PacketPlayInTrSel.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayInTrSel implements Packet<PacketListenerPlayIn> {
++public class PacketPlayInTrSel implements Packet<PacketListenerPlayIn>, mx.kenzie.wellspring.packet.specific.IncomingPacket { // Kenzie
+ 
+     private int a;
+ 
+diff --git a/src/main/java/net/minecraft/server/PacketPlayInTransaction.java b/src/main/java/net/minecraft/server/PacketPlayInTransaction.java
+index a109c2a73a7b4e8ac11f83faeed3925fb62e5d61..0a79d9bd0db068cd8805452529a02aef0f3c4215 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayInTransaction.java
++++ b/src/main/java/net/minecraft/server/PacketPlayInTransaction.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayInTransaction implements Packet<PacketListenerPlayIn> {
++public class PacketPlayInTransaction implements Packet<PacketListenerPlayIn>, mx.kenzie.wellspring.packet.specific.IncomingPacket { // Kenzie
+ 
+     private int a;
+     private short b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayInUpdateSign.java b/src/main/java/net/minecraft/server/PacketPlayInUpdateSign.java
+index 1bc843ca6ddccf7108386174154ddb7aedda6b2d..34996cafe773ad5b9e00d8f231866c60acb3d446 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayInUpdateSign.java
++++ b/src/main/java/net/minecraft/server/PacketPlayInUpdateSign.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayInUpdateSign implements Packet<PacketListenerPlayIn> {
++public class PacketPlayInUpdateSign implements Packet<PacketListenerPlayIn>, mx.kenzie.wellspring.packet.specific.IncomingPacket { // Kenzie
+ 
+     private BlockPosition a;
+     private String[] b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayInUseEntity.java b/src/main/java/net/minecraft/server/PacketPlayInUseEntity.java
+index 09c757a3bb1d9a49343cf58e18f736e1fa9e10c7..fdaea2fd88396288733edd51d96641940f5e0cd0 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayInUseEntity.java
++++ b/src/main/java/net/minecraft/server/PacketPlayInUseEntity.java
+@@ -3,7 +3,7 @@ package net.minecraft.server;
+ import java.io.IOException;
+ import javax.annotation.Nullable;
+ 
+-public class PacketPlayInUseEntity implements Packet<PacketListenerPlayIn> {
++public class PacketPlayInUseEntity implements Packet<PacketListenerPlayIn>, mx.kenzie.wellspring.packet.specific.IncomingPacket { // Kenzie
+ 
+     private int a; public int getEntityId() { return this.a; } // Paper - add accessor
+     private PacketPlayInUseEntity.EnumEntityUseAction action;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayInUseItem.java b/src/main/java/net/minecraft/server/PacketPlayInUseItem.java
+index cc2bf815059c796efb9ca90e428139beda5e161d..60acae6fabc501a7a1a3e1b427bd17d1f03e5549 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayInUseItem.java
++++ b/src/main/java/net/minecraft/server/PacketPlayInUseItem.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayInUseItem implements Packet<PacketListenerPlayIn> {
++public class PacketPlayInUseItem implements Packet<PacketListenerPlayIn>, mx.kenzie.wellspring.packet.specific.IncomingPacket { // Kenzie
+ 
+     private MovingObjectPositionBlock a;
+     private EnumHand b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayInVehicleMove.java b/src/main/java/net/minecraft/server/PacketPlayInVehicleMove.java
+index 854e7e1c73d0526260193c18f5f1b2b4c68679e4..b32a75405e619c5fceea83e287e7dfc67289d1a8 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayInVehicleMove.java
++++ b/src/main/java/net/minecraft/server/PacketPlayInVehicleMove.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayInVehicleMove implements Packet<PacketListenerPlayIn> {
++public class PacketPlayInVehicleMove implements Packet<PacketListenerPlayIn>, mx.kenzie.wellspring.packet.specific.IncomingPacket { // Kenzie
+ 
+     private double a;
+     private double b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayInWindowClick.java b/src/main/java/net/minecraft/server/PacketPlayInWindowClick.java
+index e0734039a9d85e5dee3a435e8e9a8354ae46dee1..686c8a12363e1055038fd96547f2ab77cdb86ede 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayInWindowClick.java
++++ b/src/main/java/net/minecraft/server/PacketPlayInWindowClick.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayInWindowClick implements Packet<PacketListenerPlayIn> {
++public class PacketPlayInWindowClick implements Packet<PacketListenerPlayIn>, mx.kenzie.wellspring.packet.specific.IncomingPacket { // Kenzie
+ 
+     private int a;
+     private int slot;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutAbilities.java b/src/main/java/net/minecraft/server/PacketPlayOutAbilities.java
+index 580caf9d3da0d51b6d66539114db5effb6a8aee5..7615ac10582fbc5e8325a1273d85cc5ef0d77b98 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutAbilities.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutAbilities.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayOutAbilities implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutAbilities implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private boolean a;
+     private boolean b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutAdvancements.java b/src/main/java/net/minecraft/server/PacketPlayOutAdvancements.java
+index ad6da6cd0becbc2938cb3997a8d1e4808df091c2..e1caf032258f18aeb49687c73da81b9f0301e021 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutAdvancements.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutAdvancements.java
+@@ -9,7 +9,7 @@ import java.util.Map;
+ import java.util.Map.Entry;
+ import java.util.Set;
+ 
+-public class PacketPlayOutAdvancements implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutAdvancements implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private boolean a;
+     private Map<MinecraftKey, Advancement.SerializedAdvancement> b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutAnimation.java b/src/main/java/net/minecraft/server/PacketPlayOutAnimation.java
+index 0d03118235a9c740349a4154be3677fb51019c4d..954706feef9ca681dac771d2c6eaecbc01ee7bcc 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutAnimation.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutAnimation.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayOutAnimation implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutAnimation implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private int a;
+     private int b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutAttachEntity.java b/src/main/java/net/minecraft/server/PacketPlayOutAttachEntity.java
+index dfd55d864283c1abd68306ee750bc16bb195de86..33f17c293f8959894a9df3bfc06e5fa5fe1df4ec 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutAttachEntity.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutAttachEntity.java
+@@ -1,15 +1,34 @@
+ package net.minecraft.server;
+ 
++import mx.kenzie.wellspring.packet.specific.EntityPacket;
++
+ import java.io.IOException;
+ import javax.annotation.Nullable;
+ 
+-public class PacketPlayOutAttachEntity implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutAttachEntity implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket, EntityPacket { // Kenzie
+ 
+     private int a;
+     private int b;
+ 
+     public PacketPlayOutAttachEntity() {}
+ 
++    // Kenzie start
++    public PacketPlayOutAttachEntity(int a, int b) {
++        this.a = a;
++        this.b = b;
++    }
++
++    @Override
++    public int getEntityId() {
++        return a;
++    }
++
++    @Override
++    public void setEntityId(int id) {
++        a = id;
++    }
++    // Kenzie end
++
+     public PacketPlayOutAttachEntity(Entity entity, @Nullable Entity entity1) {
+         this.a = entity.getId();
+         this.b = entity1 != null ? entity1.getId() : 0;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutAutoRecipe.java b/src/main/java/net/minecraft/server/PacketPlayOutAutoRecipe.java
+index 4384f94cf31f11b597778c2f9b99961511afa892..b371c4e95114bef840a64a3aa8a9efa87833e040 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutAutoRecipe.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutAutoRecipe.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayOutAutoRecipe implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutAutoRecipe implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private int a;
+     private MinecraftKey b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutBlockAction.java b/src/main/java/net/minecraft/server/PacketPlayOutBlockAction.java
+index ebba72f44725dd1967ef36bb9846bd4c0c064d56..3d178260e8b6483561df4796aac6ab823beda261 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutBlockAction.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutBlockAction.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayOutBlockAction implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutBlockAction implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private BlockPosition a;
+     private int b;
+@@ -23,7 +23,7 @@ public class PacketPlayOutBlockAction implements Packet<PacketListenerPlayOut> {
+         this.a = packetdataserializer.e();
+         this.b = packetdataserializer.readUnsignedByte();
+         this.c = packetdataserializer.readUnsignedByte();
+-        this.d = (Block) IRegistry.BLOCK.fromId(packetdataserializer.i());
++        this.d = IRegistry.BLOCK.fromId(packetdataserializer.i());
+     }
+ 
+     @Override
+@@ -31,7 +31,7 @@ public class PacketPlayOutBlockAction implements Packet<PacketListenerPlayOut> {
+         packetdataserializer.a(this.a);
+         packetdataserializer.writeByte(this.b);
+         packetdataserializer.writeByte(this.c);
+-        packetdataserializer.d(IRegistry.BLOCK.a((Object) this.d));
++        packetdataserializer.d(IRegistry.BLOCK.a(this.d));
+     }
+ 
+     public void a(PacketListenerPlayOut packetlistenerplayout) {
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutBlockBreak.java b/src/main/java/net/minecraft/server/PacketPlayOutBlockBreak.java
+index 504f0dead87e803cf7e78fcf2a28863e088dd586..85cb2461f8a535db7ddb8a35ed69dc8d7ab2d6fb 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutBlockBreak.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutBlockBreak.java
+@@ -4,7 +4,7 @@ import java.io.IOException;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+ 
+-public class PacketPlayOutBlockBreak implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutBlockBreak implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private static final Logger LOGGER = LogManager.getLogger();
+     private BlockPosition c;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutBlockBreakAnimation.java b/src/main/java/net/minecraft/server/PacketPlayOutBlockBreakAnimation.java
+index c930180a6eecb2fffd053a163616b493ca4360ed..3b0e9d4da16d40766e2f24e97265d1e5ea69ebbc 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutBlockBreakAnimation.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutBlockBreakAnimation.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayOutBlockBreakAnimation implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutBlockBreakAnimation implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private int a;
+     private BlockPosition b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutBlockChange.java b/src/main/java/net/minecraft/server/PacketPlayOutBlockChange.java
+index 67608959dcafa9aa96b029787f80858838ca688e..1b3fab06d2b0fee9bde775f89aa15bc5d51594c8 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutBlockChange.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutBlockChange.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayOutBlockChange implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutBlockChange implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private BlockPosition a;
+     public IBlockData block;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutBoss.java b/src/main/java/net/minecraft/server/PacketPlayOutBoss.java
+index 2ec98b2d1e9079b4c7c04aefe3bfa6fb55428134..b782206fa5f7a9d0aea527ea553f5776a32b519f 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutBoss.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutBoss.java
+@@ -3,7 +3,7 @@ package net.minecraft.server;
+ import java.io.IOException;
+ import java.util.UUID;
+ 
+-public class PacketPlayOutBoss implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutBoss implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private UUID a;
+     private PacketPlayOutBoss.Action b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutCamera.java b/src/main/java/net/minecraft/server/PacketPlayOutCamera.java
+index 1e3cb7cb24d864178a86bac4178d154db44dce72..67e32f13d6372aec217bd7f98ef411e20578ffbe 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutCamera.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutCamera.java
+@@ -1,8 +1,10 @@
+ package net.minecraft.server;
+ 
++import mx.kenzie.wellspring.packet.specific.EntityPacket;
++
+ import java.io.IOException;
+ 
+-public class PacketPlayOutCamera implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutCamera implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket, EntityPacket { // Kenzie
+ 
+     public int a;
+ 
+@@ -25,4 +27,18 @@ public class PacketPlayOutCamera implements Packet<PacketListenerPlayOut> {
+     public void a(PacketListenerPlayOut packetlistenerplayout) {
+         packetlistenerplayout.a(this);
+     }
++
++    // Kenzie start
++    public PacketPlayOutCamera(int id) { a = id; }
++
++    @Override
++    public int getEntityId() {
++        return a;
++    }
++
++    @Override
++    public void setEntityId(int id) {
++        a = id;
++    }
++    // Kenzie end
+ }
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutChat.java b/src/main/java/net/minecraft/server/PacketPlayOutChat.java
+index 87f6ded6e7410702229ed066b2dcdb510853252d..bcd6a812751d66d884ec16d7a0f9f107ef367011 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutChat.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutChat.java
+@@ -3,7 +3,7 @@ package net.minecraft.server;
+ import java.io.IOException;
+ import java.util.UUID;
+ 
+-public class PacketPlayOutChat implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutChat implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+     private static final int MAX_LENGTH = Short.MAX_VALUE * 8 + 8; // Paper
+     private IChatBaseComponent a;
+     public net.md_5.bungee.api.chat.BaseComponent[] components; // Spigot
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutCloseWindow.java b/src/main/java/net/minecraft/server/PacketPlayOutCloseWindow.java
+index f2bedf374802647f5a322485c9a45b6a9120a6f8..98b74d498a94e4699d5d3c655e287ed68de55b2f 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutCloseWindow.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutCloseWindow.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayOutCloseWindow implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutCloseWindow implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private int a;
+ 
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutCollect.java b/src/main/java/net/minecraft/server/PacketPlayOutCollect.java
+index 800e5e0b3294fdf037ee2cdea394e82224db1130..543dd66b3ae58b65908f16b32d01297006821951 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutCollect.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutCollect.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayOutCollect implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutCollect implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private int a;
+     private int b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutCombatEvent.java b/src/main/java/net/minecraft/server/PacketPlayOutCombatEvent.java
+index f1565df15b209e436c987f4aeb019fbe95be17e6..662354dbe027dba1b3a95e8b633d0bfa548e8588 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutCombatEvent.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutCombatEvent.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayOutCombatEvent implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutCombatEvent implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     public PacketPlayOutCombatEvent.EnumCombatEventType a;
+     public int b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutCommands.java b/src/main/java/net/minecraft/server/PacketPlayOutCommands.java
+index b9a089182c546877b828be1e15f5a87703e974fe..0664ac3b6dd0b36c037d45ce48956d1d191d5e47 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutCommands.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutCommands.java
+@@ -23,7 +23,7 @@ import java.util.Map;
+ import java.util.Queue;
+ import javax.annotation.Nullable;
+ 
+-public class PacketPlayOutCommands implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutCommands implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private RootCommandNode<ICompletionProvider> a;
+ 
+@@ -64,7 +64,7 @@ public class PacketPlayOutCommands implements Packet<PacketListenerPlayOut> {
+     }
+ 
+     private static void a(PacketPlayOutCommands.a[] apacketplayoutcommands_a) {
+-        ArrayList arraylist = Lists.newArrayList(apacketplayoutcommands_a);
++        ArrayList<PacketPlayOutCommands.a> arraylist = Lists.newArrayList(apacketplayoutcommands_a);
+ 
+         boolean flag;
+ 
+@@ -73,7 +73,7 @@ public class PacketPlayOutCommands implements Packet<PacketListenerPlayOut> {
+                 return;
+             }
+ 
+-            flag = arraylist.removeIf((packetplayoutcommands_a) -> {
++            flag = arraylist.removeIf(packetplayoutcommands_a -> {
+                 return packetplayoutcommands_a.a(apacketplayoutcommands_a);
+             });
+         } while (flag);
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutCustomPayload.java b/src/main/java/net/minecraft/server/PacketPlayOutCustomPayload.java
+index 259eafc2be3e0d7b10f0232183fcde8e4fb02716..97e38dc62e85909c255ebe68a795e0e1bc34af41 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutCustomPayload.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutCustomPayload.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayOutCustomPayload implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutCustomPayload implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     public static final MinecraftKey a = new MinecraftKey("brand");
+     public static final MinecraftKey b = new MinecraftKey("debug/path");
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutCustomSoundEffect.java b/src/main/java/net/minecraft/server/PacketPlayOutCustomSoundEffect.java
+index eada3027a44525452864d45d9e37e21035d61629..2b6a7772f14f39bdda53d3a5f4310742483c664d 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutCustomSoundEffect.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutCustomSoundEffect.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayOutCustomSoundEffect implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutCustomSoundEffect implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private MinecraftKey a;
+     private SoundCategory b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutEntity.java b/src/main/java/net/minecraft/server/PacketPlayOutEntity.java
+index e5da2b19c1177ba7f88f0aaad9d810bb313ce67b..18856935e45ec69cfcdb9500301e0e6055a790a3 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutEntity.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutEntity.java
+@@ -1,8 +1,10 @@
+ package net.minecraft.server;
+ 
++import mx.kenzie.wellspring.packet.specific.EntityPacket;
++
+ import java.io.IOException;
+ 
+-public class PacketPlayOutEntity implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutEntity implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket, EntityPacket { // Kenzie
+ 
+     protected int a;
+     protected short b;
+@@ -22,6 +24,18 @@ public class PacketPlayOutEntity implements Packet<PacketListenerPlayOut> {
+         return (new Vec3D((double) i, (double) j, (double) k)).a(2.44140625E-4D);
+     }
+ 
++    // Kenzie start
++    @Override
++    public int getEntityId() {
++        return a;
++    }
++
++    @Override
++    public void setEntityId(int id) {
++        a = id;
++    }
++    // Kenzie end
++
+     public PacketPlayOutEntity() {}
+ 
+     public PacketPlayOutEntity(int i) {
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutEntityDestroy.java b/src/main/java/net/minecraft/server/PacketPlayOutEntityDestroy.java
+index 429ee4fcf7be531172406dc17d95e1ce77232ca2..2ce81da6e4450a8a8e0dadc79fcbbfe8c8bcff62 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutEntityDestroy.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutEntityDestroy.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayOutEntityDestroy implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutEntityDestroy implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private int[] a;
+ 
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutEntityEffect.java b/src/main/java/net/minecraft/server/PacketPlayOutEntityEffect.java
+index 1bdb13947a94c87c16a8d32ef98b2b4c7d314b98..ea60e62768cd0451564ab518e585eb686b7f5de5 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutEntityEffect.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutEntityEffect.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayOutEntityEffect implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutEntityEffect implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private int a;
+     private byte b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutEntityEquipment.java b/src/main/java/net/minecraft/server/PacketPlayOutEntityEquipment.java
+index c5722f85d92c3ddde11ac6ef9487eb636f30dc36..3f027e66e093a2abe75f059fcb89c234b3f85d53 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutEntityEquipment.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutEntityEquipment.java
+@@ -5,7 +5,7 @@ import com.mojang.datafixers.util.Pair;
+ import java.io.IOException;
+ import java.util.List;
+ 
+-public class PacketPlayOutEntityEquipment implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutEntityEquipment implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private int a;
+     private final List<Pair<EnumItemSlot, ItemStack>> b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutEntityHeadRotation.java b/src/main/java/net/minecraft/server/PacketPlayOutEntityHeadRotation.java
+index 4c09e9b95ea1bd7d60e8327fdaaacf7da12d2859..0ff828be7a806f07377140cc647d425ab9efab73 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutEntityHeadRotation.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutEntityHeadRotation.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayOutEntityHeadRotation implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutEntityHeadRotation implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private int a;
+     private byte b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutEntityMetadata.java b/src/main/java/net/minecraft/server/PacketPlayOutEntityMetadata.java
+index 3272d6549f7268d1e0a79d04c22708180cd67b66..96e199b3a58525e953cb96f78482c3ac3e22a080 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutEntityMetadata.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutEntityMetadata.java
+@@ -1,8 +1,7 @@
+ package net.minecraft.server;
+ 
+-import mx.kenzie.wellspring.packet.meta.MetaField;
++import mx.kenzie.wellspring.packet.data.MetaField;
+ import mx.kenzie.wellspring.packet.specific.OutgoingEntityMetadata;
+-import org.bukkit.entity.Entity;
+ 
+ import java.io.IOException;
+ import java.util.HashMap;
+@@ -20,6 +19,16 @@ public class PacketPlayOutEntityMetadata implements Packet<PacketListenerPlayOut
+         b = list;
+     }
+ 
++    @Override
++    public int getEntityId() {
++        return a;
++    }
++
++    @Override
++    public void setEntityId(int id) {
++        a = id;
++    }
++
+     public List<DataWatcher.Item<?>> getWatcherEntries() { // Kenzie
+         return b;
+     }
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutEntitySound.java b/src/main/java/net/minecraft/server/PacketPlayOutEntitySound.java
+index 406568be150de2716ffba0d3d094a95fff33595b..e1890b9216434cd45a0b103968f07934136a05c6 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutEntitySound.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutEntitySound.java
+@@ -3,7 +3,7 @@ package net.minecraft.server;
+ import java.io.IOException;
+ import org.apache.commons.lang3.Validate;
+ 
+-public class PacketPlayOutEntitySound implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutEntitySound implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private SoundEffect a;
+     private SoundCategory b;
+@@ -33,7 +33,7 @@ public class PacketPlayOutEntitySound implements Packet<PacketListenerPlayOut> {
+ 
+     @Override
+     public void b(PacketDataSerializer packetdataserializer) throws IOException {
+-        packetdataserializer.d(IRegistry.SOUND_EVENT.a((Object) this.a));
++        packetdataserializer.d(IRegistry.SOUND_EVENT.a(this.a));
+         packetdataserializer.a((Enum) this.b);
+         packetdataserializer.d(this.c);
+         packetdataserializer.writeFloat(this.d);
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutEntityStatus.java b/src/main/java/net/minecraft/server/PacketPlayOutEntityStatus.java
+index 78cca535e952e70c19b33c1a9aa89f81ce59fd3a..5e4b295702837bc181cb221ae4afcefc7534d345 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutEntityStatus.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutEntityStatus.java
+@@ -1,14 +1,31 @@
+ package net.minecraft.server;
+ 
++import mx.kenzie.wellspring.packet.specific.EntityPacket;
++
+ import java.io.IOException;
+ 
+-public class PacketPlayOutEntityStatus implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutEntityStatus implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket, EntityPacket { // Kenzie
+ 
+     private int a;
+     private byte b;
+ 
+     public PacketPlayOutEntityStatus() {}
+ 
++    // Kenzie start
++    public PacketPlayOutEntityStatus(int id) { a = id; }
++    public PacketPlayOutEntityStatus(int id, byte bi) { a = id; b = bi; }
++
++    @Override
++    public int getEntityId() {
++        return a;
++    }
++
++    @Override
++    public void setEntityId(int id) {
++        a = id;
++    }
++    // Kenzie end
++
+     public PacketPlayOutEntityStatus(Entity entity, byte b0) {
+         this.a = entity.getId();
+         this.b = b0;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutEntityTeleport.java b/src/main/java/net/minecraft/server/PacketPlayOutEntityTeleport.java
+index 84935fb81d05b8bf36bb81cb0ac6dde0981c9e82..2f0ed3516b603eefa4aad6874eace1bf2d9a3614 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutEntityTeleport.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutEntityTeleport.java
+@@ -4,7 +4,7 @@ import org.bukkit.Location;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayOutEntityTeleport implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutEntityTeleport implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private int a;
+     private double b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutEntityVelocity.java b/src/main/java/net/minecraft/server/PacketPlayOutEntityVelocity.java
+index d77b83231668d4963d74c925463970a2aca111eb..25b1b3f47a6d5d8f2a0113ebe76756df9c9f7ee6 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutEntityVelocity.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutEntityVelocity.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayOutEntityVelocity implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutEntityVelocity implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private int a;
+     private int b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutExperience.java b/src/main/java/net/minecraft/server/PacketPlayOutExperience.java
+index 55256c1846d0fb0815b59c1649bf828264f35aff..169af40a62ee93d456bbb559f24b2f746d2ea673 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutExperience.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutExperience.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayOutExperience implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutExperience implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private float a;
+     private int b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutExplosion.java b/src/main/java/net/minecraft/server/PacketPlayOutExplosion.java
+index fe29307c5840f3b0cec75c8612b14466dd1eb032..1ef9d71114ecfd5ee794267fba4d158fa29886c0 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutExplosion.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutExplosion.java
+@@ -5,7 +5,7 @@ import java.io.IOException;
+ import java.util.Iterator;
+ import java.util.List;
+ 
+-public class PacketPlayOutExplosion implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutExplosion implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private double a;
+     private double b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutGameStateChange.java b/src/main/java/net/minecraft/server/PacketPlayOutGameStateChange.java
+index 08cbc787e2bf6587878bdeffa7248e5d23cdcf98..dfc8d076b203f363382202a27d40bf5fa8c0ee73 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutGameStateChange.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutGameStateChange.java
+@@ -4,7 +4,7 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+ import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+ import java.io.IOException;
+ 
+-public class PacketPlayOutGameStateChange implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutGameStateChange implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     public static final PacketPlayOutGameStateChange.a a = new PacketPlayOutGameStateChange.a(0);
+     public static final PacketPlayOutGameStateChange.a b = new PacketPlayOutGameStateChange.a(1);
+@@ -28,9 +28,16 @@ public class PacketPlayOutGameStateChange implements Packet<PacketListenerPlayOu
+         this.n = f;
+     }
+ 
++    // Kenzie start
++    public PacketPlayOutGameStateChange(byte action, float value) {
++        m = PacketPlayOutGameStateChange.a.a.get(action);
++        n = value;
++    }
++    // Kenzie end
++
+     @Override
+     public void a(PacketDataSerializer packetdataserializer) throws IOException {
+-        this.m = (PacketPlayOutGameStateChange.a) PacketPlayOutGameStateChange.a.a.get(packetdataserializer.readUnsignedByte());
++        this.m = PacketPlayOutGameStateChange.a.a.get(packetdataserializer.readUnsignedByte());
+         this.n = packetdataserializer.readFloat();
+     }
+ 
+@@ -51,7 +58,7 @@ public class PacketPlayOutGameStateChange implements Packet<PacketListenerPlayOu
+ 
+         public a(int i) {
+             this.b = i;
+-            PacketPlayOutGameStateChange.a.a.put(i, this);
++            a.put(i, this); // Kenzie deobf fix
+         }
+     }
+ }
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutHeldItemSlot.java b/src/main/java/net/minecraft/server/PacketPlayOutHeldItemSlot.java
+index fb8f321152ad0f6271c3d126e43327e60ac3eabd..82ca152a78eff40e73d8aa9cdb376096fdc57c7f 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutHeldItemSlot.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutHeldItemSlot.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayOutHeldItemSlot implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutHeldItemSlot implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private int a;
+ 
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutKeepAlive.java b/src/main/java/net/minecraft/server/PacketPlayOutKeepAlive.java
+index 37d3cacaef5012aeaa41c60e1e6d0d3b45a28636..f12bf4285f930b7e0ac3d01c838ca1caafa5eec7 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutKeepAlive.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutKeepAlive.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayOutKeepAlive implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutKeepAlive implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private long a;
+ 
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutKickDisconnect.java b/src/main/java/net/minecraft/server/PacketPlayOutKickDisconnect.java
+index fa39b19e579694adb243148114a4080fdd7d685d..2bb573a5f6a0ea204f09ac687813c55ae7ec5578 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutKickDisconnect.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutKickDisconnect.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayOutKickDisconnect implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutKickDisconnect implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private IChatBaseComponent a;
+ 
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutLightUpdate.java b/src/main/java/net/minecraft/server/PacketPlayOutLightUpdate.java
+index a22f0cccecc85b4e4fe4603bcfa213f15c23db69..e8fb591df7e7e9e8ea604d7b5ac0ff23b24a12ee 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutLightUpdate.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutLightUpdate.java
+@@ -1,13 +1,19 @@
+ package net.minecraft.server;
+ 
+ import com.google.common.collect.Lists;
+-import io.netty.channel.ChannelFuture; // Paper
++import io.netty.channel.ChannelFuture;
++import mx.kenzie.wellspring.packet.PacketType;
++import mx.kenzie.wellspring.packet.specific.OutgoingLightUpdate;
++import org.bukkit.Chunk;
++import org.bukkit.World;
+ 
+ import java.io.IOException;
++import java.util.ArrayList;
+ import java.util.Iterator;
+ import java.util.List;
++import java.util.concurrent.CompletableFuture;
+ 
+-public class PacketPlayOutLightUpdate implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutLightUpdate implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket, OutgoingLightUpdate { // Kenzie
+ 
+     private int a;
+     private int b;
+@@ -18,44 +24,26 @@ public class PacketPlayOutLightUpdate implements Packet<PacketListenerPlayOut> {
+     private List<byte[]> g;
+     private List<byte[]> h;
+     private boolean i;
+-
+-    // Paper start
++    java.util.concurrent.atomic.AtomicInteger remainingSends = new java.util.concurrent.atomic.AtomicInteger(0);
+     java.lang.Runnable cleaner1;
+     java.lang.Runnable cleaner2;
+-    java.util.concurrent.atomic.AtomicInteger remainingSends = new java.util.concurrent.atomic.AtomicInteger(0);
+-
+-    @Override
+-    public void onPacketDispatch(EntityPlayer player) {
+-        remainingSends.incrementAndGet();
+-    }
+-
+-    @Override
+-    public void onPacketDispatchFinish(EntityPlayer player, ChannelFuture future) {
+-        if (remainingSends.decrementAndGet() <= 0) {
+-            // incase of any race conditions, schedule this delayed
+-            MCUtil.scheduleTask(5, () -> {
+-                if (remainingSends.get() == 0) {
+-                    cleaner1.run();
+-                    cleaner2.run();
+-                }
+-            }, "Light Packet Release");
+-        }
+-    }
+-
+-    @Override
+-    public boolean hasFinishListener() {
+-        return true;
+-    }
+ 
+     // Paper end
+-    public PacketPlayOutLightUpdate() {}
++    public PacketPlayOutLightUpdate() {
++        this.g = Lists.newArrayList();
++        this.h = Lists.newArrayList();
++        cleaner1 = MCUtil.registerListCleaner(this, this.g, NibbleArray::releaseBytes); // Paper
++        cleaner2 = MCUtil.registerListCleaner(this, this.h, NibbleArray::releaseBytes); // Paper
++    }
+ 
+     public PacketPlayOutLightUpdate(ChunkCoordIntPair chunkcoordintpair, LightEngine lightengine, boolean flag) {
+         this.a = chunkcoordintpair.x;
+         this.b = chunkcoordintpair.z;
+         this.i = flag;
+-        this.g = Lists.newArrayList();cleaner1 = MCUtil.registerListCleaner(this, this.g, NibbleArray::releaseBytes); // Paper
+-        this.h = Lists.newArrayList();cleaner2 = MCUtil.registerListCleaner(this, this.h, NibbleArray::releaseBytes); // Paper
++        this.g = Lists.newArrayList();
++        cleaner1 = MCUtil.registerListCleaner(this, this.g, NibbleArray::releaseBytes); // Paper
++        this.h = Lists.newArrayList();
++        cleaner2 = MCUtil.registerListCleaner(this, this.h, NibbleArray::releaseBytes); // Paper
+ 
+         for (int i = 0; i < 18; ++i) {
+             NibbleArray nibblearray = lightengine.a(EnumSkyBlock.SKY).a(SectionPosition.a(chunkcoordintpair, -1 + i));
+@@ -88,8 +76,10 @@ public class PacketPlayOutLightUpdate implements Packet<PacketListenerPlayOut> {
+         this.i = flag;
+         this.c = i;
+         this.d = j;
+-        this.g = Lists.newArrayList();cleaner1 = MCUtil.registerListCleaner(this, this.g, NibbleArray::releaseBytes); // Paper
+-        this.h = Lists.newArrayList();cleaner2 = MCUtil.registerListCleaner(this, this.h, NibbleArray::releaseBytes); // Paper
++        this.g = Lists.newArrayList();
++        cleaner1 = MCUtil.registerListCleaner(this, this.g, NibbleArray::releaseBytes); // Paper
++        this.h = Lists.newArrayList();
++        cleaner2 = MCUtil.registerListCleaner(this, this.h, NibbleArray::releaseBytes); // Paper
+ 
+         for (int k = 0; k < 18; ++k) {
+             NibbleArray nibblearray;
+@@ -121,6 +111,104 @@ public class PacketPlayOutLightUpdate implements Packet<PacketListenerPlayOut> {
+ 
+     }
+ 
++    // Kenzie start
++    public PacketPlayOutLightUpdate(int chunkX, int chunkZ, boolean trust) {
++        this.a = chunkX;
++        this.b = chunkZ;
++        this.i = trust;
++        this.g = Lists.newArrayList();
++        this.h = Lists.newArrayList();
++        cleaner1 = MCUtil.registerListCleaner(this, this.g, NibbleArray::releaseBytes); // Paper
++        cleaner2 = MCUtil.registerListCleaner(this, this.h, NibbleArray::releaseBytes); // Paper
++    }
++
++    @Override
++    public int getChunkX() {
++        return a;
++    }
++
++    @Override
++    public int getChunkZ() {
++        return b;
++    }
++
++    @Override
++    public List<byte[]> skyUpdates() {
++        return g;
++    }
++
++    @Override
++    public List<byte[]> blockUpdates() {
++        return h;
++    }
++
++    @Override
++    public Chunk getChunk(World world) {
++        return world.getChunkAt(a, b);
++    }
++
++    @Override
++    public CompletableFuture<Chunk> getChunkAsync(World world) {
++        return world.getChunkAtAsync(a, b);
++    }
++
++    @Override
++    public boolean trustEdgeUpdates() {
++        return i;
++    }
++
++    @Override
++    public void setTrustEdgeUpdates(boolean boo) {
++        i = boo;
++    }
++
++    @Override
++    public int getSkyMask() {
++        return c;
++    }
++
++    @Override
++    public void setSkyMask(int mask) {
++        c = mask;
++    }
++
++    @Override
++    public int getBlockMask() {
++        return d;
++    }
++
++    @Override
++    public void setBlockMask(int mask) {
++        d = mask;
++    }
++
++    @Override
++    public int getEmptySkyMask() {
++        return e;
++    }
++
++    @Override
++    public void setEmptySkyMask(int mask) {
++        e = mask;
++    }
++
++    @Override
++    public int getEmptyBlockMask() {
++        return f;
++    }
++
++    @Override
++    public void setEmptyBlockMask(int mask) {
++        f = mask;
++    }
++
++    @Override
++    public PacketType getType() {
++        return PacketType.Outgoing.LIGHT_UPDATE;
++    }
++
++    // Kenzie end
++
+     @Override
+     public void a(PacketDataSerializer packetdataserializer) throws IOException {
+         this.a = packetdataserializer.i();
+@@ -180,4 +268,27 @@ public class PacketPlayOutLightUpdate implements Packet<PacketListenerPlayOut> {
+     public void a(PacketListenerPlayOut packetlistenerplayout) {
+         packetlistenerplayout.a(this);
+     }
++
++    @Override
++    public void onPacketDispatch(EntityPlayer player) {
++        remainingSends.incrementAndGet();
++    }
++
++    @Override
++    public void onPacketDispatchFinish(EntityPlayer player, ChannelFuture future) {
++        if (remainingSends.decrementAndGet() <= 0) {
++            // incase of any race conditions, schedule this delayed
++            MCUtil.scheduleTask(5, () -> {
++                if (remainingSends.get() == 0) {
++                    cleaner1.run();
++                    cleaner2.run();
++                }
++            }, "Light Packet Release");
++        }
++    }
++
++    @Override
++    public boolean hasFinishListener() {
++        return true;
++    }
+ }
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutLogin.java b/src/main/java/net/minecraft/server/PacketPlayOutLogin.java
+index 68766d0359d06d484a7af3c46a665a4d772724ad..d4d48b211a253345b3b6512aacec50b9e5d19030 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutLogin.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutLogin.java
+@@ -6,7 +6,7 @@ import java.util.Iterator;
+ import java.util.Set;
+ import java.util.function.Supplier;
+ 
+-public class PacketPlayOutLogin implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutLogin implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private int a;
+     private long b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutLookAt.java b/src/main/java/net/minecraft/server/PacketPlayOutLookAt.java
+index 60b3a91f2a8a5749185b8a13570d36b3960cb5bf..9e4ee3672bb4f043a61657a3234c050002b6c62d 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutLookAt.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutLookAt.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayOutLookAt implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutLookAt implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private double a;
+     private double b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutMap.java b/src/main/java/net/minecraft/server/PacketPlayOutMap.java
+index 5517df4347928f5dfb3f0a7db42dd1e7c728fecc..6122a067b935216e289265a3a98299e4b2e677c7 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutMap.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutMap.java
+@@ -3,7 +3,7 @@ package net.minecraft.server;
+ import java.io.IOException;
+ import java.util.Collection;
+ 
+-public class PacketPlayOutMap implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutMap implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private int a;
+     private byte b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutMapChunk.java b/src/main/java/net/minecraft/server/PacketPlayOutMapChunk.java
+index 5094a5d6fb3c1a84d6e8f6abe79e894c047d9cfa..b5fb5f8e0dd1781ba29da5d90049bd95ec34ae6d 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutMapChunk.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutMapChunk.java
+@@ -10,7 +10,7 @@ import java.util.List;
+ import java.util.Map.Entry;
+ import javax.annotation.Nullable;
+ 
+-public class PacketPlayOutMapChunk implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutMapChunk implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private int a;
+     private int b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutMount.java b/src/main/java/net/minecraft/server/PacketPlayOutMount.java
+index 1d495e53fb4330ac4235721238d09e7163b2cd20..a7bf0e2e71aeac9cac1598c36968663dce810d14 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutMount.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutMount.java
+@@ -3,7 +3,7 @@ package net.minecraft.server;
+ import java.io.IOException;
+ import java.util.List;
+ 
+-public class PacketPlayOutMount implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutMount implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private int a;
+     private int[] b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutMultiBlockChange.java b/src/main/java/net/minecraft/server/PacketPlayOutMultiBlockChange.java
+index f260459d70053ffd17952aebf3e0410666f9bcd0..da0b4ce040d0ba98e97d37bcea9e3ee7fb44735c 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutMultiBlockChange.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutMultiBlockChange.java
+@@ -5,7 +5,7 @@ import it.unimi.dsi.fastutil.shorts.ShortSet;
+ import java.io.IOException;
+ import java.util.function.BiConsumer;
+ 
+-public class PacketPlayOutMultiBlockChange implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutMultiBlockChange implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private SectionPosition a;
+     private short[] b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutNBTQuery.java b/src/main/java/net/minecraft/server/PacketPlayOutNBTQuery.java
+index 0f6a016ed3a64c9d198b36d50772612d9765caa1..b93bde8dd15b4d6ee896db12a506a0f3fecf3b94 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutNBTQuery.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutNBTQuery.java
+@@ -3,7 +3,7 @@ package net.minecraft.server;
+ import java.io.IOException;
+ import javax.annotation.Nullable;
+ 
+-public class PacketPlayOutNBTQuery implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutNBTQuery implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private int a;
+     @Nullable
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutNamedEntitySpawn.java b/src/main/java/net/minecraft/server/PacketPlayOutNamedEntitySpawn.java
+index fc0197c46c39eb59e94ea3690391b742d96b3a59..4e2eca44877ce7c19c02a374f3f1ce534f3c3dda 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutNamedEntitySpawn.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutNamedEntitySpawn.java
+@@ -1,9 +1,11 @@
+ package net.minecraft.server;
+ 
++import mx.kenzie.wellspring.packet.specific.EntityPacket;
++
+ import java.io.IOException;
+ import java.util.UUID;
+ 
+-public class PacketPlayOutNamedEntitySpawn implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutNamedEntitySpawn implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket, EntityPacket { // Kenzie
+ 
+     private int a;
+     private UUID b;
+@@ -13,6 +15,28 @@ public class PacketPlayOutNamedEntitySpawn implements Packet<PacketListenerPlayO
+     private byte f;
+     private byte g;
+ 
++    // Kenzie start
++    public PacketPlayOutNamedEntitySpawn(int id, UUID uuid, double x, double y, double z, float yaw, float pitch) {
++        this.a = id;
++        this.b = uuid;
++        this.c = x;
++        this.d = y;
++        this.e = z;
++        this.f = (byte) ((int) (yaw * 256.0F / 360.0F));
++        this.g = (byte) ((int) (pitch * 256.0F / 360.0F));
++    }
++
++    @Override
++    public int getEntityId() {
++        return a;
++    }
++
++    @Override
++    public void setEntityId(int id) {
++        a = id;
++    }
++    // Kenzie end
++
+     public PacketPlayOutNamedEntitySpawn() {}
+ 
+     public PacketPlayOutNamedEntitySpawn(EntityHuman entityhuman) {
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutNamedSoundEffect.java b/src/main/java/net/minecraft/server/PacketPlayOutNamedSoundEffect.java
+index 0319818f5dab505e33f8629a8d608293bb430ea7..04d9ea38768ba4c4ea45d1be984457e2692cee2e 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutNamedSoundEffect.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutNamedSoundEffect.java
+@@ -3,7 +3,7 @@ package net.minecraft.server;
+ import java.io.IOException;
+ import org.apache.commons.lang3.Validate;
+ 
+-public class PacketPlayOutNamedSoundEffect implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutNamedSoundEffect implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private SoundEffect a;
+     private SoundCategory b;
+@@ -39,7 +39,7 @@ public class PacketPlayOutNamedSoundEffect implements Packet<PacketListenerPlayO
+ 
+     @Override
+     public void b(PacketDataSerializer packetdataserializer) throws IOException {
+-        packetdataserializer.d(IRegistry.SOUND_EVENT.a((Object) this.a));
++        packetdataserializer.d(IRegistry.SOUND_EVENT.a(this.a));
+         packetdataserializer.a((Enum) this.b);
+         packetdataserializer.writeInt(this.c);
+         packetdataserializer.writeInt(this.d);
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutOpenBook.java b/src/main/java/net/minecraft/server/PacketPlayOutOpenBook.java
+index 5d404dcdfcde2ed2459343f74a76037b38dc8bc0..f8ea8662a0d3e7bbe9c08096ccb66327ac12fa82 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutOpenBook.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutOpenBook.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayOutOpenBook implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutOpenBook implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private EnumHand a;
+ 
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutOpenSignEditor.java b/src/main/java/net/minecraft/server/PacketPlayOutOpenSignEditor.java
+index 6d337eee15e4a977456a90dee5d2b766626aacb8..2af001b5acbe9ffc4dff6fadde043eea7836dc1d 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutOpenSignEditor.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutOpenSignEditor.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayOutOpenSignEditor implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutOpenSignEditor implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private BlockPosition a;
+ 
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutOpenWindow.java b/src/main/java/net/minecraft/server/PacketPlayOutOpenWindow.java
+index dbe1fbc5ad5b524a6df5467d3c5f0b33526f6a4b..64f4a24cc39342115e2b50c6afcb20bd4ff77a6d 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutOpenWindow.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutOpenWindow.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayOutOpenWindow implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutOpenWindow implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private int a;
+     private int b;
+@@ -12,7 +12,7 @@ public class PacketPlayOutOpenWindow implements Packet<PacketListenerPlayOut> {
+ 
+     public PacketPlayOutOpenWindow(int i, Containers<?> containers, IChatBaseComponent ichatbasecomponent) {
+         this.a = i;
+-        this.b = IRegistry.MENU.a((Object) containers);
++        this.b = IRegistry.MENU.a(containers);
+         this.c = ichatbasecomponent;
+     }
+ 
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutOpenWindowHorse.java b/src/main/java/net/minecraft/server/PacketPlayOutOpenWindowHorse.java
+index cb917edd2e0348e9242121ca090287d31bc01634..ef6c404d3391e01486ebdabd1fa2c915294acad2 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutOpenWindowHorse.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutOpenWindowHorse.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayOutOpenWindowHorse implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutOpenWindowHorse implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private int a;
+     private int b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutOpenWindowMerchant.java b/src/main/java/net/minecraft/server/PacketPlayOutOpenWindowMerchant.java
+index 758bd45cc72cea5c5a58905cd1f6f52bf9499f45..78a3ef6806dd22fe4034235e6dc2dda482da485e 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutOpenWindowMerchant.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutOpenWindowMerchant.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayOutOpenWindowMerchant implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutOpenWindowMerchant implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private int a;
+     private MerchantRecipeList b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutPlayerInfo.java b/src/main/java/net/minecraft/server/PacketPlayOutPlayerInfo.java
+index 9a48a4e90c1b1cbcc8dc604fdf0f20a6d0f3bd22..b7f46c44a2d2a9ba27e321f9ffabba09b952cb95 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutPlayerInfo.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutPlayerInfo.java
+@@ -1,5 +1,7 @@
+ package net.minecraft.server;
+ 
++import com.destroystokyo.paper.profile.CraftPlayerProfile;
++import com.destroystokyo.paper.profile.PlayerProfile;
+ import com.google.common.base.MoreObjects;
+ import com.google.common.collect.Lists;
+ import com.mojang.authlib.GameProfile;
+@@ -9,13 +11,21 @@ import java.util.Iterator;
+ import java.util.List;
+ import javax.annotation.Nullable;
+ 
+-public class PacketPlayOutPlayerInfo implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutPlayerInfo implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private PacketPlayOutPlayerInfo.EnumPlayerInfoAction a;
+     private final List<PacketPlayOutPlayerInfo.PlayerInfoData> b = Lists.newArrayList();
+ 
+     public PacketPlayOutPlayerInfo() {}
+ 
++    // Kenzie start
++    public PacketPlayOutPlayerInfo(byte bi, PlayerProfile profile, int ping, EnumGamemode mode, IChatBaseComponent name) {
++        GameProfile prof = ((CraftPlayerProfile) profile).getGameProfile();
++        a = EnumPlayerInfoAction.values()[bi];
++        b.add(new PlayerInfoData(prof, ping, mode, name));
++    }
++    // Kenzie end
++
+     public PacketPlayOutPlayerInfo(PacketPlayOutPlayerInfo.EnumPlayerInfoAction packetplayoutplayerinfo_enumplayerinfoaction, EntityPlayer... aentityplayer) {
+         this.a = packetplayoutplayerinfo_enumplayerinfoaction;
+         EntityPlayer[] aentityplayer1 = aentityplayer;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutPlayerListHeaderFooter.java b/src/main/java/net/minecraft/server/PacketPlayOutPlayerListHeaderFooter.java
+index bb15a104c5ec5b12a28078369dc12257105f89bd..57ac1510aac1b64133beffc7124c0cdadaa01ae7 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutPlayerListHeaderFooter.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutPlayerListHeaderFooter.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayOutPlayerListHeaderFooter implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutPlayerListHeaderFooter implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     public IChatBaseComponent header;
+     public IChatBaseComponent footer;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutPosition.java b/src/main/java/net/minecraft/server/PacketPlayOutPosition.java
+index 6cd5ccd4a858592faa0dfdfb540a9c536851920f..a74f653cee08a94c4fd267d25af871907248daa7 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutPosition.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutPosition.java
+@@ -5,7 +5,7 @@ import java.util.EnumSet;
+ import java.util.Iterator;
+ import java.util.Set;
+ 
+-public class PacketPlayOutPosition implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutPosition implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private double a;
+     private double b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutRecipeUpdate.java b/src/main/java/net/minecraft/server/PacketPlayOutRecipeUpdate.java
+index a2459c86b5c782bfe37561d061f23924b01e99bb..e75c29f59f6300cce32299551c5e391953bf4bfd 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutRecipeUpdate.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutRecipeUpdate.java
+@@ -6,7 +6,7 @@ import java.util.Collection;
+ import java.util.Iterator;
+ import java.util.List;
+ 
+-public class PacketPlayOutRecipeUpdate implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutRecipeUpdate implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private List<IRecipe<?>> a;
+ 
+@@ -56,6 +56,6 @@ public class PacketPlayOutRecipeUpdate implements Packet<PacketListenerPlayOut>
+     public static <T extends IRecipe<?>> void a(T t0, PacketDataSerializer packetdataserializer) {
+         packetdataserializer.a(IRegistry.RECIPE_SERIALIZER.getKey(t0.getRecipeSerializer()));
+         packetdataserializer.a(t0.getKey());
+-        t0.getRecipeSerializer().a(packetdataserializer, t0);
++        (((RecipeSerializer<IRecipe<?>>) t0.getRecipeSerializer())).a(packetdataserializer, t0);
+     }
+ }
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutRecipes.java b/src/main/java/net/minecraft/server/PacketPlayOutRecipes.java
+index 469d8c85bdb279295ee351fb7640359459810004..5bf743eb41e93a3eb1982068ddb270bde895c4ed 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutRecipes.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutRecipes.java
+@@ -7,7 +7,7 @@ import java.util.Collection;
+ import java.util.Iterator;
+ import java.util.List;
+ 
+-public class PacketPlayOutRecipes implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutRecipes implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private PacketPlayOutRecipes.Action a;
+     private List<MinecraftKey> b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutRemoveEntityEffect.java b/src/main/java/net/minecraft/server/PacketPlayOutRemoveEntityEffect.java
+index 1dcae6855f83357c380cafda3de4d6f770e53404..173761fef553e58d9ba234bd013eeefdbd2a1f95 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutRemoveEntityEffect.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutRemoveEntityEffect.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayOutRemoveEntityEffect implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutRemoveEntityEffect implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private int a;
+     private MobEffectList b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutResourcePackSend.java b/src/main/java/net/minecraft/server/PacketPlayOutResourcePackSend.java
+index 6f080612b316cfdcc8ce5f613bad6f9d322f335e..1fede4bdc86eacf60cf7197a3737b27a7e49ad6f 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutResourcePackSend.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutResourcePackSend.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayOutResourcePackSend implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutResourcePackSend implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private String a;
+     private String b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutRespawn.java b/src/main/java/net/minecraft/server/PacketPlayOutRespawn.java
+index 132c8e857cfa3ba646db3fed64fec2ea1c6eb0b3..04637adf0fe400f1d126bd74456236331b5bc1f9 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutRespawn.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutRespawn.java
+@@ -3,7 +3,7 @@ package net.minecraft.server;
+ import java.io.IOException;
+ import java.util.function.Supplier;
+ 
+-public class PacketPlayOutRespawn implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutRespawn implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private DimensionManager a;
+     private ResourceKey<World> b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutScoreboardDisplayObjective.java b/src/main/java/net/minecraft/server/PacketPlayOutScoreboardDisplayObjective.java
+index b7fcafb1c9ebd9bb898339a385f0e32841b3ce39..045a1d909c3fd7a8cc0611fc6a5a9c6bd85404ad 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutScoreboardDisplayObjective.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutScoreboardDisplayObjective.java
+@@ -3,7 +3,7 @@ package net.minecraft.server;
+ import java.io.IOException;
+ import javax.annotation.Nullable;
+ 
+-public class PacketPlayOutScoreboardDisplayObjective implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutScoreboardDisplayObjective implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private int a;
+     private String b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutScoreboardObjective.java b/src/main/java/net/minecraft/server/PacketPlayOutScoreboardObjective.java
+index 124b2e5855c3398de72cc2d2db533686b6e34ae4..f62ec91f00ba8ae255a9fecbd9dce9744f2687f7 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutScoreboardObjective.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutScoreboardObjective.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayOutScoreboardObjective implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutScoreboardObjective implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private String a;
+     private IChatBaseComponent b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutScoreboardScore.java b/src/main/java/net/minecraft/server/PacketPlayOutScoreboardScore.java
+index 7675ce1d9c72c2ceea4d3e9089c0c16519832772..08ed1e6197f5218c1b7275a4c3d60cd3e5513b01 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutScoreboardScore.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutScoreboardScore.java
+@@ -4,7 +4,7 @@ import java.io.IOException;
+ import java.util.Objects;
+ import javax.annotation.Nullable;
+ 
+-public class PacketPlayOutScoreboardScore implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutScoreboardScore implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private String a = "";
+     @Nullable
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutScoreboardTeam.java b/src/main/java/net/minecraft/server/PacketPlayOutScoreboardTeam.java
+index 99dc43159f240135957aee35f6129f19419c6c25..be3c8283108d25bc3fd5ba10f6380d8de4f6980e 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutScoreboardTeam.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutScoreboardTeam.java
+@@ -5,7 +5,7 @@ import java.io.IOException;
+ import java.util.Collection;
+ import java.util.Iterator;
+ 
+-public class PacketPlayOutScoreboardTeam implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutScoreboardTeam implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private String a = "";
+     private IChatBaseComponent b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutSelectAdvancementTab.java b/src/main/java/net/minecraft/server/PacketPlayOutSelectAdvancementTab.java
+index 200865201c6a33c03e641c04f0f591e7901939b7..9254a1321fc03b1ed0384f2aafccc8dbb60b5e20 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutSelectAdvancementTab.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutSelectAdvancementTab.java
+@@ -3,7 +3,7 @@ package net.minecraft.server;
+ import java.io.IOException;
+ import javax.annotation.Nullable;
+ 
+-public class PacketPlayOutSelectAdvancementTab implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutSelectAdvancementTab implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     @Nullable
+     private MinecraftKey a;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutServerDifficulty.java b/src/main/java/net/minecraft/server/PacketPlayOutServerDifficulty.java
+index 1be7fe37d4cdc32308c6f12dc3c6c3cdcfd2faee..a774b5cabf34d4f27315181512c49808a6ab580d 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutServerDifficulty.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutServerDifficulty.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayOutServerDifficulty implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutServerDifficulty implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private EnumDifficulty a;
+     private boolean b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutSetCooldown.java b/src/main/java/net/minecraft/server/PacketPlayOutSetCooldown.java
+index 2689a057a0fdf62e988b55accdc93d0a1480a2ed..a97dcbfba911282dc6d232371d46028960fdbeb5 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutSetCooldown.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutSetCooldown.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayOutSetCooldown implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutSetCooldown implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private Item a;
+     private int b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutSetSlot.java b/src/main/java/net/minecraft/server/PacketPlayOutSetSlot.java
+index 6c5793069d6c77bbb7f5420a95f5d258ef49864a..6ac3c1701d38b3da9fd9c21c61ae55a9cb00401c 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutSetSlot.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutSetSlot.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayOutSetSlot implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutSetSlot implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private int a;
+     private int b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutSpawnEntity.java b/src/main/java/net/minecraft/server/PacketPlayOutSpawnEntity.java
+index d6af9f4ca10bec207c28703d828d0c97130c7325..7147aa7c78de2c43e1927836ac38ec8cab34c2f2 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutSpawnEntity.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutSpawnEntity.java
+@@ -1,9 +1,11 @@
+ package net.minecraft.server;
+ 
++import mx.kenzie.wellspring.packet.specific.EntityPacket;
++
+ import java.io.IOException;
+ import java.util.UUID;
+ 
+-public class PacketPlayOutSpawnEntity implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutSpawnEntity implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket, EntityPacket { // Kenzie
+ 
+     private int a;
+     private UUID b;
+@@ -35,6 +37,18 @@ public class PacketPlayOutSpawnEntity implements Packet<PacketListenerPlayOut> {
+         this.h = (int) (MathHelper.a(vec3d.z, -3.9D, 3.9D) * 8000.0D);
+     }
+ 
++    // Kenzie start
++    @Override
++    public int getEntityId() {
++        return a;
++    }
++
++    @Override
++    public void setEntityId(int id) {
++        a = id;
++    }
++    // Kenzie end
++
+     public PacketPlayOutSpawnEntity(Entity entity) {
+         this(entity, 0);
+     }
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutSpawnEntityExperienceOrb.java b/src/main/java/net/minecraft/server/PacketPlayOutSpawnEntityExperienceOrb.java
+index 3b119fd9de4485764859a24456a70dffa8b670e5..a91851556b2b3558090e6bcd310b2d7c54889d9b 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutSpawnEntityExperienceOrb.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutSpawnEntityExperienceOrb.java
+@@ -1,8 +1,10 @@
+ package net.minecraft.server;
+ 
++import mx.kenzie.wellspring.packet.specific.EntityPacket;
++
+ import java.io.IOException;
+ 
+-public class PacketPlayOutSpawnEntityExperienceOrb implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutSpawnEntityExperienceOrb implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket, EntityPacket { // Kenzie
+ 
+     private int a;
+     private double b;
+@@ -12,6 +14,18 @@ public class PacketPlayOutSpawnEntityExperienceOrb implements Packet<PacketListe
+ 
+     public PacketPlayOutSpawnEntityExperienceOrb() {}
+ 
++    // Kenzie start
++    @Override
++    public int getEntityId() {
++        return a;
++    }
++
++    @Override
++    public void setEntityId(int id) {
++        a = id;
++    }
++    // Kenzie end
++
+     public PacketPlayOutSpawnEntityExperienceOrb(EntityExperienceOrb entityexperienceorb) {
+         this.a = entityexperienceorb.getId();
+         this.b = entityexperienceorb.locX();
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutSpawnEntityLiving.java b/src/main/java/net/minecraft/server/PacketPlayOutSpawnEntityLiving.java
+index 058be773161b4f0b4d3d852656a24633e364bd9a..890f765736a6cd1a7579130eaad8e675fef6529a 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutSpawnEntityLiving.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutSpawnEntityLiving.java
+@@ -1,9 +1,11 @@
+ package net.minecraft.server;
+ 
++import mx.kenzie.wellspring.packet.specific.EntityPacket;
++
+ import java.io.IOException;
+ import java.util.UUID;
+ 
+-public class PacketPlayOutSpawnEntityLiving implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutSpawnEntityLiving implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket, EntityPacket { // Kenzie
+ 
+     private int a;
+     private UUID b;
+@@ -44,6 +46,18 @@ public class PacketPlayOutSpawnEntityLiving implements Packet<PacketListenerPlay
+ 
+     // Kenzie end
+ 
++    // Kenzie start
++    @Override
++    public int getEntityId() {
++        return a;
++    }
++
++    @Override
++    public void setEntityId(int id) {
++        a = id;
++    }
++    // Kenzie end
++
+     public PacketPlayOutSpawnEntityLiving(EntityLiving entityliving) {
+         this.a = entityliving.getId();
+         this.b = entityliving.getUniqueID();
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutSpawnEntityPainting.java b/src/main/java/net/minecraft/server/PacketPlayOutSpawnEntityPainting.java
+index b15a234062d1c0944bc76b87d37775cc28b475b5..7e342e95ab37c559d63f42fd88f7eed1e8f91a42 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutSpawnEntityPainting.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutSpawnEntityPainting.java
+@@ -3,7 +3,7 @@ package net.minecraft.server;
+ import java.io.IOException;
+ import java.util.UUID;
+ 
+-public class PacketPlayOutSpawnEntityPainting implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutSpawnEntityPainting implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private int a;
+     private UUID b;
+@@ -18,7 +18,7 @@ public class PacketPlayOutSpawnEntityPainting implements Packet<PacketListenerPl
+         this.b = entitypainting.getUniqueID();
+         this.c = entitypainting.getBlockPosition();
+         this.d = entitypainting.getDirection();
+-        this.e = IRegistry.MOTIVE.a((Object) entitypainting.art);
++        this.e = IRegistry.MOTIVE.a(entitypainting.art);
+     }
+ 
+     @Override
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutSpawnPosition.java b/src/main/java/net/minecraft/server/PacketPlayOutSpawnPosition.java
+index c2d1b92d856e589ac81454b0fec6bd10b05d1939..9574b72f54f5a9a919d2b5d46dc285667f6008c5 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutSpawnPosition.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutSpawnPosition.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayOutSpawnPosition implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutSpawnPosition implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     public BlockPosition position;
+     private float b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutStatistic.java b/src/main/java/net/minecraft/server/PacketPlayOutStatistic.java
+index f1c512e06833ad1d468ffa0011289198de030c47..6a61a874a89693cce6f3ed787c894210207512b5 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutStatistic.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutStatistic.java
+@@ -6,7 +6,7 @@ import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
+ import it.unimi.dsi.fastutil.objects.ObjectIterator;
+ import java.io.IOException;
+ 
+-public class PacketPlayOutStatistic implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutStatistic implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private Object2IntMap<Statistic<?>> a;
+ 
+@@ -48,7 +48,7 @@ public class PacketPlayOutStatistic implements Packet<PacketListenerPlayOut> {
+             Entry<Statistic<?>> entry = (Entry) objectiterator.next();
+             Statistic<?> statistic = (Statistic) entry.getKey();
+ 
+-            packetdataserializer.d(IRegistry.STATS.a((Object) statistic.getWrapper()));
++            packetdataserializer.d(IRegistry.STATS.a(statistic.getWrapper()));
+             packetdataserializer.d(this.a(statistic));
+             packetdataserializer.d(entry.getIntValue());
+         }
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutStopSound.java b/src/main/java/net/minecraft/server/PacketPlayOutStopSound.java
+index ee1dccffea8ce4f9755f88f4c89c9aeed6698d7f..11baea8172b96dbe49fd29ccacedc04ebe098a0a 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutStopSound.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutStopSound.java
+@@ -3,7 +3,7 @@ package net.minecraft.server;
+ import java.io.IOException;
+ import javax.annotation.Nullable;
+ 
+-public class PacketPlayOutStopSound implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutStopSound implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private MinecraftKey a;
+     private SoundCategory b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutTabComplete.java b/src/main/java/net/minecraft/server/PacketPlayOutTabComplete.java
+index 3e227fafe4a12ad50b2f85ffc71dbcb92112fe72..e3ad98c89e8e93ec66706d11b3f579092fe3c0aa 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutTabComplete.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutTabComplete.java
+@@ -8,7 +8,7 @@ import java.io.IOException;
+ import java.util.Iterator;
+ import java.util.List;
+ 
+-public class PacketPlayOutTabComplete implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutTabComplete implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private int a;
+     private Suggestions b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutTags.java b/src/main/java/net/minecraft/server/PacketPlayOutTags.java
+index cb1725f6e690852e1c0239cab676baf801a16484..f969f9baf23636946e18381db2ba09325b692109 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutTags.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutTags.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayOutTags implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutTags implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private ITagRegistry a;
+ 
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutTileEntityData.java b/src/main/java/net/minecraft/server/PacketPlayOutTileEntityData.java
+index 6bcb19b560116fc83dc11e779f2d4298cb7696c2..c7b11df6aeb0e1559a96dff8c819f1dcd915efad 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutTileEntityData.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutTileEntityData.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayOutTileEntityData implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutTileEntityData implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private BlockPosition a;
+     private int b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutTitle.java b/src/main/java/net/minecraft/server/PacketPlayOutTitle.java
+index 535056c64ef866e645b1bfbd149b50c53cb64485..2f9654db71923c1725164f97f3a6fc72a518ecad 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutTitle.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutTitle.java
+@@ -3,7 +3,7 @@ package net.minecraft.server;
+ import java.io.IOException;
+ import javax.annotation.Nullable;
+ 
+-public class PacketPlayOutTitle implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutTitle implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private PacketPlayOutTitle.EnumTitleAction a;
+     private IChatBaseComponent b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutTransaction.java b/src/main/java/net/minecraft/server/PacketPlayOutTransaction.java
+index 1e81f065912bbcb2ab3ebf3e8dc02c488206d5d9..0c3bf11a1887e3a979ed869259152eb68f33d0aa 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutTransaction.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutTransaction.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayOutTransaction implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutTransaction implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private int a;
+     private short b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutUnloadChunk.java b/src/main/java/net/minecraft/server/PacketPlayOutUnloadChunk.java
+index 563904f96b9f036cd36868f700acea3eb0ef7c41..65213863ac3df4ba0e19fe1432e12f42781bded7 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutUnloadChunk.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutUnloadChunk.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayOutUnloadChunk implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutUnloadChunk implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private int a;
+     private int b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutUpdateAttributes.java b/src/main/java/net/minecraft/server/PacketPlayOutUpdateAttributes.java
+index 641fe0d3ad3885192a6a45aeae8152fbed1a702e..f9b3837eb569aef111092585186796140cbcab55 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutUpdateAttributes.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutUpdateAttributes.java
+@@ -1,19 +1,68 @@
+ package net.minecraft.server;
+ 
+ import com.google.common.collect.Lists;
++import mx.kenzie.wellspring.packet.specific.OutgoingUpdateAttributes;
++import org.bukkit.attribute.Attribute;
++import org.bukkit.craftbukkit.attribute.CraftAttributeInstance;
++
+ import java.io.IOException;
+-import java.util.Collection;
+-import java.util.Iterator;
+-import java.util.List;
+-import java.util.UUID;
++import java.util.*;
+ 
+-public class PacketPlayOutUpdateAttributes implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutUpdateAttributes implements Packet<PacketListenerPlayOut>, OutgoingUpdateAttributes {
+ 
+     private int a;
+     private final List<PacketPlayOutUpdateAttributes.AttributeSnapshot> b = Lists.newArrayList();
+ 
+     public PacketPlayOutUpdateAttributes() {}
+ 
++    // Kenzie start
++    public PacketPlayOutUpdateAttributes(int id) {
++        a = id;
++    }
++
++    @Override
++    public int getEntityId() {
++        return a;
++    }
++
++    @Override
++    public void setEntityId(int id) {
++        a = id;
++    }
++
++    @Override
++    public void add(Attribute attribute, double defaultValue, org.bukkit.attribute.AttributeModifier... modifiers) {
++        final Collection<AttributeModifier> mods = new HashSet<>();
++        for (org.bukkit.attribute.AttributeModifier modifier : modifiers) {
++            mods.add(CraftAttributeInstance.convert(modifier));
++        }
++        final AttributeSnapshot snapshot = new AttributeSnapshot(
++                IRegistry.ATTRIBUTE.get(MinecraftKey.a(attribute.getKey().toString())),
++                defaultValue,
++                mods);
++        b.add(snapshot);
++    }
++
++    @Override
++    public void remove(Attribute attribute) {
++        b.removeIf(snapshot -> snapshot.b.getName().equalsIgnoreCase(attribute.name()));
++    }
++
++    @Override
++    public boolean has(Attribute attribute) {
++        for (AttributeSnapshot snapshot : b) {
++            if (snapshot.b.getName().equalsIgnoreCase(attribute.name())) return true;
++        }
++        return false;
++    }
++
++    @Override
++    public int attributeCount() {
++        return b.size();
++    }
++
++    // Kenzie end
++
+     public PacketPlayOutUpdateAttributes(int i, Collection<AttributeModifiable> collection) {
+         this.a = i;
+         Iterator iterator = collection.iterator();
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutUpdateHealth.java b/src/main/java/net/minecraft/server/PacketPlayOutUpdateHealth.java
+index ad02c81fdd566f98eae2b2c99399b83920135eda..5467712d9b478be7992e31c09c780402648f3ef2 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutUpdateHealth.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutUpdateHealth.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayOutUpdateHealth implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutUpdateHealth implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private float a;
+     private int b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutUpdateTime.java b/src/main/java/net/minecraft/server/PacketPlayOutUpdateTime.java
+index 15af5927f3d1d41b2a4f86b4267aa6a0485fb53e..78605eb2e23325015c4ed23eca6cd1a66b3739f5 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutUpdateTime.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutUpdateTime.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayOutUpdateTime implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutUpdateTime implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     // World Age in ticks
+     // Not changed by server commands
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutVehicleMove.java b/src/main/java/net/minecraft/server/PacketPlayOutVehicleMove.java
+index e57af409ff8f54d2f06a21715de6951e9a3322f4..1e7778b8511b4765892d6b46af8b6a062d40df31 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutVehicleMove.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutVehicleMove.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayOutVehicleMove implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutVehicleMove implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private double a;
+     private double b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutViewCentre.java b/src/main/java/net/minecraft/server/PacketPlayOutViewCentre.java
+index 18b9f508059a444eaa2c8a6950dc65b873937a86..db2dd890b6001200a24b848bc7d6ebdba707ba06 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutViewCentre.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutViewCentre.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayOutViewCentre implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutViewCentre implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private int a;
+     private int b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutViewDistance.java b/src/main/java/net/minecraft/server/PacketPlayOutViewDistance.java
+index 1b916aaa9362b8498de6c068041794791f953e5a..b4f24db8b1459803652fb5342e04d78aac2b28d0 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutViewDistance.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutViewDistance.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayOutViewDistance implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutViewDistance implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private int a;
+ 
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutWindowData.java b/src/main/java/net/minecraft/server/PacketPlayOutWindowData.java
+index bcbff640df4880aa584259f27104fc1934bf4cbc..2574208a12e5b36ca84873932825e6bc4defc52c 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutWindowData.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutWindowData.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayOutWindowData implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutWindowData implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private int a;
+     private int b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutWindowItems.java b/src/main/java/net/minecraft/server/PacketPlayOutWindowItems.java
+index 6fb3168fd6de0074b1b378e992e4706c50ae15ab..5232bac97fb1819faafbaee8f95ae11b3526c49e 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutWindowItems.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutWindowItems.java
+@@ -4,7 +4,7 @@ import java.io.IOException;
+ import java.util.Iterator;
+ import java.util.List;
+ 
+-public class PacketPlayOutWindowItems implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutWindowItems implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private int a;
+     private List<ItemStack> b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutWorldBorder.java b/src/main/java/net/minecraft/server/PacketPlayOutWorldBorder.java
+index 03d52fd6db3fab3ec0d0b6fc6d5957a736a57422..cb0b299d856d5d33df2e20abcf061df5f37103b7 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutWorldBorder.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutWorldBorder.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayOutWorldBorder implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutWorldBorder implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private PacketPlayOutWorldBorder.EnumWorldBorderAction a;
+     private int b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutWorldEvent.java b/src/main/java/net/minecraft/server/PacketPlayOutWorldEvent.java
+index ddf424b7506a3c707eff0d7e7e15411657c3dd9c..a77ef55c90ccab0df61406b4d52305d965b3e1cc 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutWorldEvent.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutWorldEvent.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayOutWorldEvent implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutWorldEvent implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private int a;
+     private BlockPosition b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutWorldParticles.java b/src/main/java/net/minecraft/server/PacketPlayOutWorldParticles.java
+index 262b0d902324e3226e96b563469f30d819ae8f6a..d9e2805005c276b2c20f4891a568ea7db90c928f 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutWorldParticles.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutWorldParticles.java
+@@ -2,7 +2,7 @@ package net.minecraft.server;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayOutWorldParticles implements Packet<PacketListenerPlayOut> {
++public class PacketPlayOutWorldParticles implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
+ 
+     private double a;
+     private double b;
+@@ -56,7 +56,7 @@ public class PacketPlayOutWorldParticles implements Packet<PacketListenerPlayOut
+ 
+     @Override
+     public void b(PacketDataSerializer packetdataserializer) throws IOException {
+-        packetdataserializer.writeInt(IRegistry.PARTICLE_TYPE.a((Object) this.j.getParticle()));
++        packetdataserializer.writeInt(IRegistry.PARTICLE_TYPE.a(this.j.getParticle()));
+         packetdataserializer.writeBoolean(this.i);
+         packetdataserializer.writeDouble(this.a);
+         packetdataserializer.writeDouble(this.b);
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
+index 1ac015b5484604c0188ee5f2c9d115a691457bde..8182fca9ebca3944f16ba785d374dbad38aad898 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
+@@ -2603,6 +2603,12 @@ public class CraftWorld implements World {
+         chunk.clearNBT(position);
+     }
+ 
++    @Override
++    public Entity getEntityById(int id) {
++        final net.minecraft.server.Entity entity = getHandle().getEntity(id);
++        return entity != null ? entity.getBukkitEntity() : null;
++    }
++
+     // Kenzie end
+     // Spigot end
+ }
