@@ -1,0 +1,526 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Sun, 25 Oct 2020 11:32:10 +0000
+Subject: [PATCH] Client-side inventory management packets.
+
+
+diff --git a/src/main/java/mx/kenzie/server/packet/PacketFactoryImpl.java b/src/main/java/mx/kenzie/server/packet/PacketFactoryImpl.java
+index 866cc26f4efc37545d29276db4ed25abc1eff221..fe82136331244717b3741e8d31e93c459474b6e5 100644
+--- a/src/main/java/mx/kenzie/server/packet/PacketFactoryImpl.java
++++ b/src/main/java/mx/kenzie/server/packet/PacketFactoryImpl.java
+@@ -30,10 +30,13 @@ import org.bukkit.craftbukkit.advancement.CraftAdvancementProgress;
+ import org.bukkit.craftbukkit.block.data.CraftBlockData;
+ import org.bukkit.craftbukkit.entity.CraftEntity;
+ import org.bukkit.craftbukkit.entity.CraftPlayer;
++import org.bukkit.craftbukkit.inventory.CraftItemStack;
+ import org.bukkit.craftbukkit.scoreboard.CraftTeam;
+ import org.bukkit.craftbukkit.util.CraftMagicNumbers;
+ import org.bukkit.entity.Entity;
+ import org.bukkit.entity.EntityType;
++import org.bukkit.event.inventory.InventoryType;
++import org.bukkit.inventory.ItemStack;
+ import org.bukkit.potion.PotionEffect;
+ import org.bukkit.potion.PotionEffectType;
+ import org.bukkit.scoreboard.Team;
+@@ -357,7 +360,7 @@ public class PacketFactoryImpl extends PacketFactory {
+     }
+ 
+     @Override
+-    public mx.kenzie.wellspring.packet.Packet packetPlayOutEntityHeadRotation(int id, float yaw) {
++    public mx.kenzie.wellspring.packet.Packet playOutEntityHeadRotation(int id, float yaw) {
+         return new PacketPlayOutEntityHeadRotation(id, (byte) MathHelper.d(yaw * 256.0F / 360.0F));
+     }
+ 
+@@ -392,86 +395,86 @@ public class PacketFactoryImpl extends PacketFactory {
+     }
+ 
+     @Override
+-    public mx.kenzie.wellspring.packet.Packet packetPlayOutTileEntityData(TileEntity entity, NBTCompound compound) {
+-        return packetPlayOutTileEntityData(entity.getLocation().getBlock(), entity.getType(), compound);
++    public mx.kenzie.wellspring.packet.Packet playOutTileEntityData(TileEntity entity, NBTCompound compound) {
++        return playOutTileEntityData(entity.getLocation().getBlock(), entity.getType(), compound);
+     }
+ 
+     @Override
+-    public mx.kenzie.wellspring.packet.Packet packetPlayOutTileEntityData(org.bukkit.block.Block block, TileType type, NBTCompound compound) {
++    public mx.kenzie.wellspring.packet.Packet playOutTileEntityData(org.bukkit.block.Block block, TileType type, NBTCompound compound) {
+         final BlockPosition position = new BlockPosition(block.getX(), block.getY(), block.getZ());
+         return new PacketPlayOutTileEntityData(position, type.getId(), ((NBTTagCompound) compound));
+     }
+ 
+     @Override
+-    public mx.kenzie.wellspring.packet.Packet packetPlayOutBlockBreakAnimation(org.bukkit.block.Block block, int stage, int id) {
++    public mx.kenzie.wellspring.packet.Packet playOutBlockBreakAnimation(org.bukkit.block.Block block, int stage, int id) {
+         final BlockPosition position = new BlockPosition(block.getX(), block.getY(), block.getZ());
+         return new PacketPlayOutBlockBreakAnimation(id, position, stage);
+     }
+ 
+     @Override
+-    public mx.kenzie.wellspring.packet.Packet packetPlayOutBlockAction(Location location, Material material, int id, int parameter) {
++    public mx.kenzie.wellspring.packet.Packet playOutBlockAction(Location location, Material material, int id, int parameter) {
+         return new PacketPlayOutBlockAction(new BlockPosition(location.getBlockX(), location.getBlockY(), location.getBlockZ()), IRegistry.BLOCK.get(MinecraftKey.a(material.getKey().toString())), id, parameter);
+     }
+ 
+     @Override
+-    public mx.kenzie.wellspring.packet.Packet packetPlayOutBlockChange(Location location, BlockData data) {
++    public mx.kenzie.wellspring.packet.Packet playOutBlockChange(Location location, BlockData data) {
+         return new PacketPlayOutBlockChange(new BlockPosition(location.getBlockX(), location.getBlockY(), location.getBlockZ()), ((CraftBlockData) data).getState());
+     }
+ 
+     @Override
+-    public mx.kenzie.wellspring.packet.Packet packetPlayOutPlayerInfo(PlayerProfile profile, byte action, int ping, GameMode mode, BaseComponent[] name) {
++    public mx.kenzie.wellspring.packet.Packet playOutPlayerInfo(PlayerProfile profile, byte action, int ping, GameMode mode, BaseComponent[] name) {
+         return new PacketPlayOutPlayerInfo(action, profile, ping, EnumGamemode.valueOf(mode.name()), Wellspring.bridge().typeInputConversion(name));
+     }
+ 
+     @Override
+-    public mx.kenzie.wellspring.packet.Packet packetPlayOutNamedEntitySpawn(int id, UUID uuid, Location location) {
++    public mx.kenzie.wellspring.packet.Packet playOutNamedEntitySpawn(int id, UUID uuid, Location location) {
+         return new PacketPlayOutNamedEntitySpawn(id, uuid, location.getX(), location.getY(), location.getZ(), location.getYaw(), location.getPitch());
+     }
+ 
+     @Override
+-    public mx.kenzie.wellspring.packet.Packet packetPlayOutChat(BaseComponent[] message, ChatMessageType type) {
++    public mx.kenzie.wellspring.packet.Packet playOutChat(BaseComponent[] message, ChatMessageType type) {
+         return new PacketPlayOutChat(Wellspring.bridge().typeInputConversion(message), net.minecraft.server.ChatMessageType.valueOf(type.name()), null);
+     }
+ 
+     @Override
+-    public mx.kenzie.wellspring.packet.Packet packetPlayOutTitle(@See(TitleAction.class) byte action, BaseComponent[] message) {
++    public mx.kenzie.wellspring.packet.Packet playOutTitle(@See(TitleAction.class) byte action, BaseComponent[] message) {
+         return new PacketPlayOutTitle(PacketPlayOutTitle.EnumTitleAction.values()[action], Wellspring.bridge().typeInputConversion(message));
+     }
+ 
+     @Override
+-    public mx.kenzie.wellspring.packet.@See(TitleAction.class) Packet packetPlayOutTitle(@See(TitleAction.class) byte action) {
++    public mx.kenzie.wellspring.packet.@See(TitleAction.class) Packet playOutTitle(@See(TitleAction.class) byte action) {
+         return new PacketPlayOutTitle(PacketPlayOutTitle.EnumTitleAction.values()[action], null);
+     }
+ 
+     @Override
+     @See(TitleAction.class)
+-    public mx.kenzie.wellspring.packet.Packet packetPlayOutTitle(int fadeIn, int stay, int fadeOut) {
++    public mx.kenzie.wellspring.packet.Packet playOutTitle(int fadeIn, int stay, int fadeOut) {
+         return new PacketPlayOutTitle(PacketPlayOutTitle.EnumTitleAction.TIMES, (BaseComponent[]) null, fadeIn, stay, fadeOut);
+     }
+ 
+     @Override
+-    public mx.kenzie.wellspring.packet.Packet packetPlayOutEntityEffect(int entityId, PotionEffect effect) {
++    public mx.kenzie.wellspring.packet.Packet playOutEntityEffect(int entityId, PotionEffect effect) {
+         final MobEffect eff = new MobEffect(MobEffectList.fromId(effect.getType().getId()), effect.getDuration(), effect.getAmplifier(), effect.isAmbient(), effect.hasParticles(), effect.hasIcon());
+         return new PacketPlayOutEntityEffect(entityId, eff);
+     }
+ 
+     @Override
+-    public mx.kenzie.wellspring.packet.Packet packetPlayOutRemoveEntityEffect(int entityId, PotionEffectType type) {
++    public mx.kenzie.wellspring.packet.Packet playOutRemoveEntityEffect(int entityId, PotionEffectType type) {
+         return new PacketPlayOutRemoveEntityEffect(entityId, IRegistry.MOB_EFFECT.fromId(type.getId()));
+     }
+ 
+     @Override
+-    public mx.kenzie.wellspring.packet.Packet packetPlayOutAttachEntity(int source, int target) {
++    public mx.kenzie.wellspring.packet.Packet playOutAttachEntity(int source, int target) {
+         return new PacketPlayOutAttachEntity(source, target);
+     }
+ 
+     @Override
+-    public mx.kenzie.wellspring.packet.Packet packetPlayOutCollect(int collected, int collector, int amount) {
++    public mx.kenzie.wellspring.packet.Packet playOutCollect(int collected, int collector, int amount) {
+         return new PacketPlayOutCollect(collected, collector, amount);
+     }
+ 
+     @Override
+-    public OutgoingUpdateAttributes packetPlayOutUpdateAttributes(int entityId, TreeMap<Attribute, AttributeModifier> attributes) {
++    public OutgoingUpdateAttributes playOutUpdateAttributes(int entityId, TreeMap<Attribute, AttributeModifier> attributes) {
+         OutgoingUpdateAttributes packet = new PacketPlayOutUpdateAttributes(entityId);
+         for (Map.Entry<Attribute, AttributeModifier> entry : attributes.entrySet()) {
+             packet.add(entry.getKey(), entry.getValue().getAmount(), entry.getValue());
+@@ -480,60 +483,100 @@ public class PacketFactoryImpl extends PacketFactory {
+     }
+ 
+     @Override
+-    public OutgoingUpdateAttributes packetPlayOutUpdateAttributes(int entityId) {
++    public OutgoingUpdateAttributes playOutUpdateAttributes(int entityId) {
+         return new PacketPlayOutUpdateAttributes(entityId);
+     }
+ 
+     @Override
+-    public EntityPacket packetPlayOutEntityStatus(int entityId, EntityEffect status) {
++    public OutgoingEntityEquipment playOutEntityEquipment(int entityId) {
++        return new PacketPlayOutEntityEquipment(entityId);
++    }
++
++    @Override
++    public EntityPacket playOutEntityStatus(int entityId, EntityEffect status) {
+         return new PacketPlayOutEntityStatus(entityId, status.getData());
+     }
+ 
+     @Override
+-    public OutgoingLightUpdate packetPlayOutLightUpdate(int chunkX, int chunkZ, boolean trustEdgeUpdates) {
++    public OutgoingMount playOutMount(int vehicleId) {
++        return new PacketPlayOutMount(vehicleId);
++    }
++
++    @Override
++    public OutgoingLightUpdate playOutLightUpdate(int chunkX, int chunkZ, boolean trustEdgeUpdates) {
+         return new PacketPlayOutLightUpdate(chunkX, chunkZ, trustEdgeUpdates);
+     }
+ 
+     @Override
+-    public OutgoingLightUpdate packetPlayOutLightUpdate(Chunk chunk, boolean trustEdgeUpdates) {
++    public OutgoingLightUpdate playOutLightUpdate(Chunk chunk, boolean trustEdgeUpdates) {
+         return new PacketPlayOutLightUpdate(chunk.getX(), chunk.getZ(), trustEdgeUpdates);
+     }
+ 
+     @Override
+-    public EntityPacket packetPlayOutCamera(int entityId) {
++    public EntityPacket playOutCamera(int entityId) {
+         return new PacketPlayOutCamera(entityId);
+     }
+ 
+     @Override
+-    public @See(GameState.class) mx.kenzie.wellspring.packet.Packet packetPlayOutGameStateChange(@See(GameState.class) byte action, float value) {
++    public @See(GameState.class) mx.kenzie.wellspring.packet.Packet playOutGameStateChange(@See(GameState.class) byte action, float value) {
+         return new PacketPlayOutGameStateChange(action, value);
+     }
+ 
+     @Override
+-    public OutgoingScoreboardTeam packetPlayOutScoreboardTeam() {
++    public OutgoingScoreboardTeam playOutScoreboardTeam() {
+         return new PacketPlayOutScoreboardTeam();
+     }
+ 
+     @Override
+-    public OutgoingScoreboardTeam packetPlayOutScoreboardTeam(Team team, byte action) {
++    public OutgoingScoreboardTeam playOutScoreboardTeam(Team team, byte action) {
+         return new PacketPlayOutScoreboardTeam(((CraftTeam) team).getHandle(), action);
+     }
+ 
+     @Override
+-    public OutgoingScoreboardScore packetPlayOutScoreboardScore() {
++    public OutgoingScoreboardScore playOutScoreboardScore() {
+         return new PacketPlayOutScoreboardScore();
+     }
+ 
+     @Override
+-    public OutgoingScoreboardObjective packetPlayOutScoreboardObjective() {
++    public OutgoingScoreboardObjective playOutScoreboardObjective() {
+         return new PacketPlayOutScoreboardObjective();
+     }
+ 
+     @Override
+-    public OutgoingScoreboardDisplayObjective packetPlayOutScoreboardDisplayObjective() {
++    public OutgoingScoreboardDisplayObjective playOutScoreboardDisplayObjective() {
+         return new PacketPlayOutScoreboardDisplayObjective();
+     }
+ 
++    @Override
++    public OutgoingSetSlot playOutSetSlot(InventoryType type) {
++        switch (type) {
++            case PLAYER:
++                return new PacketPlayOutSetSlot.PlayerInventory();
++            default:
++                return new PacketPlayOutSetSlot();
++        }
++    }
++
++    @Override
++    public OutgoingPacket playOutWindowItems(int containerId, Collection<ItemStack> items) {
++        return playOutWindowItems(containerId, items.toArray(new ItemStack[0]));
++    }
++
++    @Override
++    public OutgoingPacket playOutWindowItems(int containerId, ItemStack... items) {
++        NonNullList<net.minecraft.server.ItemStack> list = NonNullList.a(items.length, net.minecraft.server.ItemStack.b);
++        for (int i = 0; i < items.length; i++) {
++            if (items[i] == null) continue;
++            list.set(i, CraftItemStack.asNMSCopy(items[i]));
++        }
++        return new PacketPlayOutWindowItems(containerId, list);
++    }
++
++    @Override
++    public OutgoingPacket playOutTransaction(int containerId, short uid, boolean accepted) {
++        return new PacketPlayOutTransaction(containerId, uid, accepted);
++    }
++
+     @Override
+     public mx.kenzie.wellspring.packet.Packet createFrom(PacketType type, Object... fieldInputs) {
+         try {
+@@ -568,7 +611,7 @@ public class PacketFactoryImpl extends PacketFactory {
+             String s = IChatBaseComponent.ChatSerializer.a(lines[i]);
+             compound.setString("Text" + (i + 1), s);
+         }
+-        return packetPlayOutTileEntityData(block, TileType.SIGN, compound);
++        return playOutTileEntityData(block, TileType.SIGN, compound);
+     }
+ 
+     @Override
+diff --git a/src/main/java/net/minecraft/server/PacketPlayInWindowClick.java b/src/main/java/net/minecraft/server/PacketPlayInWindowClick.java
+index 686c8a12363e1055038fd96547f2ab77cdb86ede..8c22cdf418274a380f47db4bb906d5b49b22a11d 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayInWindowClick.java
++++ b/src/main/java/net/minecraft/server/PacketPlayInWindowClick.java
+@@ -1,8 +1,13 @@
+ package net.minecraft.server;
+ 
++import mx.kenzie.wellspring.packet.PacketType;
++import mx.kenzie.wellspring.packet.specific.IncomingWindowClick;
++import org.bukkit.craftbukkit.inventory.CraftItemStack;
++import org.bukkit.event.inventory.ClickType;
++
+ import java.io.IOException;
+ 
+-public class PacketPlayInWindowClick implements Packet<PacketListenerPlayIn>, mx.kenzie.wellspring.packet.specific.IncomingPacket { // Kenzie
++public class PacketPlayInWindowClick implements Packet<PacketListenerPlayIn>, mx.kenzie.wellspring.packet.specific.IncomingPacket, IncomingWindowClick { // Kenzie
+ 
+     private int a;
+     private int slot;
+@@ -11,6 +16,50 @@ public class PacketPlayInWindowClick implements Packet<PacketListenerPlayIn>, mx
+     private ItemStack item;
+     private InventoryClickType shift;
+ 
++    // Kenzie start
++
++    @Override
++    public int getSlot() {
++        return slot;
++    }
++
++    @Override
++    public Action getAction() {
++        return Action.getAction(shift.ordinal(), button);
++    }
++
++    @Override
++    public org.bukkit.inventory.ItemStack getItem() {
++        return CraftItemStack.asBukkitCopy(item);
++    }
++
++    @Override
++    public int rawMode() {
++        return shift.ordinal();
++    }
++
++    @Override
++    public int rawButton() {
++        return button;
++    }
++
++    @Override
++    public short getActionNumber() {
++        return d;
++    }
++
++    @Override
++    public int getContainerId() {
++        return a;
++    }
++
++    @Override
++    public void setContainerId(int id) {
++        a = id;
++    }
++
++    // Kenzie end
++
+     public PacketPlayInWindowClick() {
+         this.item = ItemStack.b;
+     }
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutEntityEquipment.java b/src/main/java/net/minecraft/server/PacketPlayOutEntityEquipment.java
+index 3f027e66e093a2abe75f059fcb89c234b3f85d53..2cfecb936d092ea435c5e133099462ad6be69be4 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutEntityEquipment.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutEntityEquipment.java
+@@ -2,14 +2,55 @@ package net.minecraft.server;
+ 
+ import com.google.common.collect.Lists;
+ import com.mojang.datafixers.util.Pair;
++import mx.kenzie.wellspring.packet.specific.OutgoingEntityEquipment;
++import org.bukkit.craftbukkit.entity.CraftItem;
++import org.bukkit.craftbukkit.inventory.CraftItemStack;
++import org.bukkit.inventory.EquipmentSlot;
++
+ import java.io.IOException;
+ import java.util.List;
+ 
+-public class PacketPlayOutEntityEquipment implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
++public class PacketPlayOutEntityEquipment implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket, OutgoingEntityEquipment { // Kenzie
+ 
+     private int a;
+     private final List<Pair<EnumItemSlot, ItemStack>> b;
+ 
++    // Kenzie start
++    @Override
++    public int getEntityId() {
++        return a;
++    }
++
++    @Override
++    public void setEntityId(int id) {
++        a = id;
++    }
++
++    @Override
++    public org.bukkit.inventory.ItemStack getItem(EquipmentSlot slot) {
++        EnumItemSlot itemSlot = EnumItemSlot.convert(slot);
++        for (Pair<EnumItemSlot, ItemStack> pair : b) {
++            if (pair.getFirst() == itemSlot) return CraftItemStack.asBukkitCopy(pair.getSecond());
++        }
++        return null;
++    }
++
++    @Override
++    public void setItem(EquipmentSlot slot, org.bukkit.inventory.ItemStack stack) {
++        EnumItemSlot itemSlot = EnumItemSlot.convert(slot);
++        b.removeIf(pair -> pair.getFirst() == itemSlot);
++        if (stack != null) {
++            ItemStack itemStack = CraftItemStack.asNMSCopy(stack);
++            b.add(new Pair<>(itemSlot, itemStack));
++        }
++    }
++
++    public PacketPlayOutEntityEquipment(int id) {
++        a = id;
++        this.b = Lists.newArrayList();
++    }
++    // Kenzie end
++
+     public PacketPlayOutEntityEquipment() {
+         this.b = Lists.newArrayList();
+     }
+@@ -56,4 +97,5 @@ public class PacketPlayOutEntityEquipment implements Packet<PacketListenerPlayOu
+     public void a(PacketListenerPlayOut packetlistenerplayout) {
+         packetlistenerplayout.a(this);
+     }
++
+ }
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutMount.java b/src/main/java/net/minecraft/server/PacketPlayOutMount.java
+index a7bf0e2e71aeac9cac1598c36968663dce810d14..320d2ea6fbb91490c4bdf6190c182ab7d02fba6d 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutMount.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutMount.java
+@@ -1,13 +1,49 @@
+ package net.minecraft.server;
+ 
++import mx.kenzie.wellspring.packet.specific.EntityPacket;
++import mx.kenzie.wellspring.packet.specific.OutgoingMount;
++
+ import java.io.IOException;
++import java.util.Arrays;
+ import java.util.List;
+ 
+-public class PacketPlayOutMount implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
++public class PacketPlayOutMount implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket, OutgoingMount { // Kenzie
+ 
+     private int a;
+     private int[] b;
+ 
++    // Kenzie start
++    @Override
++    public int[] getPassengers() {
++        return b;
++    }
++
++    @Override
++    public void setPassengers(int[] entityIds) {
++        b = entityIds;
++    }
++
++    @Override
++    public void addPassenger(int entityId) {
++        b = Arrays.copyOf(b, b.length + 1);
++        b[b.length-1] = entityId;
++    }
++
++    @Override
++    public int getEntityId() {
++        return a;
++    }
++
++    @Override
++    public void setEntityId(int id) {
++        a = id;
++    }
++
++    public PacketPlayOutMount(int id) {
++        a = id;
++    }
++    // Kenzie end
++
+     public PacketPlayOutMount() {}
+ 
+     public PacketPlayOutMount(Entity entity) {
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutSetSlot.java b/src/main/java/net/minecraft/server/PacketPlayOutSetSlot.java
+index 6ac3c1701d38b3da9fd9c21c61ae55a9cb00401c..2fd26e31c5a77d0776a00bcaa784577c33ba11ae 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutSetSlot.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutSetSlot.java
+@@ -1,13 +1,39 @@
+ package net.minecraft.server;
+ 
++import mx.kenzie.wellspring.packet.specific.OutgoingSetSlot;
++import org.bukkit.craftbukkit.inventory.CraftItemStack;
++
+ import java.io.IOException;
+ 
+-public class PacketPlayOutSetSlot implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
++public class PacketPlayOutSetSlot implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket, OutgoingSetSlot { // Kenzie
+ 
+     private int a;
+     private int b;
+     private ItemStack c;
+ 
++    // Kenzie start
++
++    @Override
++    public int getContainerId() {
++        return a;
++    }
++
++    @Override
++    public void setContainerId(int id) {
++        a = id;
++    }
++
++    @Override
++    public void setItem0(int slot, org.bukkit.inventory.ItemStack stack) {
++        b = slot;
++        c = stack != null ? CraftItemStack.asNMSCopy(stack) : ItemStack.b;
++    }
++
++    public static class PlayerInventory extends PacketPlayOutSetSlot implements OutgoingSetSlot.OutgoingSetPlayerSlot {
++
++    }
++    // Kenzie end
++
+     public PacketPlayOutSetSlot() {
+         this.c = ItemStack.b;
+     }
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutTransaction.java b/src/main/java/net/minecraft/server/PacketPlayOutTransaction.java
+index 0c3bf11a1887e3a979ed869259152eb68f33d0aa..4aa96cca3836b2206dc1d2315247e776579c93be 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutTransaction.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutTransaction.java
+@@ -1,8 +1,10 @@
+ package net.minecraft.server;
+ 
++import mx.kenzie.wellspring.packet.specific.WindowPacket;
++
+ import java.io.IOException;
+ 
+-public class PacketPlayOutTransaction implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
++public class PacketPlayOutTransaction implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket, WindowPacket { // Kenzie
+ 
+     private int a;
+     private short b;
+@@ -33,4 +35,14 @@ public class PacketPlayOutTransaction implements Packet<PacketListenerPlayOut>,
+         packetdataserializer.writeShort(this.b);
+         packetdataserializer.writeBoolean(this.c);
+     }
++
++    @Override
++    public int getContainerId() {
++        return a;
++    }
++
++    @Override
++    public void setContainerId(int id) {
++        a = id;
++    }
+ }
