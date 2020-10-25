@@ -1,0 +1,487 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Sun, 25 Oct 2020 11:33:06 +0000
+Subject: [PATCH] Client-side inventory management packets.
+
+Squash. Missed annotations.
+
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java b/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java
+index 4bdfb6afa033a389a82a06cf3df1c752f60df594..1950b350eb7f23a520f02c2c42e8b28931d7fab8 100644
+--- a/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java
++++ b/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java
+@@ -24,6 +24,8 @@ import org.bukkit.block.Block;
+ import org.bukkit.block.data.BlockData;
+ import org.bukkit.entity.Entity;
+ import org.bukkit.entity.EntityType;
++import org.bukkit.event.inventory.InventoryType;
++import org.bukkit.inventory.ItemStack;
+ import org.bukkit.potion.PotionEffect;
+ import org.bukkit.potion.PotionEffectType;
+ import org.bukkit.scoreboard.Team;
+@@ -167,13 +169,13 @@ public abstract class PacketFactory {
+ 
+     @Contract(pure = true)
+     public @NotNull
+-    Packet packetPlayOutEntityHeadRotation(@NotNull Entity entity, float yaw) {
+-        return packetPlayOutEntityHeadRotation(entity.getEntityId(), yaw);
++    Packet playOutEntityHeadRotation(@NotNull Entity entity, float yaw) {
++        return playOutEntityHeadRotation(entity.getEntityId(), yaw);
+     }
+ 
+     @Contract(pure = true)
+     public abstract @NotNull
+-    Packet packetPlayOutEntityHeadRotation(int id, float yaw);
++    Packet playOutEntityHeadRotation(int id, float yaw);
+ 
+     @Contract(pure = true)
+     public @NotNull
+@@ -208,135 +210,171 @@ public abstract class PacketFactory {
+ 
+     @Contract(pure = true)
+     public abstract @NotNull
+-    Packet packetPlayOutTileEntityData(@NotNull TileEntity entity, @NotNull NBTCompound compound);
++    Packet playOutTileEntityData(@NotNull TileEntity entity, @NotNull NBTCompound compound);
+ 
+     @Contract(pure = true)
+     public abstract @NotNull
+-    Packet packetPlayOutTileEntityData(@NotNull Block block, @NotNull TileType type, @NotNull NBTCompound compound);
++    Packet playOutTileEntityData(@NotNull Block block, @NotNull TileType type, @NotNull NBTCompound compound);
+ 
+     @Contract(pure = true)
+     public @NotNull
+-    Packet packetPlayOutBlockBreakAnimation(@NotNull Block block, int stage) {
+-        return packetPlayOutBlockBreakAnimation(block, stage, (block.getBlockKey() + "").hashCode()); // A cheap way to generate a "reliable" int for a block.
++    Packet playOutBlockBreakAnimation(@NotNull Block block, int stage) {
++        return playOutBlockBreakAnimation(block, stage, (block.getBlockKey() + "").hashCode()); // A cheap way to generate a "reliable" int for a block.
+     }
+ 
+     @Contract(pure = true)
+     public abstract @NotNull
+-    Packet packetPlayOutBlockBreakAnimation(@NotNull Block block, int stage, int id);
++    Packet playOutBlockBreakAnimation(@NotNull Block block, int stage, int id);
+ 
+     @Contract(pure = true)
+     public abstract @NotNull
+-    Packet packetPlayOutBlockChange(@NotNull Location location, @NotNull BlockData data);
++    Packet playOutBlockChange(@NotNull Location location, @NotNull BlockData data);
+ 
+     @Contract(pure = true)
+     public abstract @NotNull
+-    Packet packetPlayOutBlockAction(@NotNull Location location, @NotNull Material material, int id, int parameter);
++    Packet playOutBlockAction(@NotNull Location location, @NotNull Material material, int id, int parameter);
+ 
+     @Contract(pure = true)
+     @See(PlayerInfoAction.class)
+     public abstract @NotNull
+-    Packet packetPlayOutPlayerInfo(@NotNull PlayerProfile profile, @See(PlayerInfoAction.class) byte action, int ping, @NotNull GameMode mode, @NotNull BaseComponent[] name);
++    Packet playOutPlayerInfo(@NotNull PlayerProfile profile, @See(PlayerInfoAction.class) byte action, int ping, @NotNull GameMode mode, @NotNull BaseComponent[] name);
+ 
+     @Contract(pure = true)
+     public abstract @NotNull
+-    Packet packetPlayOutNamedEntitySpawn(int id, @NotNull UUID uuid, @NotNull Location location);
++    Packet playOutNamedEntitySpawn(int id, @NotNull UUID uuid, @NotNull Location location);
+ 
+     @Contract(pure = true)
+     public abstract @NotNull
+-    Packet packetPlayOutChat(@NotNull BaseComponent[] message, @NotNull ChatMessageType type);
++    Packet playOutChat(@NotNull BaseComponent[] message, @NotNull ChatMessageType type);
+ 
+     @Contract(pure = true)
+     @See(TitleAction.class)
+     public abstract @NotNull
+-    Packet packetPlayOutTitle(@See(TitleAction.class) byte action);
++    Packet playOutTitle(@See(TitleAction.class) byte action);
+ 
+     @Contract(pure = true)
+     @See(TitleAction.class)
+     public abstract @NotNull
+-    Packet packetPlayOutTitle(@See(TitleAction.class) byte action, @Nullable BaseComponent[] message);
++    Packet playOutTitle(@See(TitleAction.class) byte action, @Nullable BaseComponent[] message);
+ 
+     @Contract(pure = true)
+     @See(TitleAction.class)
+     public abstract @NotNull
+-    Packet packetPlayOutTitle(int fadeIn, int stay, int fadeOut);
++    Packet playOutTitle(int fadeIn, int stay, int fadeOut);
+ 
+     @Contract(pure = true)
+     public abstract @NotNull
+-    Packet packetPlayOutEntityEffect(int entityId, @NotNull PotionEffect effect);
++    Packet playOutEntityEffect(int entityId, @NotNull PotionEffect effect);
+ 
+     @Contract(pure = true)
+     public abstract @NotNull
+-    Packet packetPlayOutAttachEntity(int source, int target);
++    Packet playOutAttachEntity(int source, int target);
+ 
+     @Contract(pure = true)
+     public abstract @NotNull
+-    Packet packetPlayOutRemoveEntityEffect(int entityId, @NotNull PotionEffectType type);
++    Packet playOutRemoveEntityEffect(int entityId, @NotNull PotionEffectType type);
+ 
+     @Contract(pure = true)
+     public abstract @NotNull
+-    EntityPacket packetPlayOutEntityStatus(int entityId, @NotNull EntityEffect status);
++    EntityPacket playOutEntityStatus(int entityId, @NotNull EntityEffect status);
+ 
+     @Contract(pure = true)
+     public @NotNull
+-    EntityPacket packetPlayOutEntityStatus(@NotNull Entity entity, @NotNull EntityEffect status) {
+-        return packetPlayOutEntityStatus(entity.getEntityId(), status);
++    EntityPacket playOutEntityStatus(@NotNull Entity entity, @NotNull EntityEffect status) {
++        return playOutEntityStatus(entity.getEntityId(), status);
+     }
+ 
+     @Contract(pure = true)
+     public abstract @NotNull
+-    Packet packetPlayOutCollect(int collected, int collector, int amount);
++    OutgoingEntityEquipment playOutEntityEquipment(int entityId);
++
++    @Contract(pure = true)
++    public @NotNull
++    OutgoingEntityEquipment playOutEntityEquipment(@NotNull Entity entity) {
++        return playOutEntityEquipment(entity.getEntityId());
++    }
++
++    @Contract(pure = true)
++    public abstract @NotNull
++    OutgoingSetSlot playOutSetSlot(@Nullable InventoryType type);
++
++    @Contract(pure = true)
++    public abstract @NotNull
++    OutgoingPacket playOutWindowItems(int containerId, @NotNull Collection<ItemStack> items);
++
++    @Contract(pure = true)
++    public abstract @NotNull
++    OutgoingPacket playOutWindowItems(int containerId, @NotNull ItemStack... items);
+ 
+     @Contract(pure = true)
+     public abstract @NotNull
+-    EntityPacket packetPlayOutCamera(int entityId);
++    OutgoingPacket playOutTransaction(int containerId, short uid, boolean accepted);
++
++    @Contract(pure = true)
++    public abstract @NotNull
++    Packet playOutCollect(int collected, int collector, int amount);
++
++    @Contract(pure = true)
++    public abstract @NotNull
++    EntityPacket playOutCamera(int entityId);
+ 
+     @Contract(pure = true)
+     public @NotNull
+-    EntityPacket packetPlayOutCamera(@NotNull Entity target) {
+-        return packetPlayOutCamera(target.getEntityId());
++    EntityPacket playOutCamera(@NotNull Entity target) {
++        return playOutCamera(target.getEntityId());
+     }
+ 
+     @Contract(pure = true)
+     public abstract @NotNull
+-    OutgoingUpdateAttributes packetPlayOutUpdateAttributes(int entityId);
++    OutgoingUpdateAttributes playOutUpdateAttributes(int entityId);
+ 
+     @Contract(pure = true)
+     public abstract @NotNull
+-    OutgoingUpdateAttributes packetPlayOutUpdateAttributes(int entityId, @NotNull TreeMap<Attribute, AttributeModifier> attributes);
++    OutgoingUpdateAttributes playOutUpdateAttributes(int entityId, @NotNull TreeMap<Attribute, AttributeModifier> attributes);
++
++    @Contract(pure = true)
++    public abstract @NotNull
++    OutgoingMount playOutMount(int vehicleId);
++
++    @Contract(pure = true)
++    public @NotNull
++    OutgoingMount playOutMount(@NotNull Entity vehicle) {
++        return playOutMount(vehicle.getEntityId());
++    }
+ 
+     @Contract(pure = true)
+     public abstract @NotNull
+-    OutgoingLightUpdate packetPlayOutLightUpdate(@NotNull Chunk chunk, boolean trustEdgeUpdates);
++    OutgoingLightUpdate playOutLightUpdate(@NotNull Chunk chunk, boolean trustEdgeUpdates);
+ 
+     @Contract(pure = true)
+     public abstract @NotNull
+-    OutgoingLightUpdate packetPlayOutLightUpdate(int chunkX, int chunkZ, boolean trustEdgeUpdates);
++    OutgoingLightUpdate playOutLightUpdate(int chunkX, int chunkZ, boolean trustEdgeUpdates);
+ 
+     @Contract(pure = true)
+     @See(GameState.class)
+     public abstract @NotNull
+-    Packet packetPlayOutGameStateChange(@See(GameState.class) byte action, float value);
++    Packet playOutGameStateChange(@See(GameState.class) byte action, float value);
+ 
+     @Contract(pure = true)
+     public abstract @NotNull
+-    OutgoingScoreboardTeam packetPlayOutScoreboardTeam();
++    OutgoingScoreboardTeam playOutScoreboardTeam();
+ 
+     @Contract(pure = true)
+     @See(TeamAction.class)
+     public abstract @NotNull
+-    OutgoingScoreboardTeam packetPlayOutScoreboardTeam(@NotNull Team team, @See(TeamAction.class) byte action);
++    OutgoingScoreboardTeam playOutScoreboardTeam(@NotNull Team team, @See(TeamAction.class) byte action);
+ 
+     @Contract(pure = true)
+     public abstract @NotNull
+-    OutgoingScoreboardScore packetPlayOutScoreboardScore();
++    OutgoingScoreboardScore playOutScoreboardScore();
+ 
+     @Contract(pure = true)
+     public abstract @NotNull
+-    OutgoingScoreboardObjective packetPlayOutScoreboardObjective();
++    OutgoingScoreboardObjective playOutScoreboardObjective();
+ 
+     @Contract(pure = true)
+     public abstract @NotNull
+-    OutgoingScoreboardDisplayObjective packetPlayOutScoreboardDisplayObjective();
++    OutgoingScoreboardDisplayObjective playOutScoreboardDisplayObjective();
+ 
+     public abstract void send(@NotNull Packet packet, @NotNull NetworkClient... recipients) throws IllegalArgumentException;
+ 
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/specific/IncomingWindowClick.java b/src/main/java/mx/kenzie/wellspring/packet/specific/IncomingWindowClick.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..5ced1c12d8a0c4d2c482aff199966d018ca07fad
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/packet/specific/IncomingWindowClick.java
+@@ -0,0 +1,58 @@
++package mx.kenzie.wellspring.packet.specific;
++
++import mx.kenzie.wellspring.packet.PacketType;
++import org.bukkit.Bukkit;
++import org.bukkit.event.inventory.ClickType;
++import org.bukkit.inventory.ItemStack;
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
++
++public interface IncomingWindowClick extends IncomingPacket, WindowPacket {
++
++    @NotNull
++    @Override
++    default PacketType getType() {
++        return PacketType.Incoming.WINDOW_CLICK;
++    }
++
++    /**
++     * Note: these might be off from the Bukkit indices.
++     * Bukkit sanitises and re-orders some inventory indices
++     * (namely players.)
++     *
++     * The slot may also be -999, which usually references
++     * an out of bounds click, or the end of an action.
++     *
++     * @return the slot index
++     */
++    int getSlot();
++
++    @NotNull Action getAction();
++
++    @NotNull
++    ItemStack getItem();
++
++    int rawMode();
++
++    int rawButton();
++
++    /**
++     * This is necessary for returning confirmation packets.
++     *
++     * @return the action id
++     */
++    short getActionNumber();
++
++    /**
++     * Generate a confirmation packet for this transaction.
++     * Accepting it will allow it to continue.
++     * Denying it will force the client to send a packet recognising this.
++     * @param accept whether to accept
++     * @param <P> this is both an outgoing and a window packet
++     * @return the packet
++     */
++    default @NotNull <P extends OutgoingPacket & WindowPacket> P createConfirmation(boolean accept) {
++        return (P) Bukkit.getPacketFactory().playOutTransaction(getContainerId(), getActionNumber(), accept);
++    }
++
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/specific/OutgoingEntityEquipment.java b/src/main/java/mx/kenzie/wellspring/packet/specific/OutgoingEntityEquipment.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..ae60ab19d562d5ffb8a154d9a342843a13a6332d
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/packet/specific/OutgoingEntityEquipment.java
+@@ -0,0 +1,22 @@
++package mx.kenzie.wellspring.packet.specific;
++
++import mx.kenzie.wellspring.packet.PacketType;
++import org.bukkit.inventory.EquipmentSlot;
++import org.bukkit.inventory.ItemStack;
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
++
++public interface OutgoingEntityEquipment extends EntityPacket, OutgoingPacket {
++
++    @NotNull
++    @Override
++    default PacketType getType() {
++        return PacketType.Outgoing.ENTITY_EQUIPMENT;
++    }
++
++    @Nullable
++    ItemStack getItem(@NotNull EquipmentSlot slot);
++
++    void setItem(@NotNull EquipmentSlot slot, @Nullable ItemStack stack);
++
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/specific/OutgoingMount.java b/src/main/java/mx/kenzie/wellspring/packet/specific/OutgoingMount.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..9a63f7f4088b21e1eb02c342606a51850c4425f6
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/packet/specific/OutgoingMount.java
+@@ -0,0 +1,29 @@
++package mx.kenzie.wellspring.packet.specific;
++
++import mx.kenzie.wellspring.packet.PacketType;
++import org.jetbrains.annotations.NotNull;
++
++public interface OutgoingMount extends OutgoingPacket, EntityPacket {
++
++    @NotNull
++    @Override
++    default PacketType getType() {
++        return PacketType.Outgoing.MOUNT;
++    }
++
++    default int getVehicleId() {
++        return getEntityId();
++    }
++
++    default void setVehicleId(int entityId) {
++        setEntityId(entityId);
++    }
++
++    @NotNull
++    int[] getPassengers();
++
++    void setPassengers(@NotNull int[] entityIds);
++
++    void addPassenger(int entityId);
++
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/specific/OutgoingSetSlot.java b/src/main/java/mx/kenzie/wellspring/packet/specific/OutgoingSetSlot.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..73f2b7961fbcd2aac4a8025ebc1bc85e0368c068
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/packet/specific/OutgoingSetSlot.java
+@@ -0,0 +1,50 @@
++package mx.kenzie.wellspring.packet.specific;
++
++import mx.kenzie.wellspring.packet.PacketType;
++import org.bukkit.inventory.ItemStack;
++import org.jetbrains.annotations.NotNull;
++
++public interface OutgoingSetSlot extends OutgoingPacket, WindowPacket {
++
++    @NotNull
++    @Override
++    default PacketType getType() {
++        return PacketType.Outgoing.SET_SLOT;
++    }
++
++    int getContainerId();
++
++    void setContainerId(int id);
++
++    default void setItem(int slot, @NotNull ItemStack stack) {
++        setItem0(slot, stack);
++    }
++
++    /**
++     * Some inventories order slots differently.
++     * To keep in alignment with Bukkit's inventory numbering,
++     * special extenders are used below.
++     *
++     * Use {@link #setItem(int, ItemStack)} for safety.
++     *
++     * @param slot the slot id
++     * @param stack the item
++     */
++    @Deprecated
++    void setItem0(int slot, @NotNull ItemStack stack);
++
++    interface OutgoingSetPlayerSlot extends OutgoingSetSlot {
++        @Override
++        default void setItem(int slot, @NotNull ItemStack stack) {
++            if (slot < 9) {
++                slot += 36;
++            } else if (slot > 39) {
++                slot += 5; // Off hand
++            } else if (slot > 35) {
++                slot = 8 - (slot - 36);
++            }
++            setItem0(slot, stack);
++        }
++    }
++
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/specific/WindowPacket.java b/src/main/java/mx/kenzie/wellspring/packet/specific/WindowPacket.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..269accd589acbb5b6f1fb04d856b0a836a0cc9ab
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/packet/specific/WindowPacket.java
+@@ -0,0 +1,56 @@
++package mx.kenzie.wellspring.packet.specific;
++
++import org.jetbrains.annotations.NotNull;
++
++public interface WindowPacket {
++
++    int getContainerId();
++
++    void setContainerId(int id);
++
++    enum Action {
++        LEFT_MOUSE(0, 0),
++        RIGHT_MOUSE(0, 1),
++        SHIFT_LEFT_MOUSE(1, 0),
++        SHIFT_RIGHT_MOUSE(1, 1),
++        NUMBER_KEY_1(2, 0),
++        NUMBER_KEY_2(2, 1),
++        NUMBER_KEY_3(2, 2),
++        NUMBER_KEY_4(2, 3),
++        NUMBER_KEY_5(2, 4),
++        NUMBER_KEY_6(2, 5),
++        NUMBER_KEY_7(2, 6),
++        NUMBER_KEY_8(2, 7),
++        NUMBER_KEY_9(2, 8),
++        MIDDLE_CLICK(3, 2),
++        DROP(4, 0),
++        CTRL_DROP(4, 1),
++        START_LEFT_DRAG(5, 0),
++        START_RIGHT_DRAG(5, 4),
++        START_MIDDLE_DRAG(5, 8),
++        ADD_LEFT_DRAG(5, 1),
++        ADD_RIGHT_DRAG(5, 5),
++        ADD_MIDDLE_DRAG(5, 9),
++        END_LEFT_DRAG(5, 2),
++        END_RIGHT_DRAG(5, 6),
++        END_MIDDLE_DRAG(5, 10),
++        DOUBLE_CLICK(6, 0),
++        ;
++        public final int mode;
++        public final int button;
++
++        Action(int mode, int button) {
++            this.mode = mode;
++            this.button = button;
++        }
++
++        public static @NotNull
++        Action getAction(int mode, int button) {
++            for (Action value : values()) {
++                if (value.mode == mode && value.button == button) return value;
++            }
++            return DOUBLE_CLICK;
++        }
++    }
++
++}
