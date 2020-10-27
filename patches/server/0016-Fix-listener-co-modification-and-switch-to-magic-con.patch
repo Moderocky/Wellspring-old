@@ -1,0 +1,160 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Tue, 27 Oct 2020 11:46:30 +0000
+Subject: [PATCH] Fix listener co-modification and switch to magic constants.
+
+
+diff --git a/src/main/java/net/minecraft/server/PacketPlayInCloseWindow.java b/src/main/java/net/minecraft/server/PacketPlayInCloseWindow.java
+index 5e035e324f23d3149fdf321b9ad9f99a63eee534..1d53a70ff366861f0c3f0df123de857054483f2f 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayInCloseWindow.java
++++ b/src/main/java/net/minecraft/server/PacketPlayInCloseWindow.java
+@@ -1,11 +1,23 @@
+ package net.minecraft.server;
+ 
++import mx.kenzie.wellspring.packet.specific.WindowPacket;
++
+ import java.io.IOException;
+ 
+-public class PacketPlayInCloseWindow implements Packet<PacketListenerPlayIn>, mx.kenzie.wellspring.packet.specific.IncomingPacket { // Kenzie
++public class PacketPlayInCloseWindow implements Packet<PacketListenerPlayIn>, mx.kenzie.wellspring.packet.specific.IncomingPacket, WindowPacket { // Kenzie
+ 
+     private int id;
+ 
++    @Override
++    public int getContainerId() {
++        return id;
++    }
++
++    @Override
++    public void setContainerId(int id) {
++        this.id = id;
++    }
++
+     public PacketPlayInCloseWindow() {}
+ 
+     // CraftBukkit start
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutCloseWindow.java b/src/main/java/net/minecraft/server/PacketPlayOutCloseWindow.java
+index 98b74d498a94e4699d5d3c655e287ed68de55b2f..9f69e51e430b2cc13b4dd52079e6ac1b303dbdfd 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutCloseWindow.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutCloseWindow.java
+@@ -1,11 +1,23 @@
+ package net.minecraft.server;
+ 
++import mx.kenzie.wellspring.packet.specific.WindowPacket;
++
+ import java.io.IOException;
+ 
+-public class PacketPlayOutCloseWindow implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
++public class PacketPlayOutCloseWindow implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket, WindowPacket { // Kenzie
+ 
+     private int a;
+ 
++    @Override
++    public int getContainerId() {
++        return a;
++    }
++
++    @Override
++    public void setContainerId(int id) {
++        a = id;
++    }
++
+     public PacketPlayOutCloseWindow() {}
+ 
+     public PacketPlayOutCloseWindow(int i) {
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutSetSlot.java b/src/main/java/net/minecraft/server/PacketPlayOutSetSlot.java
+index 2fd26e31c5a77d0776a00bcaa784577c33ba11ae..5908f31ba2e5a42c54ac960790d1d21ca707e0e3 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutSetSlot.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutSetSlot.java
+@@ -1,11 +1,12 @@
+ package net.minecraft.server;
+ 
+ import mx.kenzie.wellspring.packet.specific.OutgoingSetSlot;
++import mx.kenzie.wellspring.packet.specific.WindowPacket;
+ import org.bukkit.craftbukkit.inventory.CraftItemStack;
+ 
+ import java.io.IOException;
+ 
+-public class PacketPlayOutSetSlot implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket, OutgoingSetSlot { // Kenzie
++public class PacketPlayOutSetSlot implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket, OutgoingSetSlot, WindowPacket { // Kenzie
+ 
+     private int a;
+     private int b;
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutWindowData.java b/src/main/java/net/minecraft/server/PacketPlayOutWindowData.java
+index 2574208a12e5b36ca84873932825e6bc4defc52c..f0a417042b0346ca80d5989e8ae095c319a24e50 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutWindowData.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutWindowData.java
+@@ -1,13 +1,25 @@
+ package net.minecraft.server;
+ 
++import mx.kenzie.wellspring.packet.specific.WindowPacket;
++
+ import java.io.IOException;
+ 
+-public class PacketPlayOutWindowData implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
++public class PacketPlayOutWindowData implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket, WindowPacket { // Kenzie
+ 
+     private int a;
+     private int b;
+     private int c;
+ 
++    @Override
++    public int getContainerId() {
++        return a;
++    }
++
++    @Override
++    public void setContainerId(int id) {
++        a = id;
++    }
++
+     public PacketPlayOutWindowData() {}
+ 
+     public PacketPlayOutWindowData(int i, int j, int k) {
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutWindowItems.java b/src/main/java/net/minecraft/server/PacketPlayOutWindowItems.java
+index 5232bac97fb1819faafbaee8f95ae11b3526c49e..bf12681af1198ba54237a83eb74c706e9db69551 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutWindowItems.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutWindowItems.java
+@@ -1,10 +1,12 @@
+ package net.minecraft.server;
+ 
++import mx.kenzie.wellspring.packet.specific.WindowPacket;
++
+ import java.io.IOException;
+ import java.util.Iterator;
+ import java.util.List;
+ 
+-public class PacketPlayOutWindowItems implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
++public class PacketPlayOutWindowItems implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket, WindowPacket { // Kenzie
+ 
+     private int a;
+     private List<ItemStack> b;
+@@ -60,4 +62,14 @@ public class PacketPlayOutWindowItems implements Packet<PacketListenerPlayOut>,
+     public void a(PacketListenerPlayOut packetlistenerplayout) {
+         packetlistenerplayout.a(this);
+     }
++
++    @Override
++    public int getContainerId() {
++        return a;
++    }
++
++    @Override
++    public void setContainerId(int id) {
++        a = id;
++    }
+ }
+diff --git a/src/main/java/org/bukkit/craftbukkit/inventory/CraftContainer.java b/src/main/java/org/bukkit/craftbukkit/inventory/CraftContainer.java
+index b9dec3e45d6355d822c23521e67021020cb16f20..5e8f33c7c5869996ef8cee0b9ec4672568904f1f 100644
+--- a/src/main/java/org/bukkit/craftbukkit/inventory/CraftContainer.java
++++ b/src/main/java/org/bukkit/craftbukkit/inventory/CraftContainer.java
+@@ -91,7 +91,8 @@ public class CraftContainer extends Container {
+ 
+             @Override
+             public BaseComponent[] getComponentTitle() {
+-                return TextComponent.fromLegacyText(getTitle());
++                return TextComponent.fromLegacyText(getTitle()
++                );
+             }
+         }, player, id);
+     }
