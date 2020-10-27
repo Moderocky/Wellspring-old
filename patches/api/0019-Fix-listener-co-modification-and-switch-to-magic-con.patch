@@ -1,0 +1,186 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Tue, 27 Oct 2020 11:46:25 +0000
+Subject: [PATCH] Fix listener co-modification and switch to magic constants.
+
+
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java b/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java
+index 73f2a51ec6a8296e30b603b3ccc7a6c9603935cf..1bc0fd26b68a5e37ce78e2a3753a085801367507 100644
+--- a/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java
++++ b/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java
+@@ -30,6 +30,7 @@ import org.bukkit.potion.PotionEffect;
+ import org.bukkit.potion.PotionEffectType;
+ import org.bukkit.scoreboard.Team;
+ import org.bukkit.util.Vector;
++import org.intellij.lang.annotations.MagicConstant;
+ import org.jetbrains.annotations.Contract;
+ import org.jetbrains.annotations.NotNull;
+ import org.jetbrains.annotations.Nullable;
+@@ -237,7 +238,7 @@ public abstract class PacketFactory {
+     @Contract(pure = true)
+     @See(PlayerInfoAction.class)
+     public abstract @NotNull
+-    Packet playOutPlayerInfo(@NotNull PlayerProfile profile, @See(PlayerInfoAction.class) byte action, int ping, @NotNull GameMode mode, @NotNull BaseComponent[] name);
++    Packet playOutPlayerInfo(@NotNull PlayerProfile profile, @See(PlayerInfoAction.class) @MagicConstant(flagsFromClass = PlayerInfoAction.class) byte action, int ping, @NotNull GameMode mode, @NotNull BaseComponent[] name);
+ 
+     @Contract(pure = true)
+     public abstract @NotNull
+@@ -250,15 +251,14 @@ public abstract class PacketFactory {
+     @Contract(pure = true)
+     @See(TitleAction.class)
+     public abstract @NotNull
+-    Packet playOutTitle(@See(TitleAction.class) byte action);
++    Packet playOutTitle(@See(TitleAction.class) @MagicConstant(flagsFromClass = TitleAction.class) byte action);
+ 
+     @Contract(pure = true)
+     @See(TitleAction.class)
+     public abstract @NotNull
+-    Packet playOutTitle(@See(TitleAction.class) byte action, @Nullable BaseComponent[] message);
++    Packet playOutTitle(@See(TitleAction.class) @MagicConstant(flagsFromClass = TitleAction.class) byte action, @Nullable BaseComponent[] message);
+ 
+     @Contract(pure = true)
+-    @See(TitleAction.class)
+     public abstract @NotNull
+     Packet playOutTitle(int fadeIn, int stay, int fadeOut);
+ 
+@@ -361,7 +361,7 @@ public abstract class PacketFactory {
+     @Contract(pure = true)
+     @See(GameState.class)
+     public abstract @NotNull
+-    Packet playOutGameStateChange(@See(GameState.class) byte action, float value);
++    Packet playOutGameStateChange(@See(GameState.class) @MagicConstant(flagsFromClass = GameState.class) byte action, float value);
+ 
+     @Contract(pure = true)
+     public abstract @NotNull
+@@ -370,7 +370,7 @@ public abstract class PacketFactory {
+     @Contract(pure = true)
+     @See(TeamAction.class)
+     public abstract @NotNull
+-    OutgoingScoreboardTeam playOutScoreboardTeam(@NotNull Team team, @See(TeamAction.class) byte action);
++    OutgoingScoreboardTeam playOutScoreboardTeam(@NotNull Team team, @See(TeamAction.class) @MagicConstant(flagsFromClass = TeamAction.class) byte action);
+ 
+     @Contract(pure = true)
+     public abstract @NotNull
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/data/TeamAction.java b/src/main/java/mx/kenzie/wellspring/packet/data/TeamAction.java
+index 21b635d8f1a3dd3bc28e053fde2b0dd3a24b1a4d..a24588fa9a8b794d1e3af4bb733a7671d40a80eb 100644
+--- a/src/main/java/mx/kenzie/wellspring/packet/data/TeamAction.java
++++ b/src/main/java/mx/kenzie/wellspring/packet/data/TeamAction.java
+@@ -1,9 +1,9 @@
+ package mx.kenzie.wellspring.packet.data;
+ 
+ public final class TeamAction {
+-    public static final int ADD = 0;
+-    public static final int REMOVE = 1;
+-    public static final int CHANGE = 2;
+-    public static final int JOIN = 3;
+-    public static final int LEAVE = 4;
++    public static final byte ADD = 0;
++    public static final byte REMOVE = 1;
++    public static final byte CHANGE = 2;
++    public static final byte JOIN = 3;
++    public static final byte LEAVE = 4;
+ }
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/receiving/PacketEventController.java b/src/main/java/mx/kenzie/wellspring/packet/receiving/PacketEventController.java
+index a9fd9af2d22b32f06b8d1bcc72afafcadc199b6c..071a1474d08d792d36c399963496949a4f81ef76 100644
+--- a/src/main/java/mx/kenzie/wellspring/packet/receiving/PacketEventController.java
++++ b/src/main/java/mx/kenzie/wellspring/packet/receiving/PacketEventController.java
+@@ -1,13 +1,13 @@
+ package mx.kenzie.wellspring.packet.receiving;
+ 
+ import mx.kenzie.wellspring.packet.Packet;
++import org.apache.commons.lang.Validate;
++import org.bukkit.Bukkit;
+ import org.bukkit.plugin.Plugin;
+ import org.jetbrains.annotations.NotNull;
+ 
+-import java.util.HashSet;
+-import java.util.Map;
+-import java.util.Set;
+-import java.util.WeakHashMap;
++import java.util.*;
++import java.util.logging.Level;
+ 
+ /**
+  * The handler for all packet-related events.
+@@ -20,7 +20,8 @@ public abstract class PacketEventController {
+     protected static PacketEventController controller;
+ 
+     static {
+-        LISTENERS = new WeakHashMap<>();
++        LISTENERS = Collections.synchronizedMap(new WeakHashMap<>());
++        // We need to sync lock this - packets are regularly used off-thread.
+     }
+ 
+     public static @NotNull
+@@ -31,9 +32,20 @@ public abstract class PacketEventController {
+     protected boolean accept(@NotNull Packet packet, @NotNull PacketSender sender) {
+         if (LISTENERS.containsKey(sender)) {
+             final PacketEvent<Packet> event = new DefaultPacketEvent(packet, sender);
++            final Set<PacketListener> set = new HashSet<>();
+             for (PacketListener listener : LISTENERS.get(sender)) {
+                 if (listener.accepts(event.type))
++                    set.add(listener);
++            }
++            // Prevent comodification caused by un-registering a listener during the event.
++            for (PacketListener listener : set) {
++                try { // Prevent listener errors crashing the client
+                     listener.onEvent(event);
++                } catch (Throwable ex) {
++                    Bukkit.getLogger().log(Level.WARNING, "An error has occurred within a packet listener.");
++                    Bukkit.getLogger().log(Level.WARNING, "The listener was registered by: " + listener.getPlugin().getName());
++                    ex.printStackTrace();
++                }
+             }
+             return !event.isCancelled();
+         }
+@@ -41,6 +53,7 @@ public abstract class PacketEventController {
+     }
+ 
+     protected boolean registerListener(@NotNull PacketSender sender, @NotNull PacketListener listener) {
++        Validate.notNull(listener, "Packet listeners cannot be null!");
+         if (LISTENERS.containsKey(sender)) {
+             return LISTENERS.get(sender).add(listener);
+         } else {
+@@ -53,17 +66,25 @@ public abstract class PacketEventController {
+         return LISTENERS.containsKey(sender) && LISTENERS.get(sender).remove(listener);
+     }
+ 
++    private @NotNull
++    Set<PacketListener> createWith(@NotNull PacketListener listener) {
++        final Set<PacketListener> set = Collections.synchronizedSet(new HashSet<>());
++        set.add(listener);
++        return set;
++    }
++
+     public void unregisterListeners(@NotNull Plugin plugin) {
+         for (Set<PacketListener> set : LISTENERS.values()) {
+             set.removeIf(listener -> listener.getPlugin().equals(plugin));
+         }
+     }
+ 
+-    private @NotNull
+-    Set<PacketListener> createWith(@NotNull PacketListener listener) {
+-        final Set<PacketListener> set = new HashSet<>();
+-        set.add(listener);
+-        return set;
++    public void unregisterListeners(@NotNull PacketSender sender) {
++        LISTENERS.remove(sender);
++    }
++
++    public void unregisterListeners() {
++        LISTENERS.clear();
+     }
+ 
+ }
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/receiving/PacketSender.java b/src/main/java/mx/kenzie/wellspring/packet/receiving/PacketSender.java
+index 587f0982bd73ed85ca6e2f4271da8ac14dbc220e..edd52365d943cad7a64a0f2161328f2d1c6eb215 100644
+--- a/src/main/java/mx/kenzie/wellspring/packet/receiving/PacketSender.java
++++ b/src/main/java/mx/kenzie/wellspring/packet/receiving/PacketSender.java
+@@ -60,4 +60,7 @@ public interface PacketSender {
+         return PacketEventController.controller.accept(packet, this);
+     }
+ 
++    default void sendPacket(@NotNull Packet packet) {
++    }
++
+ }

@@ -1,0 +1,220 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Mon, 26 Oct 2020 11:17:41 +0000
+Subject: [PATCH] Open chest packets and container ids.
+
+Container id fixes.
+
+diff --git a/src/main/java/mx/kenzie/server/packet/PacketFactoryImpl.java b/src/main/java/mx/kenzie/server/packet/PacketFactoryImpl.java
+index fe82136331244717b3741e8d31e93c459474b6e5..29baea6155dfc2b6b1ad816acc199252655aeb07 100644
+--- a/src/main/java/mx/kenzie/server/packet/PacketFactoryImpl.java
++++ b/src/main/java/mx/kenzie/server/packet/PacketFactoryImpl.java
+@@ -547,6 +547,18 @@ public class PacketFactoryImpl extends PacketFactory {
+         return new PacketPlayOutScoreboardDisplayObjective();
+     }
+ 
++    @Override
++    public OutgoingOpenWindow playOutOpenWindow(int containerId, int rows) {
++        if (rows > 6) rows = 6;
++        if (rows < 1) rows = 1;
++        return new PacketPlayOutOpenWindow(containerId, rows - 1);
++    }
++
++    @Override
++    public OutgoingOpenWindow playOutOpenWindow(int containerId, InventoryType type) {
++        return new PacketPlayOutOpenWindow(containerId, type.ordinal);
++    }
++
+     @Override
+     public OutgoingSetSlot playOutSetSlot(InventoryType type) {
+         switch (type) {
+diff --git a/src/main/java/net/minecraft/server/Containers.java b/src/main/java/net/minecraft/server/Containers.java
+index 754e583514b40b45a7b98dc3a7a752480c0384af..168e81ce8b4f8d19c34c0deae177889f417e245e 100644
+--- a/src/main/java/net/minecraft/server/Containers.java
++++ b/src/main/java/net/minecraft/server/Containers.java
+@@ -18,9 +18,7 @@ public class Containers<T extends Container> {
+     public static final Containers<ContainerFurnaceFurnace> FURNACE = a("furnace", ContainerFurnaceFurnace::new);
+     public static final Containers<ContainerGrindstone> GRINDSTONE = a("grindstone", ContainerGrindstone::new);
+     public static final Containers<ContainerHopper> HOPPER = a("hopper", ContainerHopper::new);
+-    public static final Containers<ContainerLectern> LECTERN = a("lectern", (i, playerinventory) -> {
+-        return new ContainerLectern(i, playerinventory); // CraftBukkit
+-    });
++    public static final Containers<ContainerLectern> LECTERN = a("lectern", ContainerLectern::new);
+     public static final Containers<ContainerLoom> LOOM = a("loom", ContainerLoom::new);
+     public static final Containers<ContainerMerchant> MERCHANT = a("merchant", ContainerMerchant::new);
+     public static final Containers<ContainerShulkerBox> SHULKER_BOX = a("shulker_box", ContainerShulkerBox::new);
+@@ -31,7 +29,7 @@ public class Containers<T extends Container> {
+     private final Containers.Supplier<T> y;
+ 
+     private static <T extends Container> Containers<T> a(String s, Containers.Supplier<T> containers_supplier) {
+-        return (Containers) IRegistry.a(IRegistry.MENU, s, (new Containers<>(containers_supplier))); // CraftBukkit - decompile error
++        return IRegistry.a(IRegistry.MENU, s, (new Containers<>(containers_supplier))); // CraftBukkit - decompile error
+     }
+ 
+     private Containers(Containers.Supplier<T> containers_supplier) {
+diff --git a/src/main/java/net/minecraft/server/IInventory.java b/src/main/java/net/minecraft/server/IInventory.java
+index a3f2c4ebc4dd96689c3a3eebe941e9b23a007c69..3011ba51740eab9e73e859cf919c795717371a73 100644
+--- a/src/main/java/net/minecraft/server/IInventory.java
++++ b/src/main/java/net/minecraft/server/IInventory.java
+@@ -114,5 +114,9 @@ public interface IInventory extends Clearable {
+             }
+         }
+     }
++
++    default int windowId() {
++        return -1;
++    }
+     // Kenzie end
+ }
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutOpenWindow.java b/src/main/java/net/minecraft/server/PacketPlayOutOpenWindow.java
+index 64f4a24cc39342115e2b50c6afcb20bd4ff77a6d..7aaf3e33e45fa2a52005c5f000bb83b116a96e2e 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutOpenWindow.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutOpenWindow.java
+@@ -1,13 +1,73 @@
+ package net.minecraft.server;
+ 
++import mx.kenzie.wellspring.packet.specific.OutgoingOpenWindow;
++import net.md_5.bungee.api.chat.BaseComponent;
++import net.md_5.bungee.chat.ComponentSerializer;
++import org.bukkit.event.inventory.InventoryType;
++
+ import java.io.IOException;
+ 
+-public class PacketPlayOutOpenWindow implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket { // Kenzie
++public class PacketPlayOutOpenWindow implements Packet<PacketListenerPlayOut>, mx.kenzie.wellspring.packet.specific.OutgoingPacket, OutgoingOpenWindow { // Kenzie
+ 
+     private int a;
+     private int b;
+     private IChatBaseComponent c;
+ 
++    // Kenzie start
++    @Override
++    public InventoryType getInventoryType() {
++        if (b < 6) return InventoryType.CHEST;
++        for (InventoryType type : InventoryType.values()) {
++            if (type.ordinal == b) return type;
++        }
++        return InventoryType.CHEST;
++    }
++
++    @Override
++    public void setInventoryType(InventoryType type) {
++        b = type.ordinal;
++    }
++
++    @Override
++    public int getChestRows() {
++        return (b < 6) ? b + 1 : -1;
++    }
++
++    @Override
++    public void setChestRows(int rows) {
++        if (rows > 6) rows = 6;
++        if (rows < 1) rows = 1;
++        b = rows - 1;
++    }
++
++    @Override
++    public BaseComponent[] getTitle() {
++        return ComponentSerializer.parse(IChatBaseComponent.ChatSerializer.componentToJson(c));
++    }
++
++    @Override
++    public void setTitle(BaseComponent[] title) {
++        c = IChatBaseComponent.ChatSerializer.jsonToComponent(ComponentSerializer.toString(title));
++    }
++
++    @Override
++    public int getContainerId() {
++        return a;
++    }
++
++    @Override
++    public void setContainerId(int id) {
++        a = id;
++    }
++
++    public PacketPlayOutOpenWindow(int id, int type) {
++        a = id;
++        b = type;
++        c = ChatComponentText.d;
++    }
++
++    // Kenzie end
++
+     public PacketPlayOutOpenWindow() {}
+ 
+     public PacketPlayOutOpenWindow(int i, Containers<?> containers, IChatBaseComponent ichatbasecomponent) {
+diff --git a/src/main/java/org/bukkit/craftbukkit/inventory/CraftContainer.java b/src/main/java/org/bukkit/craftbukkit/inventory/CraftContainer.java
+index 8c714c7430c0a6b8fd7f4a158d9a271e1642bd7a..b9dec3e45d6355d822c23521e67021020cb16f20 100644
+--- a/src/main/java/org/bukkit/craftbukkit/inventory/CraftContainer.java
++++ b/src/main/java/org/bukkit/craftbukkit/inventory/CraftContainer.java
+@@ -1,5 +1,7 @@
+ package org.bukkit.craftbukkit.inventory;
+ 
++import net.md_5.bungee.api.chat.BaseComponent;
++import net.md_5.bungee.api.chat.TextComponent;
+ import net.minecraft.server.ChatComponentText;
+ import net.minecraft.server.Container;
+ import net.minecraft.server.ContainerAnvil;
+@@ -81,6 +83,16 @@ public class CraftContainer extends Container {
+             public String getTitle() {
+                 return inventory instanceof CraftInventoryCustom ? ((CraftInventoryCustom.MinecraftInventory) ((CraftInventory) inventory).getInventory()).getTitle() : inventory.getType().getDefaultTitle();
+             }
++
++            @Override
++            public int getContainerId() {
++                return -1;
++            }
++
++            @Override
++            public BaseComponent[] getComponentTitle() {
++                return TextComponent.fromLegacyText(getTitle());
++            }
+         }, player, id);
+     }
+ 
+diff --git a/src/main/java/org/bukkit/craftbukkit/inventory/CraftInventory.java b/src/main/java/org/bukkit/craftbukkit/inventory/CraftInventory.java
+index 630abc559cc543848601c3d805d9b3986c965c6d..701c631bee28ee91b36c8750c974c155f07029fd 100644
+--- a/src/main/java/org/bukkit/craftbukkit/inventory/CraftInventory.java
++++ b/src/main/java/org/bukkit/craftbukkit/inventory/CraftInventory.java
+@@ -548,6 +548,10 @@ public class CraftInventory implements Inventory {
+         return inventory.getLocation();
+     }
+ 
++    public int getContainerId() {
++        return inventory.windowId();
++    }
++
+     // Kenzie start - handle and NBT
+     public IInventory getHandle() {
+         return inventory;
+diff --git a/src/main/java/org/bukkit/craftbukkit/inventory/CraftInventoryView.java b/src/main/java/org/bukkit/craftbukkit/inventory/CraftInventoryView.java
+index 4c6492a92821916fa98d6409a8ebf17f255535ad..062e66751ceb6cb5fffa860b991b83a60e862634 100644
+--- a/src/main/java/org/bukkit/craftbukkit/inventory/CraftInventoryView.java
++++ b/src/main/java/org/bukkit/craftbukkit/inventory/CraftInventoryView.java
+@@ -1,6 +1,9 @@
+ package org.bukkit.craftbukkit.inventory;
+ 
++import net.md_5.bungee.api.chat.BaseComponent;
++import net.md_5.bungee.chat.ComponentSerializer;
+ import net.minecraft.server.Container;
++import net.minecraft.server.IChatBaseComponent;
+ import org.bukkit.GameMode;
+ import org.bukkit.craftbukkit.entity.CraftHumanEntity;
+ import org.bukkit.craftbukkit.util.CraftChatMessage;
+@@ -76,4 +79,14 @@ public class CraftInventoryView extends InventoryView {
+     public Container getHandle() {
+         return container;
+     }
++
++    @Override
++    public BaseComponent[] getComponentTitle() {
++        return ComponentSerializer.parse(IChatBaseComponent.ChatSerializer.componentToJson(container.getTitle()));
++    }
++
++    @Override
++    public int getContainerId() {
++        return container.windowId;
++    }
+ }

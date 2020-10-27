@@ -1,0 +1,258 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Mon, 26 Oct 2020 09:59:32 +0000
+Subject: [PATCH] Open chest packets and container ids.
+
+
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java b/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java
+index 1950b350eb7f23a520f02c2c42e8b28931d7fab8..73f2a51ec6a8296e30b603b3ccc7a6c9603935cf 100644
+--- a/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java
++++ b/src/main/java/mx/kenzie/wellspring/packet/PacketFactory.java
+@@ -298,6 +298,14 @@ public abstract class PacketFactory {
+     public abstract @NotNull
+     OutgoingSetSlot playOutSetSlot(@Nullable InventoryType type);
+ 
++    @Contract(pure = true)
++    public abstract @NotNull
++    OutgoingOpenWindow playOutOpenWindow(int containerId, @NotNull InventoryType type);
++
++    @Contract(pure = true)
++    public abstract @NotNull
++    OutgoingOpenWindow playOutOpenWindow(int containerId, int chestRows);
++
+     @Contract(pure = true)
+     public abstract @NotNull
+     OutgoingPacket playOutWindowItems(int containerId, @NotNull Collection<ItemStack> items);
+diff --git a/src/main/java/mx/kenzie/wellspring/packet/specific/OutgoingOpenWindow.java b/src/main/java/mx/kenzie/wellspring/packet/specific/OutgoingOpenWindow.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..8b5fe50fa213ae734cfc325ba925909a32c3a4d3
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/packet/specific/OutgoingOpenWindow.java
+@@ -0,0 +1,30 @@
++package mx.kenzie.wellspring.packet.specific;
++
++import mx.kenzie.wellspring.packet.PacketType;
++import net.md_5.bungee.api.chat.BaseComponent;
++import org.bukkit.event.inventory.InventoryType;
++import org.jetbrains.annotations.NotNull;
++
++public interface OutgoingOpenWindow extends WindowPacket, OutgoingPacket {
++
++    @NotNull
++    @Override
++    default PacketType getType() {
++        return PacketType.Outgoing.OPEN_WINDOW;
++    }
++
++    @NotNull
++    InventoryType getInventoryType();
++
++    void setInventoryType(@NotNull InventoryType type);
++
++    int getChestRows();
++
++    void setChestRows(int rows);
++
++    @NotNull
++    BaseComponent[] getTitle();
++
++    void setTitle(@NotNull BaseComponent[] title);
++
++}
+diff --git a/src/main/java/org/bukkit/event/inventory/InventoryType.java b/src/main/java/org/bukkit/event/inventory/InventoryType.java
+index f1e9bc9bc797b7216336d3470e3c696a06f2b21a..39d0935e706633bce37a4b2f5a62065336277237 100644
+--- a/src/main/java/org/bukkit/event/inventory/InventoryType.java
++++ b/src/main/java/org/bukkit/event/inventory/InventoryType.java
+@@ -25,125 +25,127 @@ public enum InventoryType {
+      * A chest inventory, with 0, 9, 18, 27, 36, 45, or 54 slots of type
+      * CONTAINER.
+      */
+-    CHEST(27, "Chest"),
++    CHEST(27, "Chest", 0),
+     /**
+      * A dispenser inventory, with 9 slots of type CONTAINER.
+      */
+-    DISPENSER(9, "Dispenser"),
++    DISPENSER(9, "Dispenser", 6),
+     /**
+      * A dropper inventory, with 9 slots of type CONTAINER.
+      */
+-    DROPPER(9, "Dropper"),
++    DROPPER(9, "Dropper", 6),
+     /**
+      * A furnace inventory, with a RESULT slot, a CRAFTING slot, and a FUEL
+      * slot.
+      */
+-    FURNACE(3, "Furnace"),
++    FURNACE(3, "Furnace", 13),
+     /**
+      * A workbench inventory, with 9 CRAFTING slots and a RESULT slot.
+      */
+-    WORKBENCH(10, "Crafting"),
++    WORKBENCH(10, "Crafting", 11),
+     /**
+      * A player's crafting inventory, with 4 CRAFTING slots and a RESULT slot.
+      * Also implies that the 4 ARMOR slots are accessible.
+      */
+-    CRAFTING(5, "Crafting", false),
++    CRAFTING(5, "Crafting", false, 0),
+     /**
+      * An enchantment table inventory, with two CRAFTING slots and three
+      * enchanting buttons.
+      */
+-    ENCHANTING(2, "Enchanting"),
++    ENCHANTING(2, "Enchanting", 12),
+     /**
+      * A brewing stand inventory, with one FUEL slot and four CRAFTING slots.
+      */
+-    BREWING(5, "Brewing"),
++    BREWING(5, "Brewing", 10),
+     /**
+      * A player's inventory, with 9 QUICKBAR slots, 27 CONTAINER slots, 4 ARMOR
+      * slots and 1 offhand slot. The ARMOR and offhand slots may not be visible
+      * to the player, though.
+      */
+-    PLAYER(41, "Player"),
++    PLAYER(41, "Player", 0),
+     /**
+      * The creative mode inventory, with only 9 QUICKBAR slots and nothing
+      * else. (The actual creative interface with the items is client-side and
+      * cannot be altered by the server.)
+      */
+-    CREATIVE(9, "Creative", false),
++    CREATIVE(9, "Creative", false, 0),
+     /**
+      * The merchant inventory, with 2 CRAFTING slots, and 1 RESULT slot.
+      */
+-    MERCHANT(3, "Villager", false),
++    MERCHANT(3, "Villager", false, 18),
+     /**
+      * The ender chest inventory, with 27 slots.
+      */
+-    ENDER_CHEST(27, "Ender Chest"),
++    ENDER_CHEST(27, "Ender Chest", 0),
+     /**
+      * An anvil inventory, with 2 CRAFTING slots and 1 RESULT slot
+      */
+-    ANVIL(3, "Repairing"),
++    ANVIL(3, "Repairing", 7),
+     /**
+      * A smithing inventory, with 2 CRAFTING slots and 1 RESULT slot
+      */
+-    SMITHING(3, "Upgrade Gear"),
++    SMITHING(3, "Upgrade Gear", 20),
+     /**
+      * A beacon inventory, with 1 CRAFTING slot
+      */
+-    BEACON(1, "container.beacon"),
++    BEACON(1, "container.beacon", 8),
+     /**
+      * A hopper inventory, with 5 slots of type CONTAINER.
+      */
+-    HOPPER(5, "Item Hopper"),
++    HOPPER(5, "Item Hopper", 15),
+     /**
+      * A shulker box inventory, with 27 slots of type CONTAINER.
+      */
+-    SHULKER_BOX(27, "Shulker Box"),
++    SHULKER_BOX(27, "Shulker Box", 19),
+     /**
+      * A barrel box inventory, with 27 slots of type CONTAINER.
+      */
+-    BARREL(27, "Barrel"),
++    BARREL(27, "Barrel", 0),
+     /**
+      * A blast furnace inventory, with a RESULT slot, a CRAFTING slot, and a
+      * FUEL slot.
+      */
+-    BLAST_FURNACE(3, "Blast Furnace"),
++    BLAST_FURNACE(3, "Blast Furnace", 9),
+     /**
+      * A lectern inventory, with 1 BOOK slot.
+      */
+-    LECTERN(1, "Lectern"),
++    LECTERN(1, "Lectern", 16),
+     /**
+      * A smoker inventory, with a RESULT slot, a CRAFTING slot, and a FUEL slot.
+      */
+-    SMOKER(3, "Smoker"),
++    SMOKER(3, "Smoker", 21),
+     /**
+      * Loom inventory, with 3 CRAFTING slots, and 1 RESULT slot.
+      */
+-    LOOM(4, "Loom"),
++    LOOM(4, "Loom", 17),
+     /**
+      * Cartography inventory with 2 CRAFTING slots, and 1 RESULT slot.
+      */
+-    CARTOGRAPHY(3, "Cartography Table"),
++    CARTOGRAPHY(3, "Cartography Table", 22),
+     /**
+      * Grindstone inventory with 2 CRAFTING slots, and 1 RESULT slot.
+      */
+-    GRINDSTONE(3, "Repair & Disenchant"),
++    GRINDSTONE(3, "Repair & Disenchant", 14),
+     /**
+      * Stonecutter inventory with 1 CRAFTING slot, and 1 RESULT slot.
+      */
+-    STONECUTTER(2, "Stonecutter")
++    STONECUTTER(2, "Stonecutter", 23)
+     ;
+ 
++    public final int ordinal; // Kenzie
+     private final int size;
+     private final String title;
+     private final boolean isCreatable;
+ 
+-    private InventoryType(int defaultSize, /*@NotNull*/ String defaultTitle) {
+-        this(defaultSize, defaultTitle, true);
++    private InventoryType(int defaultSize, /*@NotNull*/ String defaultTitle, int ordinal) {
++        this(defaultSize, defaultTitle, true, ordinal);
+     }
+ 
+-    private InventoryType(int defaultSize, /*@NotNull*/ String defaultTitle, boolean isCreatable) {
++    private InventoryType(int defaultSize, /*@NotNull*/ String defaultTitle, boolean isCreatable, int ordinal) {
+         size = defaultSize;
+         title = defaultTitle;
+         this.isCreatable = isCreatable;
++        this.ordinal = ordinal;
+     }
+ 
+     public int getDefaultSize() {
+diff --git a/src/main/java/org/bukkit/inventory/Inventory.java b/src/main/java/org/bukkit/inventory/Inventory.java
+index 8ba67269f62a2c130c6327797220f192f3643467..1199dc6627b4e5b134c60005ddc5121c62335e6c 100644
+--- a/src/main/java/org/bukkit/inventory/Inventory.java
++++ b/src/main/java/org/bukkit/inventory/Inventory.java
+@@ -421,4 +421,5 @@ public interface Inventory extends Iterable<ItemStack>, NBTHolder { // Kenzie -
+      */
+     @Nullable
+     public Location getLocation();
++
+ }
+diff --git a/src/main/java/org/bukkit/inventory/InventoryView.java b/src/main/java/org/bukkit/inventory/InventoryView.java
+index 14346d83bc99581b18e53d19af03708c0bf22cf7..af129c9f85349a14f2868ceb6cd68905f36a053b 100644
+--- a/src/main/java/org/bukkit/inventory/InventoryView.java
++++ b/src/main/java/org/bukkit/inventory/InventoryView.java
+@@ -1,6 +1,7 @@
+ package org.bukkit.inventory;
+ 
+ import com.google.common.base.Preconditions;
++import net.md_5.bungee.api.chat.BaseComponent;
+ import org.bukkit.entity.HumanEntity;
+ import org.bukkit.event.inventory.InventoryType;
+ import org.jetbrains.annotations.NotNull;
+@@ -453,4 +454,14 @@ public abstract class InventoryView {
+      */
+     @NotNull
+     public abstract String getTitle();
++
++    /**
++     * Get the title of this inventory window.
++     *
++     * @return The title.
++     */
++    @NotNull
++    public abstract BaseComponent[] getComponentTitle(); // Kenzie
++
++    public abstract int getContainerId(); // Kenzie
+ }
