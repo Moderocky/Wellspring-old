@@ -783,10 +783,10 @@ index 0d8ee0cb1aae826fae0a920cdbf4152550c7375c..be9150e08342a7ae94c15511aafdeb81
      private final byte data;
      private final Class<? extends Entity> applicable;
 diff --git a/src/main/java/org/bukkit/World.java b/src/main/java/org/bukkit/World.java
-index 798f6baf2ca9eb5b2527cacf7ee34155c943a25d..e3afa5e5975d6e263f3363298fd6185bd0a24821 100644
+index e800b7c422842667ad751d2c470cc9b196ee3ec8..87fece99582457ae156f00dc46e04ddcdfb66681 100644
 --- a/src/main/java/org/bukkit/World.java
 +++ b/src/main/java/org/bukkit/World.java
-@@ -2461,6 +2461,8 @@ public interface World extends PluginMessageRecipient, Metadatable, Attachable,
+@@ -3561,6 +3561,8 @@ public interface World extends PluginMessageRecipient, Metadatable, Attachable,
      }
  
      void setCustomBossNBT(@NotNull NBTCompound compound);
@@ -796,10 +796,10 @@ index 798f6baf2ca9eb5b2527cacf7ee34155c943a25d..e3afa5e5975d6e263f3363298fd6185b
  
  }
 diff --git a/src/main/java/org/bukkit/block/Block.java b/src/main/java/org/bukkit/block/Block.java
-index 20dbea35af6482465c40a2fdadea8143863b1f4a..083e07584e9c1bc8b48fc22cdfb7d94e7e44d560 100644
+index 1b13d8d86a32b16cf6db97dc9a7f81346da387bb..51ad1f0806953187da8ad878795f4f37023ce297 100644
 --- a/src/main/java/org/bukkit/block/Block.java
 +++ b/src/main/java/org/bukkit/block/Block.java
-@@ -514,6 +514,24 @@ public interface Block extends Metadatable, NBTHolder { // Kenzie
+@@ -602,6 +602,24 @@ public interface Block extends Metadatable, NBTHolder { // Kenzie
      @NotNull
      @Override
      NBTCompound getNBT();

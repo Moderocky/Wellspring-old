@@ -5,7 +5,7 @@ Subject: [PATCH] Wellspring POM Changes
 
 
 diff --git a/pom.xml b/pom.xml
-index 598429db84ef69220099cf3b890b16c26666b5cc..5b76a0df38791cc90a9000a128b78a04b5d99db3 100644
+index a22e6517d55d0296421a9f751d5e6d0448a5a2a8..352e5a55dc1d8a830c08a587a811b2b59ecb24ae 100644
 --- a/pom.xml
 +++ b/pom.xml
 @@ -3,18 +3,18 @@

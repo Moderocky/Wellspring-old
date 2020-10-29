@@ -5,10 +5,10 @@ Subject: [PATCH] Pickup radii and attempt method.
 
 
 diff --git a/src/main/java/org/bukkit/entity/HumanEntity.java b/src/main/java/org/bukkit/entity/HumanEntity.java
-index 72178c3036f567ceaf15016978a9737eb9c4afc4..6164e36590a9b4e8d62cd47eeed61e9e8b1425c4 100644
+index 77bff8fb6bfdf739e413084e13677a83e723c71e..6bf78d0baf2159fe1ac67f2d53a287a1402f9dfb 100644
 --- a/src/main/java/org/bukkit/entity/HumanEntity.java
 +++ b/src/main/java/org/bukkit/entity/HumanEntity.java
-@@ -452,4 +452,58 @@ public interface HumanEntity extends LivingEntity, AnimalTamer, InventoryHolder
+@@ -588,4 +588,58 @@ public interface HumanEntity extends LivingEntity, AnimalTamer, InventoryHolder
       * @return True if item was dropped successfully
       */
      public boolean dropItem(boolean dropAll);
