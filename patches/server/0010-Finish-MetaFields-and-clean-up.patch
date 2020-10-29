@@ -358,7 +358,7 @@ index 27d0f93510a235b80784dd1f29b0c3b3910e4459..2525e40869e48294b6a6c6bd246935bc
      }
  
 diff --git a/src/main/java/net/minecraft/server/EntityFishingHook.java b/src/main/java/net/minecraft/server/EntityFishingHook.java
-index b6cace72ab2f3389408a5e528981fcff3b511180..c3d3d753fd354a2a215c3dcf86609b55d6349b63 100644
+index 25ec9e9319ca7badde845906679d78934eaf0ad6..98b273a20df8142e3f6b4d3704f0e78848e0e82d 100644
 --- a/src/main/java/net/minecraft/server/EntityFishingHook.java
 +++ b/src/main/java/net/minecraft/server/EntityFishingHook.java
 @@ -7,6 +7,7 @@ import java.util.List;
@@ -1048,7 +1048,7 @@ index 42f02b03b14a5df4e336156717a5a82003397ee0..ce2478351ff4a403869adcc87f7db290
      public EntitySpider(EntityTypes<? extends EntitySpider> entitytypes, World world) {
          super(entitytypes, world);
 diff --git a/src/main/java/net/minecraft/server/EntityTNTPrimed.java b/src/main/java/net/minecraft/server/EntityTNTPrimed.java
-index 3e71332c47000b21ff90aec6937f90dc639a41bd..36b9442dcfbf189a7895205e7ac748fe22329be3 100644
+index 6a56649ff17592d5ab3da4a4b3e65b432eaf44bb..d4f6257435180f5cacf1c074e7c62ef74f4c90f3 100644
 --- a/src/main/java/net/minecraft/server/EntityTNTPrimed.java
 +++ b/src/main/java/net/minecraft/server/EntityTNTPrimed.java
 @@ -1,11 +1,16 @@
@@ -1066,7 +1066,7 @@ index 3e71332c47000b21ff90aec6937f90dc639a41bd..36b9442dcfbf189a7895205e7ac748fe
 +        MetaField.TNT_FUSE_TICKS = FUSE_TICKS;
 +    }
      @Nullable
-     private EntityLiving source;
+     public EntityLiving source; // PAIL private -> public
      private int fuseTicks;
 diff --git a/src/main/java/net/minecraft/server/EntityThrownTrident.java b/src/main/java/net/minecraft/server/EntityThrownTrident.java
 index a3150bd1cee91b9b0f9192a4da394ac9585c0d41..d3aa0f89cb8b9c2db234df14c8c56ab161b5bc2c 100644

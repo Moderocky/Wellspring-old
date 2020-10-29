@@ -1,0 +1,221 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Thu, 29 Oct 2020 09:38:45 +0000
+Subject: [PATCH] Better ray-tracing utilities.
+
+
+diff --git a/src/main/java/mx/kenzie/server/CraftBridge.java b/src/main/java/mx/kenzie/server/CraftBridge.java
+index ea159e365a5783a441b1d5c36c16f90ab4f4b49a..5d8fe70ef5d5f754ebb45e3e8d440178115700a3 100644
+--- a/src/main/java/mx/kenzie/server/CraftBridge.java
++++ b/src/main/java/mx/kenzie/server/CraftBridge.java
+@@ -4,9 +4,12 @@ import mx.kenzie.wellspring.Wellspring;
+ import mx.kenzie.wellspring.nbt.NBTCompound;
+ import mx.kenzie.wellspring.packet.data.MetaField;
+ import mx.kenzie.wellspring.structure.*;
++import mx.kenzie.wellspring.util.Positional;
++import mx.kenzie.wellspring.util.RayTrace;
+ import net.md_5.bungee.api.chat.BaseComponent;
+ import net.md_5.bungee.chat.ComponentSerializer;
+ import net.minecraft.server.*;
++import org.bukkit.FluidCollisionMode;
+ import org.bukkit.Location;
+ import org.bukkit.NamespacedKey;
+ import org.bukkit.attribute.Attribute;
+@@ -20,6 +23,7 @@ import org.bukkit.enchantments.Enchantment;
+ import org.bukkit.entity.EntityType;
+ import org.bukkit.entity.Pose;
+ import org.bukkit.entity.Villager;
++import org.bukkit.util.BoundingBox;
+ import org.bukkit.util.Vector;
+ 
+ import java.io.InputStream;
+@@ -82,6 +86,11 @@ public class CraftBridge extends Wellspring.Bridge {
+         return object;
+     }
+ 
++    @Override
++    public RayTrace createRayTrace(Positional locative, BoundingBox box, Vector motion, FluidCollisionMode fluids, boolean ignorePassableBlocks) {
++        return new mx.kenzie.server.util.RayTrace(motion, ignorePassableBlocks, fluids, box);
++    }
++
+     @Override
+     public boolean isStructurePresent(WorldStructureType structure, Location location) {
+         WorldStructure str = getStructure(structure, location);
+diff --git a/src/main/java/mx/kenzie/server/util/RayTrace.java b/src/main/java/mx/kenzie/server/util/RayTrace.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..650f126d2c5c23b9ad9e6f786f26471eabb21c60
+--- /dev/null
++++ b/src/main/java/mx/kenzie/server/util/RayTrace.java
+@@ -0,0 +1,119 @@
++package mx.kenzie.server.util;
++
++import net.minecraft.server.*;
++import org.bukkit.FluidCollisionMode;
++import org.bukkit.World;
++import org.bukkit.craftbukkit.CraftFluidCollisionMode;
++import org.bukkit.craftbukkit.CraftWorld;
++import org.bukkit.util.BoundingBox;
++import org.bukkit.util.RayTraceResult;
++import org.bukkit.util.Vector;
++
++import java.util.stream.Stream;
++
++public class RayTrace extends net.minecraft.server.RayTrace implements mx.kenzie.wellspring.util.RayTrace {
++
++    protected final BoundingBox box;
++    protected final Vector motion;
++    protected final FluidCollisionMode mode;
++    protected final boolean blocks;
++    protected World world;
++    protected BoundingBox resultBox;
++    protected Vector resultVector;
++
++    public RayTrace(Vector start, Vector end, boolean ignorePassableBlocks, FluidCollisionMode fluid, BoundingBox object) {
++        super(convert(start), convert(end), ignorePassableBlocks ? net.minecraft.server.RayTrace.BlockCollisionOption.COLLIDER : net.minecraft.server.RayTrace.BlockCollisionOption.OUTLINE, CraftFluidCollisionMode.toNMS(fluid), (Entity) null);
++        this.box = object;
++        this.motion = end.subtract(start);
++        this.blocks = ignorePassableBlocks;
++        this.mode = fluid;
++    }
++
++    private static Vec3D convert(Vector vector) {
++        return new Vec3D(vector.getX(), vector.getY(), vector.getZ());
++    }
++
++    public RayTrace(Vector motion, boolean ignorePassableBlocks, FluidCollisionMode fluid, BoundingBox object) {
++        super(convert(object.getCenter()), convert(object.getCenter().add(motion)), ignorePassableBlocks ? net.minecraft.server.RayTrace.BlockCollisionOption.COLLIDER : net.minecraft.server.RayTrace.BlockCollisionOption.OUTLINE, CraftFluidCollisionMode.toNMS(fluid), (Entity) null);
++        this.box = object;
++        this.motion = motion;
++        this.blocks = ignorePassableBlocks;
++        this.mode = fluid;
++    }
++
++    public RayTraceResult getResult(World world) {
++        return world.rayTrace(box.getCenter().toLocation(world), motion, motion.length(), mode, blocks, 0, null);
++    }
++
++    @Override
++    public boolean hasProcessed() {
++        return resultVector != null;
++    }
++
++    @Override
++    public void process(World world) {
++        attempt(((CraftWorld) world).getHandle());
++    }
++
++    public Vector getResultMotion() {
++        return resultVector == null ? motion : box.getCenter();
++    }
++
++    public BoundingBox getResultBox() {
++        if (resultBox == null) return box;
++        return resultBox;
++    }
++
++    public void attempt(WorldServer world) {
++        final AxisAlignedBB alignedBB = convert(box);
++        resultVector = convert(collide(convert(motion), alignedBB, world));
++        resultBox = new BoundingBox(alignedBB.minX, alignedBB.minY, alignedBB.minZ, alignedBB.maxX, alignedBB.maxY, alignedBB.maxZ);
++
++    }
++
++    private static AxisAlignedBB convert(BoundingBox box) {
++        return new AxisAlignedBB(convert(box.getMin()), convert(box.getMax()));
++    }
++
++    private static Vector convert(Vec3D vector) {
++        return new Vector(vector.getX(), vector.getY(), vector.getZ());
++    }
++
++    protected static Vec3D collide(Vec3D vec3d, AxisAlignedBB axisalignedbb, IWorldReader iworldreader) { // collide
++        double vecX = vec3d.x;
++        double vecY = vec3d.y;
++        double vecZ = vec3d.z;
++        Stream<VoxelShape> stream = Stream.empty();
++        VoxelShapeCollision voxelshapecollision = VoxelShapeCollision.a();
++
++        if (vecY != 0.0D) {
++            vecY = VoxelShapes.a(EnumDirection.EnumAxis.Y, axisalignedbb, iworldreader, vecY, voxelshapecollision, stream);
++            if (vecY != 0.0D) {
++                axisalignedbb = axisalignedbb.d(0.0D, vecY, 0.0D); // shift up by y
++            }
++        }
++
++        boolean movedMoreZ = Math.abs(vecX) < Math.abs(vecZ);
++
++        if (movedMoreZ && vecZ != 0.0D) {
++            vecZ = VoxelShapes.a(EnumDirection.EnumAxis.Z, axisalignedbb, iworldreader, vecZ, voxelshapecollision, stream);
++            if (vecZ != 0.0D) {
++                axisalignedbb = axisalignedbb.d(0.0D, 0.0D, vecZ); // shift up by z
++            }
++        }
++
++        if (vecX != 0.0D) {
++            vecX = VoxelShapes.a(EnumDirection.EnumAxis.X, axisalignedbb, iworldreader, vecX, voxelshapecollision, stream);
++            if (!movedMoreZ && vecX != 0.0D) {
++                axisalignedbb = axisalignedbb.d(vecX, 0.0D, 0.0D); // shift up by x
++            }
++        }
++
++        if (!movedMoreZ && vecZ != 0.0D) {
++            vecZ = VoxelShapes.a(EnumDirection.EnumAxis.Z, axisalignedbb, iworldreader, vecZ, voxelshapecollision, stream);
++        }
++
++        return new Vec3D(vecX, vecY, vecZ);
++    }
++
++}
+diff --git a/src/main/java/net/minecraft/server/RayTrace.java b/src/main/java/net/minecraft/server/RayTrace.java
+index 24afd632eb1f6877e065ac9ddd4769e55866f384..79bbdf66694ab0853f1ae9a3262d2f16f00f705d 100644
+--- a/src/main/java/net/minecraft/server/RayTrace.java
++++ b/src/main/java/net/minecraft/server/RayTrace.java
+@@ -4,11 +4,21 @@ import java.util.function.Predicate;
+ 
+ public class RayTrace {
+ 
+-    private final Vec3D a;
+-    private final Vec3D b;
+-    private final RayTrace.BlockCollisionOption c;
+-    private final RayTrace.FluidCollisionOption d;
+-    private final VoxelShapeCollision e;
++    protected final Vec3D a;
++    protected final Vec3D b;
++    protected final RayTrace.BlockCollisionOption c;
++    protected final RayTrace.FluidCollisionOption d;
++    protected final VoxelShapeCollision e;
++
++    // Kenzie start
++    public RayTrace(Vec3D a, Vec3D b, BlockCollisionOption c, FluidCollisionOption d) {
++        this.a = a;
++        this.b = b;
++        this.c = c;
++        this.d = d;
++        this.e = VoxelShapeCollision.a() ;
++    }
++    // Kenzie end
+ 
+     public RayTrace(Vec3D vec3d, Vec3D vec3d1, RayTrace.BlockCollisionOption raytrace_blockcollisionoption, RayTrace.FluidCollisionOption raytrace_fluidcollisionoption, Entity entity) {
+         this.a = vec3d;
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
+index 1b71099e9df147a8dfef5695fb974e996b7c5f40..259316ac49f86d1b701e3b764756f4c942ecc307 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
+@@ -1296,7 +1296,7 @@ public class CraftWorld implements World {
+         Vector dir = direction.clone().normalize().multiply(maxDistance);
+         Vec3D startPos = new Vec3D(start.getX(), start.getY(), start.getZ());
+         Vec3D endPos = new Vec3D(start.getX() + dir.getX(), start.getY() + dir.getY(), start.getZ() + dir.getZ());
+-        MovingObjectPosition nmsHitResult = this.getHandle().rayTrace(new RayTrace(startPos, endPos, ignorePassableBlocks ? RayTrace.BlockCollisionOption.COLLIDER : RayTrace.BlockCollisionOption.OUTLINE, CraftFluidCollisionMode.toNMS(fluidCollisionMode), null));
++        MovingObjectPosition nmsHitResult = this.getHandle().rayTrace(new RayTrace(startPos, endPos, ignorePassableBlocks ? RayTrace.BlockCollisionOption.COLLIDER : RayTrace.BlockCollisionOption.OUTLINE, CraftFluidCollisionMode.toNMS(fluidCollisionMode), (net.minecraft.server.Entity) null));
+ 
+         return CraftRayTraceResult.fromNMS(this, nmsHitResult);
+     }
+@@ -1310,7 +1310,7 @@ public class CraftWorld implements World {
+         Validate.notNull(fluidCollisionMode, "Fluid collision mode is null!");
+         Vec3D startPos = new Vec3D(start.getX(), start.getY(), start.getZ());
+         Vec3D endPos = new Vec3D(end.getX(), end.getY(), end.getZ());
+-        MovingObjectPosition nmsHitResult = this.getHandle().rayTrace(new RayTrace(startPos, endPos, ignorePassableBlocks ? RayTrace.BlockCollisionOption.COLLIDER : RayTrace.BlockCollisionOption.OUTLINE, CraftFluidCollisionMode.toNMS(fluidCollisionMode), null));
++        MovingObjectPosition nmsHitResult = this.getHandle().rayTrace(new RayTrace(startPos, endPos, ignorePassableBlocks ? RayTrace.BlockCollisionOption.COLLIDER : RayTrace.BlockCollisionOption.OUTLINE, CraftFluidCollisionMode.toNMS(fluidCollisionMode), (net.minecraft.server.Entity) null));
+         return CraftRayTraceResult.fromNMS(this, nmsHitResult);
+     }
+     // Kenzie end

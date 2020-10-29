@@ -11,19 +11,6 @@ Fix missed block NBT.
 
 Handle
 
-diff --git a/src/main/java/com/destroystokyo/paper/PaperConfig.java b/src/main/java/com/destroystokyo/paper/PaperConfig.java
-index e14d71d60c3433c39dcf217d48bd667b2c2b49e1..053da5119404ded5e3cf6bb55967cc8ffba47de6 100644
---- a/src/main/java/com/destroystokyo/paper/PaperConfig.java
-+++ b/src/main/java/com/destroystokyo/paper/PaperConfig.java
-@@ -40,7 +40,7 @@ public class PaperConfig {
-             + "If you need help with the configuration or have any questions related to Paper,\n"
-             + "join us in our Discord or IRC channel.\n"
-             + "\n"
--            + "Discord: https://paperdiscord.emc.gs\n"
-+            + "Discord: https://discord.gg/papermc\n"
-             + "IRC: #paper @ irc.spi.gt ( http://irc.spi.gt/iris/?channels=paper )\n"
-             + "Website: https://papermc.io/ \n"
-             + "Docs: https://paper.readthedocs.org/ \n";
 diff --git a/src/main/java/com/destroystokyo/paper/network/PaperNetworkClient.java b/src/main/java/com/destroystokyo/paper/network/PaperNetworkClient.java
 index 5caca6439d2135e34880d501397fe2ea197d7249..1fbe2cfeb8c5a6eda85ea38e71963eb590cfd94c 100644
 --- a/src/main/java/com/destroystokyo/paper/network/PaperNetworkClient.java
@@ -1655,95 +1642,8 @@ index dd235a6fc4bc731a344d7211879f9b40bb622c3e..120042783fd5b2aed8f989a08063dac4
              return this;
          }
  
-diff --git a/src/main/java/net/minecraft/server/AutoRecipe.java b/src/main/java/net/minecraft/server/AutoRecipe.java
-index a5d29242b48e0d19d35ee2fe84824a2ef32923b9..156ab966e8fb4d742b50a2f90420710b0c7b4764 100644
---- a/src/main/java/net/minecraft/server/AutoRecipe.java
-+++ b/src/main/java/net/minecraft/server/AutoRecipe.java
-@@ -60,7 +60,12 @@ public class AutoRecipe<C extends IInventory> implements AutoRecipeAbstract<Inte
-                 if (j == -1) {
-                     j = this.c.getFirstEmptySlotIndex();
-                 }
--
-+                // Paper start
-+                if (j == -1) {
-+                    this.c.player.drop(itemstack.cloneItemStack(), false);
-+                    break;
-+                }
-+                // Paper end
-                 ItemStack itemstack1 = itemstack.cloneItemStack();
- 
-                 itemstack1.setCount(1);
-diff --git a/src/main/java/net/minecraft/server/BlockBase.java b/src/main/java/net/minecraft/server/BlockBase.java
-index 505d40278d4472e0015a53af8e93bd81e5f09ac3..5131d2172d3cbd8a7254a6dd52e061888a17fb38 100644
---- a/src/main/java/net/minecraft/server/BlockBase.java
-+++ b/src/main/java/net/minecraft/server/BlockBase.java
-@@ -338,7 +338,14 @@ public abstract class BlockBase {
-         }
-         // Paper end
- 
-+        // Paper start
-+        protected boolean isTicking;
-+        protected Fluid fluid;
-+        // Paper end
-+
-         public void a() {
-+            this.fluid = this.getBlock().d(this.p()); // Paper - moved from getFluid()
-+            this.isTicking = this.getBlock().isTicking(this.p()); // Paper - moved from isTicking()
-             if (!this.getBlock().o()) {
-                 this.a = new BlockBase.BlockData.Cache(this.p());
-             }
-@@ -377,19 +384,19 @@ public abstract class BlockBase {
-             return this.getBlock().d(this.p(), iblockaccess, blockposition);
-         }
- 
--        public boolean d() {
-+        public final boolean d() { // Paper
-             return this.a == null || this.a.c;
-         }
- 
--        public boolean e() {
-+        public final boolean e() { // Paper
-             return this.e;
-         }
- 
--        public int f() {
-+        public final int f() { // Paper
-             return this.b;
-         }
- 
--        public boolean isAir() {
-+        public final boolean isAir() { // Paper
-             return this.f;
-         }
- 
-@@ -455,7 +462,7 @@ public abstract class BlockBase {
-             }
-         }
- 
--        public boolean l() {
-+        public final boolean l() { // Paper
-             return this.k;
-         }
- 
-@@ -627,12 +634,12 @@ public abstract class BlockBase {
-             return this.getBlock().a(block);
-         }
- 
--        public Fluid getFluid() {
--            return this.getBlock().d(this.p());
-+        public final Fluid getFluid() { // Paper
-+            return this.fluid; // Paper - moved into init
-         }
- 
--        public boolean isTicking() {
--            return this.getBlock().isTicking(this.p());
-+        public final boolean isTicking() { // Paper
-+            return this.isTicking; // Paper - moved into init
-         }
- 
-         public SoundEffectType getStepSound() {
 diff --git a/src/main/java/net/minecraft/server/Chunk.java b/src/main/java/net/minecraft/server/Chunk.java
-index 299d7d7a55532930e2d4340a6cfe77a5fd8a0a0c..85a9ef6d2ee06a9f85af47e4669044bf82a3975b 100644
+index 083da88c1dd78b8ecdc8329c94430189cecb9d95..c2c067a5822b51c85f397678b20f182476b387d7 100644
 --- a/src/main/java/net/minecraft/server/Chunk.java
 +++ b/src/main/java/net/minecraft/server/Chunk.java
 @@ -7,23 +7,23 @@ import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
@@ -1809,7 +1709,7 @@ index 299d7d7a55532930e2d4340a6cfe77a5fd8a0a0c..85a9ef6d2ee06a9f85af47e4669044bf
      public final co.aikar.util.Counter<String> entityCounts = new co.aikar.util.Counter<>();
      public final co.aikar.util.Counter<String> tileEntityCounts = new co.aikar.util.Counter<>();
 diff --git a/src/main/java/net/minecraft/server/ChunkRegionLoader.java b/src/main/java/net/minecraft/server/ChunkRegionLoader.java
-index a0353da423b13ce9be48a0ed194c0182808800d2..5d41318fb83cd90970cb889e19413c54f557b1cb 100644
+index 8e7da2c5f3852920ec5fbcdd2bff4d299e6aa499..96972af348ac72e4460b36c028f7a9c749e916d5 100644
 --- a/src/main/java/net/minecraft/server/ChunkRegionLoader.java
 +++ b/src/main/java/net/minecraft/server/ChunkRegionLoader.java
 @@ -115,6 +115,22 @@ public class ChunkRegionLoader {
@@ -1835,7 +1735,7 @@ index a0353da423b13ce9be48a0ed194c0182808800d2..5d41318fb83cd90970cb889e19413c54
              }
  
              if (flag) {
-@@ -428,6 +444,26 @@ public class ChunkRegionLoader {
+@@ -441,6 +457,26 @@ public class ChunkRegionLoader {
                  nbttagcompound2.setByte("Y", (byte) (i & 255));
                  if (chunksection != Chunk.a) {
                      chunksection.getBlocks().a(nbttagcompound2, "Palette", "BlockStates");
@@ -2558,18 +2458,6 @@ index 7e2162fc78168adb96ed20651e1a3e061c29f96d..8ba31c04f12a9d6562f013dfb9442398
          }
  
          public int a() {
-diff --git a/src/main/java/net/minecraft/server/EnderDragonBattle.java b/src/main/java/net/minecraft/server/EnderDragonBattle.java
-index 47182c5004f8023faeecec14a7fd090d40a14270..95ecf9dd511836cc2f70173f07234ef8822d6038 100644
---- a/src/main/java/net/minecraft/server/EnderDragonBattle.java
-+++ b/src/main/java/net/minecraft/server/EnderDragonBattle.java
-@@ -403,6 +403,7 @@ public class EnderDragonBattle {
-         entityenderdragon.setPositionRotation(0.0D, 128.0D, 0.0D, this.world.random.nextFloat() * 360.0F, 0.0F);
-         this.world.addEntity(entityenderdragon);
-         this.dragonUUID = entityenderdragon.getUniqueID();
-+        this.resetCrystals(); // Paper
-         return entityenderdragon;
-     }
- 
 diff --git a/src/main/java/net/minecraft/server/Entity.java b/src/main/java/net/minecraft/server/Entity.java
 index b845e488e3b9a4f19d1fcf169533046b7e72ba28..d97f8134a27bec7894c0c50071149b5ae8710601 100644
 --- a/src/main/java/net/minecraft/server/Entity.java
@@ -2659,19 +2547,6 @@ index 6bd25833bc3ff3ca46367a48da001ed9bda8c19d..639bd533b2dadaacc40db2851e93d449
 +        return new PacketPlayOutSpawnEntity(this, this.getVisualType(), 0, this.getBlockPosition()); // Kenzie
      }
  }
-diff --git a/src/main/java/net/minecraft/server/EntityMinecartFurnace.java b/src/main/java/net/minecraft/server/EntityMinecartFurnace.java
-index 7d4e58bdc7e2b07a1f195ff6d7665a6f247703fb..44a2a38b394ca67f5f4e7540a24b83529e42152c 100644
---- a/src/main/java/net/minecraft/server/EntityMinecartFurnace.java
-+++ b/src/main/java/net/minecraft/server/EntityMinecartFurnace.java
-@@ -3,7 +3,7 @@ package net.minecraft.server;
- public class EntityMinecartFurnace extends EntityMinecartAbstract {
- 
-     private static final DataWatcherObject<Boolean> d = DataWatcher.a(EntityMinecartFurnace.class, DataWatcherRegistry.i);
--    private int e;
-+    public int e; // CraftBukkit PAIL private -> public, RENAME fuel
-     public double b;
-     public double c;
-     private static final RecipeItemStack f = RecipeItemStack.a(Items.COAL, Items.CHARCOAL);
 diff --git a/src/main/java/net/minecraft/server/EnumItemSlot.java b/src/main/java/net/minecraft/server/EnumItemSlot.java
 index 3ad9b3e69ef0ed8ad8eebcb323024670ce7599d1..da30716c90e3ca9c9d0cdf7fa11e68cbc2bcabab 100644
 --- a/src/main/java/net/minecraft/server/EnumItemSlot.java
@@ -2718,56 +2593,6 @@ index 3ad9b3e69ef0ed8ad8eebcb323024670ce7599d1..da30716c90e3ca9c9d0cdf7fa11e68cb
      public EnumItemSlot.Function getType() { return this.a(); } // Paper - OBFHELPER
      public EnumItemSlot.Function a() {
          return this.g;
-diff --git a/src/main/java/net/minecraft/server/Fluid.java b/src/main/java/net/minecraft/server/Fluid.java
-index 05fa52c0b12f159788ec3f2b769753b6bd29578c..ff2fb72f710dd5aa5126b1550c5ff11087d7e63e 100644
---- a/src/main/java/net/minecraft/server/Fluid.java
-+++ b/src/main/java/net/minecraft/server/Fluid.java
-@@ -9,8 +9,12 @@ public final class Fluid extends IBlockDataHolder<FluidType, Fluid> {
- 
-     public static final Codec<Fluid> a = a((Codec) IRegistry.FLUID, FluidType::h).stable();
- 
-+    // Paper start
-+    protected final boolean isEmpty;
-+    // Paper end
-     public Fluid(FluidType fluidtype, ImmutableMap<IBlockState<?>, Comparable<?>> immutablemap, MapCodec<Fluid> mapcodec) {
-         super(fluidtype, immutablemap, mapcodec);
-+        this.isEmpty = fluidtype.b(); // Paper - moved from isEmpty()
-     }
- 
-     public FluidType getType() {
-@@ -22,7 +26,7 @@ public final class Fluid extends IBlockDataHolder<FluidType, Fluid> {
-     }
- 
-     public boolean isEmpty() {
--        return this.getType().b();
-+        return this.isEmpty; // Paper - moved into constructor
-     }
- 
-     public float getHeight(IBlockAccess iblockaccess, BlockPosition blockposition) {
-diff --git a/src/main/java/net/minecraft/server/IBlockData.java b/src/main/java/net/minecraft/server/IBlockData.java
-index 10a5901db1e0efe0b7d6958098bb0ae492a9e76f..e7aa8aca2458a7fea7bc3bf1335b04daeaba98c2 100644
---- a/src/main/java/net/minecraft/server/IBlockData.java
-+++ b/src/main/java/net/minecraft/server/IBlockData.java
-@@ -8,6 +8,19 @@ public class IBlockData extends BlockBase.BlockData {
- 
-     public static final Codec<IBlockData> b = a((Codec) IRegistry.BLOCK, Block::getBlockData).stable();
- 
-+
-+    // Paper start - optimise getType calls
-+    org.bukkit.Material cachedMaterial;
-+
-+    public final org.bukkit.Material getBukkitMaterial() {
-+        if (this.cachedMaterial == null) {
-+            this.cachedMaterial = org.bukkit.craftbukkit.util.CraftMagicNumbers.getMaterial(this.getBlock());
-+        }
-+
-+        return this.cachedMaterial;
-+    }
-+    // Paper end - optimise getType calls
-+
-     public IBlockData(Block block, ImmutableMap<IBlockState<?>, Comparable<?>> immutablemap, MapCodec<IBlockData> mapcodec) {
-         super(block, immutablemap, mapcodec);
-     }
 diff --git a/src/main/java/net/minecraft/server/IInventory.java b/src/main/java/net/minecraft/server/IInventory.java
 index 46b88056b852a7f91d32862dea7bd3a7ea4a1226..a3f2c4ebc4dd96689c3a3eebe941e9b23a007c69 100644
 --- a/src/main/java/net/minecraft/server/IInventory.java
@@ -3364,135 +3189,6 @@ index 2ce69d8feae9a4f1281c9e0422459ad23c2aab5f..058be773161b4f0b4d3d852656a24633
          this.d = entityliving.locX();
          this.e = entityliving.locY();
          this.f = entityliving.locZ();
-diff --git a/src/main/java/net/minecraft/server/PathfinderNormal.java b/src/main/java/net/minecraft/server/PathfinderNormal.java
-index a0555b132d6ddd2c6c259ae569e411606e496d1d..7341b5afd31eb771b3a7dc883d6540f575d37b4b 100644
---- a/src/main/java/net/minecraft/server/PathfinderNormal.java
-+++ b/src/main/java/net/minecraft/server/PathfinderNormal.java
-@@ -475,7 +475,7 @@ public class PathfinderNormal extends PathfinderAbstract {
-                             return PathType.DANGER_FIRE;
-                         }
- 
--                        if (iblockaccess.getFluid(blockposition_mutableblockposition).a((Tag) TagsFluid.WATER)) {
-+                        if (iblockdata.getFluid().a((Tag) TagsFluid.WATER)) { // Paper - remove another getType call
-                             return PathType.WATER_BORDER;
-                         }
-                         } // Paper
-@@ -505,7 +505,7 @@ public class PathfinderNormal extends PathfinderAbstract {
-             } else if (iblockdata.a(Blocks.COCOA)) {
-                 return PathType.COCOA;
-             } else {
--                Fluid fluid = iblockaccess.getFluid(blockposition);
-+                Fluid fluid = iblockdata.getFluid(); // Paper - remove another get type call
- 
-                 return fluid.a((Tag) TagsFluid.WATER) ? PathType.WATER : (fluid.a((Tag) TagsFluid.LAVA) ? PathType.LAVA : (a(iblockdata) ? PathType.DAMAGE_FIRE : (BlockDoor.l(iblockdata) && !(Boolean) iblockdata.get(BlockDoor.OPEN) ? PathType.DOOR_WOOD_CLOSED : (block instanceof BlockDoor && material == Material.ORE && !(Boolean) iblockdata.get(BlockDoor.OPEN) ? PathType.DOOR_IRON_CLOSED : (block instanceof BlockDoor && (Boolean) iblockdata.get(BlockDoor.OPEN) ? PathType.DOOR_OPEN : (block instanceof BlockMinecartTrackAbstract ? PathType.RAIL : (block instanceof BlockLeaves ? PathType.LEAVES : (!block.a((Tag) TagsBlock.FENCES) && !block.a((Tag) TagsBlock.WALLS) && (!(block instanceof BlockFenceGate) || (Boolean) iblockdata.get(BlockFenceGate.OPEN)) ? (!iblockdata.a(iblockaccess, blockposition, PathMode.LAND) ? PathType.BLOCKED : PathType.OPEN) : PathType.FENCE))))))));
-             }
-diff --git a/src/main/java/net/minecraft/server/PlayerChunkMap.java b/src/main/java/net/minecraft/server/PlayerChunkMap.java
-index fcd3388d88aad6e897b73e2c823267ada327cbda..6c399bcea03e839bf2f21e92b5d76d46b7088667 100644
---- a/src/main/java/net/minecraft/server/PlayerChunkMap.java
-+++ b/src/main/java/net/minecraft/server/PlayerChunkMap.java
-@@ -496,13 +496,13 @@ public class PlayerChunkMap extends IChunkLoader implements PlayerChunk.d {
- 
-             double dist = MCUtil.distance(playerChunkX, 0, playerChunkZ, coord.x, 0, coord.z);
-             // Prioritize immediate
--            if (dist <= 4 * 4) {
--                updateChunkPriorityMap(priorities, coord.pair(), (int) (27 - Math.sqrt(dist)));
-+            if (dist <= 4) {
-+                updateChunkPriorityMap(priorities, coord.pair(), (int) (27 - dist));
-                 return;
-             }
- 
-             // Prioritize nearby chunks
--            updateChunkPriorityMap(priorities, coord.pair(), (int) (20 - Math.sqrt(dist) * twoThirdModifier));
-+            updateChunkPriorityMap(priorities, coord.pair(), (int) (20 - dist * twoThirdModifier));
-         });
- 
-         // Prioritize Frustum near 3
-@@ -512,7 +512,7 @@ public class PlayerChunkMap extends IChunkLoader implements PlayerChunk.d {
-             if (shouldSkipPrioritization(coord)) return;
- 
-             double dist = MCUtil.distance(playerChunkX, 0, playerChunkZ, coord.x, 0, coord.z);
--            updateChunkPriorityMap(priorities, coord.pair(), (int) (25 - Math.sqrt(dist) * twoThirdModifier));
-+            updateChunkPriorityMap(priorities, coord.pair(), (int) (25 - dist * twoThirdModifier));
-         });
- 
-         // Prioritize Frustum near 5
-@@ -523,7 +523,7 @@ public class PlayerChunkMap extends IChunkLoader implements PlayerChunk.d {
-                 if (shouldSkipPrioritization(coord)) return;
- 
-                 double dist = MCUtil.distance(playerChunkX, 0, playerChunkZ, coord.x, 0, coord.z);
--                updateChunkPriorityMap(priorities, coord.pair(), (int) (25 - Math.sqrt(dist) * twoThirdModifier));
-+                updateChunkPriorityMap(priorities, coord.pair(), (int) (25 - dist * twoThirdModifier));
-             });
-         }
- 
-@@ -536,7 +536,7 @@ public class PlayerChunkMap extends IChunkLoader implements PlayerChunk.d {
-                     return;
-                 }
-                 double dist = MCUtil.distance(playerChunkX, 0, playerChunkZ, coord.x, 0, coord.z);
--                updateChunkPriorityMap(priorities, coord.pair(), (int) (25 - Math.sqrt(dist) * twoThirdModifier));
-+                updateChunkPriorityMap(priorities, coord.pair(), (int) (25 - dist * twoThirdModifier));
-             });
-         }
- 
-diff --git a/src/main/java/net/minecraft/server/PlayerConnection.java b/src/main/java/net/minecraft/server/PlayerConnection.java
-index 05b3a7478195037927cd1a902b603862d9747e61..4b0ff3e1acd91e0f28af9a900a4868c5a3b76caa 100644
---- a/src/main/java/net/minecraft/server/PlayerConnection.java
-+++ b/src/main/java/net/minecraft/server/PlayerConnection.java
-@@ -326,19 +326,24 @@ public class PlayerConnection implements PacketListenerPlayIn {
- 
-             if (entity != this.player && entity.getRidingPassenger() == this.player && entity == this.r) {
-                 WorldServer worldserver = this.player.getWorldServer();
--                double d0 = entity.locX();
--                double d1 = entity.locY();
--                double d2 = entity.locZ();
--                double d3 = packetplayinvehiclemove.getX();
--                double d4 = packetplayinvehiclemove.getY();
--                double d5 = packetplayinvehiclemove.getZ();
-+                double d0 = entity.locX();double fromX = d0; // Paper - OBFHELPER
-+                double d1 = entity.locY();double fromY = d1; // Paper - OBFHELPER
-+                double d2 = entity.locZ();double fromZ = d2; // Paper - OBFHELPER
-+                double d3 = packetplayinvehiclemove.getX();double toX = d3; // Paper - OBFHELPER
-+                double d4 = packetplayinvehiclemove.getY();double toY = d4; // Paper - OBFHELPER
-+                double d5 = packetplayinvehiclemove.getZ();double toZ = d5; // Paper - OBFHELPER
-                 float f = packetplayinvehiclemove.getYaw();
-                 float f1 = packetplayinvehiclemove.getPitch();
-                 double d6 = d3 - this.s;
-                 double d7 = d4 - this.t;
-                 double d8 = d5 - this.u;
-                 double d9 = entity.getMot().g();
--                double d10 = d6 * d6 + d7 * d7 + d8 * d8;
-+                // Paper start - fix large move vectors killing the server
-+                double currDeltaX = toX - fromX;
-+                double currDeltaY = toY - fromY;
-+                double currDeltaZ = toZ - fromZ;
-+                double d10 = Math.max(d6 * d6 + d7 * d7 + d8 * d8, (currDeltaX * currDeltaX + currDeltaY * currDeltaY + currDeltaZ * currDeltaZ) - 1);
-+                // Paper end - fix large move vectors killing the server
- 
- 
-                 // CraftBukkit start - handle custom speeds and skipped ticks
-@@ -997,7 +1002,7 @@ public class PlayerConnection implements PacketListenerPlayIn {
-                         double d2 = this.player.locZ();
-                         double d3 = this.player.locY();
-                         double d4 = packetplayinflying.a(this.player.locX());double toX = d4; // Paper - OBFHELPER
--                        double d5 = packetplayinflying.b(this.player.locY());
-+                        double d5 = packetplayinflying.b(this.player.locY());double toY = d5; // Paper - OBFHELPER
-                         double d6 = packetplayinflying.c(this.player.locZ());double toZ = d6; // Paper - OBFHELPER
-                         float f = packetplayinflying.a(this.player.yaw);
-                         float f1 = packetplayinflying.b(this.player.pitch);
-@@ -1005,7 +1010,12 @@ public class PlayerConnection implements PacketListenerPlayIn {
-                         double d8 = d5 - this.m;
-                         double d9 = d6 - this.n;
-                         double d10 = this.player.getMot().g();
--                        double d11 = d7 * d7 + d8 * d8 + d9 * d9;
-+                        // Paper start - fix large move vectors killing the server
-+                        double currDeltaX = toX - prevX;
-+                        double currDeltaY = toY - prevY;
-+                        double currDeltaZ = toZ - prevZ;
-+                        double d11 = Math.max(d7 * d7 + d8 * d8 + d9 * d9, (currDeltaX * currDeltaX + currDeltaY * currDeltaY + currDeltaZ * currDeltaZ) - 1);
-+                        // Paper end - fix large move vectors killing the server
- 
-                         if (this.player.isSleeping()) {
-                             if (d11 > 1.0D) {
 diff --git a/src/main/java/net/minecraft/server/PlayerInventory.java b/src/main/java/net/minecraft/server/PlayerInventory.java
 index 3b65711b91c51ac7b4b5b2b0144ffd279fe60eeb..1a326a60f2330b05ac59b08c9196a4e4a0a88f78 100644
 --- a/src/main/java/net/minecraft/server/PlayerInventory.java
@@ -4457,7 +4153,7 @@ index d27b4be211cce4f8754732021f0a31852d748b17..e3ddcf9fc41da4969d017ec9548a25dd
 +    }
  }
 diff --git a/src/main/java/net/minecraft/server/TileEntity.java b/src/main/java/net/minecraft/server/TileEntity.java
-index d32540c88bb902e9c191142a2b75a05b63218e52..0473a024015c3346c27242f51b784f7dd0a03f27 100644
+index 58d958a88ac5af5b889d719d9f1ea90ce45cf184..9a679e0b5142b4d315344be40f501a611195bfe7 100644
 --- a/src/main/java/net/minecraft/server/TileEntity.java
 +++ b/src/main/java/net/minecraft/server/TileEntity.java
 @@ -1,10 +1,22 @@
@@ -4588,7 +4284,7 @@ index d32540c88bb902e9c191142a2b75a05b63218e52..0473a024015c3346c27242f51b784f7d
          this.persistentDataContainer.clear(); // Paper - clear instead of reinit
  
 @@ -90,6 +169,7 @@ public abstract class TileEntity implements KeyedObject { // Paper
-             this.persistentDataContainer.putAll(persistentDataTag);
+             this.persistentDataContainer.putAll((NBTTagCompound) persistentDataTag);
          }
          // CraftBukkit end
 +        attachments.load(nbttagcompound); // Kenzie - mark as data loaded in case of changes
@@ -4810,32 +4506,6 @@ index 5fc302bf0631d4e0b887b7c2a4e0e5a3c78d6875..86c957a8ce84f85b35c7efd6a606c4cb
          }
      }
  }
-diff --git a/src/main/java/net/minecraft/server/World.java b/src/main/java/net/minecraft/server/World.java
-index eec338649edbdaebbe694a23ccb7a8b5cd5f9a15..d91124bc85ed1a5b39e0ac3966f0af8ed9ee62b9 100644
---- a/src/main/java/net/minecraft/server/World.java
-+++ b/src/main/java/net/minecraft/server/World.java
-@@ -75,7 +75,7 @@ public abstract class World implements GeneratorAccess, AutoCloseable {
-     public boolean captureBlockStates = false;
-     public boolean captureTreeGeneration = false;
-     public Map<BlockPosition, org.bukkit.craftbukkit.block.CraftBlockState> capturedBlockStates = new java.util.LinkedHashMap<>(); // Paper
--    public Map<BlockPosition, TileEntity> capturedTileEntities = new HashMap<>();
-+    public Map<BlockPosition, TileEntity> capturedTileEntities = new java.util.LinkedHashMap<>(); // Paper
-     public List<EntityItem> captureDrops;
-     public long ticksPerAnimalSpawns;
-     public long ticksPerMonsterSpawns;
-diff --git a/src/main/java/org/bukkit/craftbukkit/CraftChunkSnapshot.java b/src/main/java/org/bukkit/craftbukkit/CraftChunkSnapshot.java
-index ff8ba545748c1065f6560d9d11a22c64d9a5347b..db1edc07e4a797280ee872168b69a0e2232529b6 100644
---- a/src/main/java/org/bukkit/craftbukkit/CraftChunkSnapshot.java
-+++ b/src/main/java/org/bukkit/craftbukkit/CraftChunkSnapshot.java
-@@ -79,7 +79,7 @@ public class CraftChunkSnapshot implements ChunkSnapshot {
-     public Material getBlockType(int x, int y, int z) {
-         CraftChunk.validateChunkCoordinates(x, y, z);
- 
--        return CraftMagicNumbers.getMaterial(blockids[y >> 4].a(x, y & 0xF, z).getBlock());
-+        return blockids[y >> 4].a(x, y & 0xF, z).getBukkitMaterial(); // Paper - optimise getType calls
-     }
- 
-     @Override
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 index d8d29d14559169f5e8d8b4cf63d8b427b823eb2f..b68c29b5ef87c97d12567a1c89e5c6e2aa32ec1d 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
@@ -5308,7 +4978,7 @@ index 60fc5aff80697cb4c85080350542c0f46056f74a..747335433374bd7be3eaf262cdd84494
          this.advancement = advancement;
          this.playerData = player;
 diff --git a/src/main/java/org/bukkit/craftbukkit/block/CraftBlock.java b/src/main/java/org/bukkit/craftbukkit/block/CraftBlock.java
-index 3524b677525bf2bb529b797fe1f258efb34ac3fc..350ca26e81ef67a02174f34240430bf7cdfae542 100644
+index 3baf7b75c65c9beba40945ba904315251b5b7a64..350ca26e81ef67a02174f34240430bf7cdfae542 100644
 --- a/src/main/java/org/bukkit/craftbukkit/block/CraftBlock.java
 +++ b/src/main/java/org/bukkit/craftbukkit/block/CraftBlock.java
 @@ -5,6 +5,9 @@ import java.util.Collection;
@@ -5350,15 +5020,6 @@ index 3524b677525bf2bb529b797fe1f258efb34ac3fc..350ca26e81ef67a02174f34240430bf7
      public CraftBlock(GeneratorAccess world, BlockPosition position) {
          this.world = world;
          this.position = position.immutableCopy();
-@@ -214,7 +239,7 @@ public class CraftBlock implements Block {
- 
-     @Override
-     public Material getType() {
--        return CraftMagicNumbers.getMaterial(world.getType(position).getBlock());
-+        return world.getType(position).getBukkitMaterial(); // Paper - optimise getType calls
-     }
- 
-     @Override
 diff --git a/src/main/java/org/bukkit/craftbukkit/block/CraftBlockEntityState.java b/src/main/java/org/bukkit/craftbukkit/block/CraftBlockEntityState.java
 index dc0e6e49e9eb5004e53d24304bce095bcef8f4c2..9f5e7316099e8af5e2c66c53fb141e122f78a682 100644
 --- a/src/main/java/org/bukkit/craftbukkit/block/CraftBlockEntityState.java
@@ -5425,34 +5086,8 @@ index dc0e6e49e9eb5004e53d24304bce095bcef8f4c2..9f5e7316099e8af5e2c66c53fb141e12
      }
  
      public final boolean snapshotDisabled; // Paper
-diff --git a/src/main/java/org/bukkit/craftbukkit/block/CraftBlockState.java b/src/main/java/org/bukkit/craftbukkit/block/CraftBlockState.java
-index 0f89e776816ad4ecb6c3e54c2549692f1b5b6aae..36d7de6e6540e156499edb4b69b8bbaeb0d6dc54 100644
---- a/src/main/java/org/bukkit/craftbukkit/block/CraftBlockState.java
-+++ b/src/main/java/org/bukkit/craftbukkit/block/CraftBlockState.java
-@@ -135,7 +135,7 @@ public class CraftBlockState implements BlockState {
- 
-     @Override
-     public Material getType() {
--        return CraftMagicNumbers.getMaterial(data.getBlock());
-+        return data.getBukkitMaterial(); // Paper - optimise getType calls
-     }
- 
-     public void setFlag(int flag) {
-diff --git a/src/main/java/org/bukkit/craftbukkit/block/data/CraftBlockData.java b/src/main/java/org/bukkit/craftbukkit/block/data/CraftBlockData.java
-index 7591159c25899fb7a58b25622c6b7241b788652e..820644e0971b42a9698208544232ea87a04ed4a9 100644
---- a/src/main/java/org/bukkit/craftbukkit/block/data/CraftBlockData.java
-+++ b/src/main/java/org/bukkit/craftbukkit/block/data/CraftBlockData.java
-@@ -44,7 +44,7 @@ public class CraftBlockData implements BlockData {
- 
-     @Override
-     public Material getMaterial() {
--        return CraftMagicNumbers.getMaterial(state.getBlock());
-+        return state.getBukkitMaterial(); // Paper - optimise getType calls
-     }
- 
-     public IBlockData getState() {
 diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
-index 6f59f8d4541451573eb50a1a3190788c51490502..8d456ff5601392021ab4e39d4310cea27a47da57 100644
+index f7d751348ca358a80bafc7f92c635eac316bc4cb..762c4f5998248ec6087503cdb822515394e98c78 100644
 --- a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
 +++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
 @@ -6,6 +6,9 @@ import com.google.common.collect.Lists;
@@ -5465,7 +5100,7 @@ index 6f59f8d4541451573eb50a1a3190788c51490502..8d456ff5601392021ab4e39d4310cea2
  import net.minecraft.server.AxisAlignedBB;
  import net.minecraft.server.BlockPosition;
  import net.minecraft.server.DamageSource;
-@@ -148,15 +151,18 @@ import org.bukkit.EntityEffect;
+@@ -149,15 +152,18 @@ import org.bukkit.EntityEffect;
  import org.bukkit.Location;
  import org.bukkit.Server;
  import org.bukkit.World;
@@ -5484,7 +5119,7 @@ index 6f59f8d4541451573eb50a1a3190788c51490502..8d456ff5601392021ab4e39d4310cea2
  import org.bukkit.entity.Pose;
  import org.bukkit.event.entity.EntityDamageEvent;
  import org.bukkit.event.player.PlayerTeleportEvent.TeleportCause;
-@@ -179,12 +185,90 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
+@@ -180,12 +186,90 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
      protected Entity entity;
      private EntityDamageEvent lastDamageEvent;
      private final CraftPersistentDataContainer persistentDataContainer = new CraftPersistentDataContainer(DATA_TYPE_REGISTRY);
@@ -5575,7 +5210,7 @@ index 6f59f8d4541451573eb50a1a3190788c51490502..8d456ff5601392021ab4e39d4310cea2
      @Override
      public Chunk getChunk() {
          net.minecraft.server.Chunk currentChunk = entity.getCurrentChunk();
-@@ -1097,7 +1181,7 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
+@@ -1108,7 +1192,7 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
      public boolean isInWater() {
          return getHandle().isInWater();
      }
@@ -5584,7 +5219,7 @@ index 6f59f8d4541451573eb50a1a3190788c51490502..8d456ff5601392021ab4e39d4310cea2
      public boolean isInRain() {
          return getHandle().isInRain();
      }
-@@ -1113,7 +1197,7 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
+@@ -1124,7 +1208,7 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
      public boolean isInWaterOrBubbleColumn() {
          return getHandle().isInWaterOrBubbleColumn();
      }
@@ -5593,115 +5228,6 @@ index 6f59f8d4541451573eb50a1a3190788c51490502..8d456ff5601392021ab4e39d4310cea2
      public boolean isInWaterOrRainOrBubbleColumn() {
          return getHandle().isInWaterOrRainOrBubble();
      }
-diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftItem.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftItem.java
-index cb756b1ba0438045904a1b3fe8e827e8f1e105bd..d6a64e4ecf9225f9a93523c50b2f1375296b406e 100644
---- a/src/main/java/org/bukkit/craftbukkit/entity/CraftItem.java
-+++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftItem.java
-@@ -1,5 +1,6 @@
- package org.bukkit.craftbukkit.entity;
- 
-+import java.util.UUID;
- import net.minecraft.server.Entity;
- import net.minecraft.server.EntityItem;
- import org.bukkit.craftbukkit.CraftServer;
-@@ -8,11 +9,6 @@ import org.bukkit.entity.EntityType;
- import org.bukkit.entity.Item;
- import org.bukkit.inventory.ItemStack;
- 
--// Paper start
--import javax.annotation.Nullable;
--import java.util.UUID;
--// Paper end
--
- public class CraftItem extends CraftEntity implements Item {
-     private final EntityItem item;
- 
-@@ -61,30 +57,28 @@ public class CraftItem extends CraftEntity implements Item {
-     public void setCanMobPickup(boolean canMobPickup) {
-         item.canMobPickup = canMobPickup;
-     }
-+    // Paper End
-+
-+    @Override
-+    public void setOwner(UUID uuid) {
-+        item.setOwner(uuid);
-+    }
- 
--    @Nullable
-     @Override
-     public UUID getOwner() {
-         return item.getOwner();
-     }
- 
-     @Override
--    public void setOwner(@Nullable UUID owner) {
--        item.setOwner(owner);
-+    public void setThrower(UUID uuid) {
-+        item.setThrower(uuid);
-     }
- 
--    @Nullable
-     @Override
-     public UUID getThrower() {
-         return item.getThrower();
-     }
- 
--    @Override
--    public void setThrower(@Nullable UUID thrower) {
--        item.setThrower(thrower);
--    }
--    // Paper End
--
-     @Override
-     public String toString() {
-         return "CraftItem";
-diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftMinecartFurnace.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftMinecartFurnace.java
-index b024359c9c4244d81153c98340ace34b44e375a3..1e8ccde245dd4c11488e0af6e9f9b39452310ae3 100644
---- a/src/main/java/org/bukkit/craftbukkit/entity/CraftMinecartFurnace.java
-+++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftMinecartFurnace.java
-@@ -1,5 +1,6 @@
- package org.bukkit.craftbukkit.entity;
- 
-+import com.google.common.base.Preconditions;
- import net.minecraft.server.EntityMinecartFurnace;
- import org.bukkit.craftbukkit.CraftServer;
- import org.bukkit.entity.EntityType;
-@@ -11,6 +12,22 @@ public class CraftMinecartFurnace extends CraftMinecart implements PoweredMineca
-         super(server, entity);
-     }
- 
-+    @Override
-+    public EntityMinecartFurnace getHandle() {
-+        return (EntityMinecartFurnace) entity;
-+    }
-+
-+    @Override
-+    public int getFuel() {
-+        return getHandle().e;
-+    }
-+
-+    @Override
-+    public void setFuel(int fuel) {
-+        Preconditions.checkArgument(fuel >= 0, "ticks cannot be negative");
-+        getHandle().e = fuel;
-+    }
-+
-     @Override
-     public String toString() {
-         return "CraftMinecartFurnace";
-diff --git a/src/main/java/org/bukkit/craftbukkit/generator/CraftChunkData.java b/src/main/java/org/bukkit/craftbukkit/generator/CraftChunkData.java
-index 948a59217cca0f8dfa9d3befb61e679a67bf29bc..1510d80891156ba97ae59e39f928b97d0226b057 100644
---- a/src/main/java/org/bukkit/craftbukkit/generator/CraftChunkData.java
-+++ b/src/main/java/org/bukkit/craftbukkit/generator/CraftChunkData.java
-@@ -73,7 +73,7 @@ public final class CraftChunkData implements ChunkGenerator.ChunkData {
- 
-     @Override
-     public Material getType(int x, int y, int z) {
--        return CraftMagicNumbers.getMaterial(getTypeId(x, y, z).getBlock());
-+        return getTypeId(x, y, z).getBukkitMaterial(); // Paper - optimise getType calls
-     }
- 
-     @Override
 diff --git a/src/main/java/org/bukkit/craftbukkit/inventory/CraftInventory.java b/src/main/java/org/bukkit/craftbukkit/inventory/CraftInventory.java
 index bba9bddc1c0aacade9b7ad56afb1e630caa078fc..630abc559cc543848601c3d805d9b3986c965c6d 100644
 --- a/src/main/java/org/bukkit/craftbukkit/inventory/CraftInventory.java

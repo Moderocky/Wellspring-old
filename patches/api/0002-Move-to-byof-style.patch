@@ -6,7 +6,7 @@ Subject: [PATCH] Move to byof style.
 Fix missed block NBT.
 
 diff --git a/pom.xml b/pom.xml
-index 3b28efedcbf7eba68f9a0dc68692aa8920ca5b53..4f306d6e36d2be7ec0e17be06bc9a9a8985a60d1 100644
+index 352e5a55dc1d8a830c08a587a811b2b59ecb24ae..8c8496ea5507f6191244d97b91c7dc8d8af8b607 100644
 --- a/pom.xml
 +++ b/pom.xml
 @@ -15,7 +15,7 @@
@@ -3246,7 +3246,7 @@ index 0000000000000000000000000000000000000000..bfac1922c3463ed537cea8b3bac8a575
 +
 +}
 diff --git a/src/main/java/org/bukkit/Bukkit.java b/src/main/java/org/bukkit/Bukkit.java
-index bfe842364ee0a4bf39dacdbb6972477d57a4ef8a..2d954dd393df85cab958a64b5544a2f65badb767 100644
+index bfe842364ee0a4bf39dacdbb6972477d57a4ef8a..6fda50e92435efcf015dd217eb6dc44b7dd9db01 100644
 --- a/src/main/java/org/bukkit/Bukkit.java
 +++ b/src/main/java/org/bukkit/Bukkit.java
 @@ -12,9 +12,18 @@ import java.util.Map;
@@ -3284,10 +3284,50 @@ index bfe842364ee0a4bf39dacdbb6972477d57a4ef8a..2d954dd393df85cab958a64b5544a2f6
  import org.bukkit.plugin.PluginManager;
  import org.bukkit.plugin.ServicesManager;
  import org.bukkit.plugin.messaging.Messenger;
-@@ -1725,6 +1736,122 @@ public final class Bukkit {
-         return server.getPermissionMessage();
+@@ -1783,6 +1794,220 @@ public final class Bukkit {
      }
+     // Paper end
  
++    @NotNull
++    public static org.bukkit.command.CommandMap getCommandMap() {
++        return server.getCommandMap();
++    }
++
++    /**
++     * Reload the Permissions in permissions.yml
++     */
++    public static void reloadPermissions() {
++        server.reloadPermissions();
++    }
++
++    /**
++     * Reload the Command Aliases in commands.yml
++     *
++     * @return Whether the reload was successful
++     */
++    public static boolean reloadCommandAliases() {
++        return server.reloadCommandAliases();
++    }
++
++    /**
++     * Checks if player names should be suggested when a command returns {@code null} as
++     * their tab completion result.
++     *
++     * @return true if player names should be suggested
++     */
++    public static boolean suggestPlayerNamesWhenNullTabCompletions() {
++        return server.suggestPlayerNamesWhenNullTabCompletions();
++    }
++
++    /**
++     *
++     * @return the default no permission message used on the server
++     */
++    @NotNull
++    public static String getPermissionMessage() {
++        return server.getPermissionMessage();
++    }
++
 +    // Kenzie start - attachments
 +
 +    /**
@@ -3404,9 +3444,67 @@ index bfe842364ee0a4bf39dacdbb6972477d57a4ef8a..2d954dd393df85cab958a64b5544a2f6
 +    }
 +    // Kenzie end
 +
-     /**
-      * Creates a PlayerProfile for the specified uuid, with name as null
-      * @param uuid UUID to create profile for
++    /**
++     * Creates a PlayerProfile for the specified uuid, with name as null
++     * @param uuid UUID to create profile for
++     * @return A PlayerProfile object
++     */
++    @NotNull
++    public static com.destroystokyo.paper.profile.PlayerProfile createProfile(@NotNull UUID uuid) {
++        return server.createProfile(uuid);
++    }
++
++    /**
++     * Creates a PlayerProfile for the specified name, with UUID as null
++     * @param name Name to create profile for
++     * @return A PlayerProfile object
++     */
++    @NotNull
++    public static com.destroystokyo.paper.profile.PlayerProfile createProfile(@NotNull String name) {
++        return server.createProfile(name);
++    }
++
++    /**
++     * Creates a PlayerProfile for the specified name/uuid
++     *
++     * Both UUID and Name can not be null at same time. One must be supplied.
++     *
++     * @param uuid UUID to create profile for
++     * @param name Name to create profile for
++     * @return A PlayerProfile object
++     */
++    @NotNull
++    public static com.destroystokyo.paper.profile.PlayerProfile createProfile(@Nullable UUID uuid, @Nullable String name) {
++        return server.createProfile(uuid, name);
++    }
++
++    public static int getCurrentTick() {
++        return server.getCurrentTick();
++    }
++
++    /**
++     * Checks if the server is in the process of being shutdown.
++     *
++     * @return true if server is in the process of being shutdown
++     */
++    public static boolean isStopping() {
++        return server.isStopping();
++    }
++
++    /**
++     * Returns the {@link com.destroystokyo.paper.entity.ai.MobGoals} manager
++     *
++     * @return the mob goals manager
++     */
++    @NotNull
++    public static com.destroystokyo.paper.entity.ai.MobGoals getMobGoals() {
++        return server.getMobGoals();
++    }
++    // Paper end
++
+     @NotNull
+     public static Server.Spigot spigot() {
+         return server.spigot();
 diff --git a/src/main/java/org/bukkit/Color.java b/src/main/java/org/bukkit/Color.java
 index deae003b7e9a96bbf1c0167d3e1d864e61b07f82..b194b9b23261abd080509cacf81b039f233eb819 100644
 --- a/src/main/java/org/bukkit/Color.java
@@ -4359,123 +4457,6 @@ index 692b75eb78405874077c850bfc72e247ccc80860..d0f94818cf0b764055cf4b8cd422152c
  
      // These strings MUST match the strings in nms.EntityTypes and are case sensitive.
      /**
-diff --git a/src/main/java/org/bukkit/entity/Item.java b/src/main/java/org/bukkit/entity/Item.java
-index acd80d812fe88dee3978d19b24149e9fe0ac596b..c404a5b8efea7c780db5ddae19456753808abb3d 100644
---- a/src/main/java/org/bukkit/entity/Item.java
-+++ b/src/main/java/org/bukkit/entity/Item.java
-@@ -1,12 +1,9 @@
- package org.bukkit.entity;
- 
-+import java.util.UUID;
- import org.bukkit.inventory.ItemStack;
- import org.jetbrains.annotations.NotNull;
--
--// Paper start
- import org.jetbrains.annotations.Nullable;
--import java.util.UUID;
--// Paper end
- 
- /**
-  * Represents a dropped item.
-@@ -42,49 +39,56 @@ public interface Item extends Entity {
-      */
-     public void setPickupDelay(int delay);
- 
--    // Paper Start
-     /**
--     * Gets if non-player entities can pick this Item up
-+     * Sets the owner of this item.
-      *
--     * @return True if non-player entities can pickup
--     */
--     public boolean canMobPickup();
--
--    /**
--     * Sets if non-player entities can pick this Item up
-+     * Other entities will not be able to pickup this item when an owner is set.
-      *
--     * @param canMobPickup True to allow non-player entity pickup
-+     * @param owner UUID of new owner
-      */
--    public void setCanMobPickup(boolean canMobPickup);
-+    public void setOwner(@Nullable UUID owner);
- 
-     /**
--     * The owner of this item. Only the owner can pick up the item until it is within 10 seconds of despawning
-+     * Get the owner of this item.
-      *
--     * @return The owner's UUID
-+     * @return UUID of owner
-      */
-     @Nullable
-     public UUID getOwner();
- 
-     /**
--     * Set the owner of this item. Only the owner can pick up the item until it is within 10 seconds of despawning
-+     * Set the thrower of this item.
-      *
--     * @param owner The owner's UUID
-+     * The thrower is the entity which dropped the item. This affects the
-+     * trigger criteria for item pickups, for things such as advancements.
-+     *
-+     * @param uuid UUID of thrower
-      */
--    public void setOwner(@Nullable UUID owner);
-+    public void setThrower(@Nullable UUID uuid);
- 
-     /**
-      * Get the thrower of this item.
-      *
--     * @return The thrower's UUID
-+     * The thrower is the entity which dropped the item.
-+     *
-+     * @return UUID of thrower
-      */
-     @Nullable
-     public UUID getThrower();
- 
-+    // Paper Start
-     /**
--     * Set the thrower of this item.
-+     * Gets if non-player entities can pick this Item up
-      *
--     * @param thrower The thrower's UUID
-+     * @return True if non-player entities can pickup
-      */
--    public void setThrower(@Nullable UUID thrower);
-+     public boolean canMobPickup();
-+
-+    /**
-+     * Sets if non-player entities can pick this Item up
-+     *
-+     * @param canMobPickup True to allow non-player entity pickup
-+     */
-+    public void setCanMobPickup(boolean canMobPickup);
-     // Paper end
- }
-diff --git a/src/main/java/org/bukkit/entity/minecart/PoweredMinecart.java b/src/main/java/org/bukkit/entity/minecart/PoweredMinecart.java
-index 57e8b1d59db3bbb5c0b92a0f9345b87115149f3c..2076af6c029027d3243ebfa518f4d69b716de7fe 100644
---- a/src/main/java/org/bukkit/entity/minecart/PoweredMinecart.java
-+++ b/src/main/java/org/bukkit/entity/minecart/PoweredMinecart.java
-@@ -7,4 +7,18 @@ import org.bukkit.entity.Minecart;
-  * player deposits {@link org.bukkit.Material#COAL fuel}.
-  */
- public interface PoweredMinecart extends Minecart {
-+
-+    /**
-+     * Get the number of ticks until the minecart runs out of fuel.
-+     *
-+     * @return Number of ticks until the minecart runs out of fuel
-+     */
-+    public int getFuel();
-+
-+    /**
-+     * Set the number of ticks until the minecart runs out of fuel.
-+     *
-+     * @param fuel Number of ticks until the minecart runs out of fuel
-+     */
-+    public void setFuel(int fuel);
- }
 diff --git a/src/main/java/org/bukkit/event/EventHandler.java b/src/main/java/org/bukkit/event/EventHandler.java
 index cc06f480b788b19d4799ba0dcf53b3640059f023..d4a43f2972587ac3c4c79e3ee6c8b8c98bb237e0 100644
 --- a/src/main/java/org/bukkit/event/EventHandler.java
