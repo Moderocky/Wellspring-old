@@ -6,7 +6,7 @@ Subject: [PATCH] Move to byof style.
 Fix missed block NBT.
 
 diff --git a/pom.xml b/pom.xml
-index 3b28efedcbf7eba68f9a0dc68692aa8920ca5b53..4f306d6e36d2be7ec0e17be06bc9a9a8985a60d1 100644
+index 5b76a0df38791cc90a9000a128b78a04b5d99db3..a7fee9be299cc9126f1b10c1aac9d35dbaf1195b 100644
 --- a/pom.xml
 +++ b/pom.xml
 @@ -15,7 +15,7 @@
@@ -37,7 +37,7 @@ index 3b28efedcbf7eba68f9a0dc68692aa8920ca5b53..4f306d6e36d2be7ec0e17be06bc9a9a8
      <repositories>
          <!--
              If you are a plugin developer, please use https://hub.spigotmc.org/nexus/content/repositories/snapshots/
-@@ -228,12 +240,25 @@
+@@ -210,12 +222,25 @@
                  <artifactId>maven-javadoc-plugin</artifactId>
                  <version>3.2.0</version>
                  <configuration>
@@ -64,21 +64,52 @@ index 3b28efedcbf7eba68f9a0dc68692aa8920ca5b53..4f306d6e36d2be7ec0e17be06bc9a9a8
              </plugin>
          </plugins>
 diff --git a/src/main/java/com/destroystokyo/paper/network/NetworkClient.java b/src/main/java/com/destroystokyo/paper/network/NetworkClient.java
-index 7b2af1bd72dfbcf4e962a982940fc49b851aa04f..a3758cc0d897139c7b89391a6647c42d3093c963 100644
---- a/src/main/java/com/destroystokyo/paper/network/NetworkClient.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..a3758cc0d897139c7b89391a6647c42d3093c963
+--- /dev/null
 +++ b/src/main/java/com/destroystokyo/paper/network/NetworkClient.java
-@@ -2,6 +2,7 @@ package com.destroystokyo.paper.network;
- 
- import java.net.InetSocketAddress;
- 
+@@ -0,0 +1,57 @@
++package com.destroystokyo.paper.network;
++
++import java.net.InetSocketAddress;
++
 +import mx.kenzie.wellspring.packet.Packet;
- import org.jetbrains.annotations.NotNull;
- import org.jetbrains.annotations.Nullable;
- 
-@@ -38,4 +39,19 @@ public interface NetworkClient {
-     @Nullable
-     InetSocketAddress getVirtualHost();
- 
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
++
++/**
++ * Represents a client connected to the server.
++ */
++public interface NetworkClient {
++
++    /**
++     * Returns the socket address of the client.
++     *
++     * @return The client's socket address
++     */
++    @NotNull
++    InetSocketAddress getAddress();
++
++    /**
++     * Returns the protocol version of the client.
++     *
++     * @return The client's protocol version, or {@code -1} if unknown
++     * @see <a href="http://wiki.vg/Protocol_version_numbers">List of protocol
++     *     version numbers</a>
++     */
++    int getProtocolVersion();
++
++    /**
++     * Returns the virtual host the client is connected to.
++     *
++     * <p>The virtual host refers to the hostname/port the client used to
++     * connect to the server.</p>
++     *
++     * @return The client's virtual host, or {@code null} if unknown
++     */
++    @Nullable
++    InetSocketAddress getVirtualHost();
++
 +    // Kenzie start - packets
 +    /**
 +     * Sends the specified packet to the network connection.
@@ -94,7 +125,7 @@ index 7b2af1bd72dfbcf4e962a982940fc49b851aa04f..a3758cc0d897139c7b89391a6647c42d
 +    }
 +    // Kenzie end
 +
- }
++}
 diff --git a/src/main/java/mx/kenzie/wellspring/Provider.java b/src/main/java/mx/kenzie/wellspring/Provider.java
 new file mode 100644
 index 0000000000000000000000000000000000000000..3b75f48f5b391db11f4f7937e784917a6d9475de
@@ -3246,7 +3277,7 @@ index 0000000000000000000000000000000000000000..bfac1922c3463ed537cea8b3bac8a575
 +
 +}
 diff --git a/src/main/java/org/bukkit/Bukkit.java b/src/main/java/org/bukkit/Bukkit.java
-index bfe842364ee0a4bf39dacdbb6972477d57a4ef8a..2d954dd393df85cab958a64b5544a2f65badb767 100644
+index 59f0ba664dd945f24eaf9e38e98fdef0c4aaaa92..e3e25479b4ad350d802be34be80723a7f641811c 100644
 --- a/src/main/java/org/bukkit/Bukkit.java
 +++ b/src/main/java/org/bukkit/Bukkit.java
 @@ -12,9 +12,18 @@ import java.util.Map;
@@ -3284,10 +3315,50 @@ index bfe842364ee0a4bf39dacdbb6972477d57a4ef8a..2d954dd393df85cab958a64b5544a2f6
  import org.bukkit.plugin.PluginManager;
  import org.bukkit.plugin.ServicesManager;
  import org.bukkit.plugin.messaging.Messenger;
-@@ -1725,6 +1736,122 @@ public final class Bukkit {
-         return server.getPermissionMessage();
+@@ -1586,6 +1597,220 @@ public final class Bukkit {
+         return server.getUnsafe();
      }
  
++    @NotNull
++    public static org.bukkit.command.CommandMap getCommandMap() {
++        return server.getCommandMap();
++    }
++
++    /**
++     * Reload the Permissions in permissions.yml
++     */
++    public static void reloadPermissions() {
++        server.reloadPermissions();
++    }
++
++    /**
++     * Reload the Command Aliases in commands.yml
++     *
++     * @return Whether the reload was successful
++     */
++    public static boolean reloadCommandAliases() {
++        return server.reloadCommandAliases();
++    }
++
++    /**
++     * Checks if player names should be suggested when a command returns {@code null} as
++     * their tab completion result.
++     *
++     * @return true if player names should be suggested
++     */
++    public static boolean suggestPlayerNamesWhenNullTabCompletions() {
++        return server.suggestPlayerNamesWhenNullTabCompletions();
++    }
++
++    /**
++     *
++     * @return the default no permission message used on the server
++     */
++    @NotNull
++    public static String getPermissionMessage() {
++        return server.getPermissionMessage();
++    }
++
 +    // Kenzie start - attachments
 +
 +    /**
@@ -3404,9 +3475,67 @@ index bfe842364ee0a4bf39dacdbb6972477d57a4ef8a..2d954dd393df85cab958a64b5544a2f6
 +    }
 +    // Kenzie end
 +
-     /**
-      * Creates a PlayerProfile for the specified uuid, with name as null
-      * @param uuid UUID to create profile for
++    /**
++     * Creates a PlayerProfile for the specified uuid, with name as null
++     * @param uuid UUID to create profile for
++     * @return A PlayerProfile object
++     */
++    @NotNull
++    public static com.destroystokyo.paper.profile.PlayerProfile createProfile(@NotNull UUID uuid) {
++        return server.createProfile(uuid);
++    }
++
++    /**
++     * Creates a PlayerProfile for the specified name, with UUID as null
++     * @param name Name to create profile for
++     * @return A PlayerProfile object
++     */
++    @NotNull
++    public static com.destroystokyo.paper.profile.PlayerProfile createProfile(@NotNull String name) {
++        return server.createProfile(name);
++    }
++
++    /**
++     * Creates a PlayerProfile for the specified name/uuid
++     *
++     * Both UUID and Name can not be null at same time. One must be supplied.
++     *
++     * @param uuid UUID to create profile for
++     * @param name Name to create profile for
++     * @return A PlayerProfile object
++     */
++    @NotNull
++    public static com.destroystokyo.paper.profile.PlayerProfile createProfile(@Nullable UUID uuid, @Nullable String name) {
++        return server.createProfile(uuid, name);
++    }
++
++    public static int getCurrentTick() {
++        return server.getCurrentTick();
++    }
++
++    /**
++     * Checks if the server is in the process of being shutdown.
++     *
++     * @return true if server is in the process of being shutdown
++     */
++    public static boolean isStopping() {
++        return server.isStopping();
++    }
++
++    /**
++     * Returns the {@link com.destroystokyo.paper.entity.ai.MobGoals} manager
++     *
++     * @return the mob goals manager
++     */
++    @NotNull
++    public static com.destroystokyo.paper.entity.ai.MobGoals getMobGoals() {
++        return server.getMobGoals();
++    }
++    // Paper end
++
+     @NotNull
+     public static Server.Spigot spigot() {
+         return server.spigot();
 diff --git a/src/main/java/org/bukkit/Color.java b/src/main/java/org/bukkit/Color.java
 index deae003b7e9a96bbf1c0167d3e1d864e61b07f82..b194b9b23261abd080509cacf81b039f233eb819 100644
 --- a/src/main/java/org/bukkit/Color.java
@@ -3431,10 +3560,10 @@ index deae003b7e9a96bbf1c0167d3e1d864e61b07f82..b194b9b23261abd080509cacf81b039f
          Validate.isTrue(red >= 0 && red <= BIT_MASK, "Red is not between 0-255: ", red);
          Validate.isTrue(green >= 0 && green <= BIT_MASK, "Green is not between 0-255: ", green);
 diff --git a/src/main/java/org/bukkit/NamespacedKey.java b/src/main/java/org/bukkit/NamespacedKey.java
-index 620a962df6d871c7a3b7728030a05ade772135c2..35742db7b26bdc39a13a814c94e838fcb1471839 100644
+index 22eca2a180618ed43a4ef103bebd134897d6c71a..cdeb10e15898c446bc28552528471f694f9ae4d9 100644
 --- a/src/main/java/org/bukkit/NamespacedKey.java
 +++ b/src/main/java/org/bukkit/NamespacedKey.java
-@@ -141,4 +141,38 @@ public final class NamespacedKey implements com.destroystokyo.paper.Namespaced {
+@@ -139,4 +139,38 @@ public final class NamespacedKey {
      public static NamespacedKey minecraft(@NotNull String key) {
          return new NamespacedKey(MINECRAFT, key);
      }
@@ -3499,7 +3628,7 @@ index d3f346413ed92db46d4b5d8f3437ac0cb55adf37..7b95abeedf29cc253ab47814e0185114
       * Server biomes.
       *
 diff --git a/src/main/java/org/bukkit/Server.java b/src/main/java/org/bukkit/Server.java
-index 7c0a788900c93c29d14d8c45ac5ae3317cf4a94e..73e1488ff070c29cbdeef9c6584f8353859b699c 100644
+index 5cf43d538eee6eff031a93ab28f8f33c661acee3..aa2ed71d30dafc032768a6b163a27633511e4adf 100644
 --- a/src/main/java/org/bukkit/Server.java
 +++ b/src/main/java/org/bukkit/Server.java
 @@ -12,9 +12,18 @@ import java.util.Map;
@@ -3537,7 +3666,7 @@ index 7c0a788900c93c29d14d8c45ac5ae3317cf4a94e..73e1488ff070c29cbdeef9c6584f8353
  import org.bukkit.plugin.PluginManager;
  import org.bukkit.plugin.ServicesManager;
  import org.bukkit.plugin.messaging.Messenger;
-@@ -1420,6 +1431,101 @@ public interface Server extends PluginMessageRecipient {
+@@ -1331,6 +1342,101 @@ public interface Server extends PluginMessageRecipient {
      @NotNull
      List<Entity> selectEntities(@NotNull CommandSender sender, @NotNull String selector) throws IllegalArgumentException;
  
@@ -3640,30 +3769,35 @@ index 7c0a788900c93c29d14d8c45ac5ae3317cf4a94e..73e1488ff070c29cbdeef9c6584f8353
       * @see UnsafeValues
       * @return the unsafe values instance
 diff --git a/src/main/java/org/bukkit/World.java b/src/main/java/org/bukkit/World.java
-index e827e1a6f5c0f8410ed32dda8f17aa769b469999..e800b7c422842667ad751d2c470cc9b196ee3ec8 100644
+index d355453d5b166e8fa0c6a8c992169b0b54e5127b..798f6baf2ca9eb5b2527cacf7ee34155c943a25d 100644
 --- a/src/main/java/org/bukkit/World.java
 +++ b/src/main/java/org/bukkit/World.java
-@@ -2,6 +2,10 @@ package org.bukkit;
+@@ -1,6 +1,15 @@
+ package org.bukkit;
  
  import java.io.File;
- 
++
 +import mx.kenzie.wellspring.nbt.BlockNBTStorage;
 +import mx.kenzie.wellspring.nbt.NBTCompound;
 +import mx.kenzie.wellspring.nbt.NBTHolder;
 +import org.bukkit.attachment.Attachable;
- import org.bukkit.event.entity.CreatureSpawnEvent;
- import org.bukkit.generator.ChunkGenerator;
- 
-@@ -43,7 +47,7 @@ import org.jetbrains.annotations.Nullable;
++import org.bukkit.event.entity.CreatureSpawnEvent;
++import org.bukkit.generator.ChunkGenerator;
++
++import java.util.ArrayList;
+ import java.util.Collection;
+ import java.util.HashMap;
+ import java.util.List;
+@@ -38,7 +47,7 @@ import org.jetbrains.annotations.Nullable;
  /**
   * Represents a world, which may contain entities, chunks and blocks
   */
 -public interface World extends PluginMessageRecipient, Metadatable {
 +public interface World extends PluginMessageRecipient, Metadatable, Attachable, BlockNBTStorage { // Kenzie
  
-     // Paper start
      /**
-@@ -3536,4 +3540,27 @@ public interface World extends PluginMessageRecipient, Metadatable {
+      * Gets the {@link Block} at the given coordinates
+@@ -2431,4 +2440,27 @@ public interface World extends PluginMessageRecipient, Metadatable {
              }
          }
      }
@@ -4141,19 +4275,20 @@ index ff8f1231f3e2e71740fd24fa8d4dac5d0e550ae7..65bdf3ddd25bae0905970343358c4daf
 +    } // Kenzie end
  }
 diff --git a/src/main/java/org/bukkit/block/Block.java b/src/main/java/org/bukkit/block/Block.java
-index 7616c5601adee3cbe0e5f722646a2458b535ab77..1b13d8d86a32b16cf6db97dc9a7f81346da387bb 100644
+index 0cfad6f84eda6f7bfa1fae041341ccb1021b157d..20dbea35af6482465c40a2fdadea8143863b1f4a 100644
 --- a/src/main/java/org/bukkit/block/Block.java
 +++ b/src/main/java/org/bukkit/block/Block.java
-@@ -2,6 +2,8 @@ package org.bukkit.block;
+@@ -1,6 +1,9 @@
+ package org.bukkit.block;
  
  import java.util.Collection;
- 
++
 +import mx.kenzie.wellspring.nbt.NBTCompound;
 +import mx.kenzie.wellspring.nbt.NBTHolder;
  import org.bukkit.Chunk;
  import org.bukkit.FluidCollisionMode;
  import org.bukkit.Location;
-@@ -30,7 +32,7 @@ import org.jetbrains.annotations.Nullable;
+@@ -29,7 +32,7 @@ import org.jetbrains.annotations.Nullable;
   * (i.e. lighting and power) may not be able to be safely accessed during world
   * generation when used in cases like BlockPhysicsEvent!!!!
   */
@@ -4162,10 +4297,30 @@ index 7616c5601adee3cbe0e5f722646a2458b535ab77..1b13d8d86a32b16cf6db97dc9a7f8134
  
      /**
       * Gets the metadata for this block
-@@ -582,4 +584,24 @@ public interface Block extends Metadatable {
+@@ -473,4 +476,44 @@ public interface Block extends Metadatable {
+      */
      @NotNull
-     String getTranslationKey();
-     // Paper end
+     BoundingBox getBoundingBox();
++
++    // Paper start
++    /**
++     * Gets the {@link com.destroystokyo.paper.block.BlockSoundGroup} for this block.
++     * <p>
++     * This object contains the block, step, place, hit, and fall sounds.
++     *
++     * @return the sound group for this block
++     */
++    @NotNull
++    com.destroystokyo.paper.block.BlockSoundGroup getSoundGroup();
++
++    /**
++     * Return the translation key for the Block, so the client can translate it into the active
++     * locale when using a TranslatableComponent.
++     * @return the translation key
++     */
++    @NotNull
++    String getTranslationKey();
++    // Paper end
 +
 +    // Kenzie start
 +    /**
@@ -4291,17 +4446,17 @@ index b833ef63fbe01271ceb2bd83a9eb4a84c9912761..f530af9ddc6082b89d4231d4b3c8a02d
       * Checks if this is accepting Enchantment registrations.
       *
 diff --git a/src/main/java/org/bukkit/entity/Entity.java b/src/main/java/org/bukkit/entity/Entity.java
-index 4d1970bec04c5a3cf01d214f583efb0e1d08380d..f292bd38342a202212d6b9557af2f804b15e8862 100644
+index b46653655d1da3ffe54d91b038ec360cd77f0c44..30f262cb963bb9603188c34e007174b9c97123a6 100644
 --- a/src/main/java/org/bukkit/entity/Entity.java
 +++ b/src/main/java/org/bukkit/entity/Entity.java
-@@ -3,12 +3,16 @@ package org.bukkit.entity;
+@@ -3,11 +3,16 @@ package org.bukkit.entity;
  import java.util.List;
  import java.util.Set;
  import java.util.UUID;
 +
 +import mx.kenzie.wellspring.enchantment.EnchantmentHolder;
 +import mx.kenzie.wellspring.nbt.NBTHolder;
- import org.bukkit.Chunk; // Paper
++import org.bukkit.Chunk; // Paper
  import org.bukkit.EntityEffect;
  import org.bukkit.Location;
  import org.bukkit.Nameable;
@@ -4311,19 +4466,92 @@ index 4d1970bec04c5a3cf01d214f583efb0e1d08380d..f292bd38342a202212d6b9557af2f804
  import org.bukkit.block.BlockFace;
  import org.bukkit.block.PistonMoveReaction;
  import org.bukkit.command.CommandSender;
-@@ -26,7 +30,7 @@ import org.jetbrains.annotations.Nullable;
+@@ -25,7 +30,7 @@ import org.jetbrains.annotations.Nullable;
  /**
   * Represents a base entity in the world
   */
 -public interface Entity extends Metadatable, CommandSender, Nameable, PersistentDataHolder {
 +public interface Entity extends Metadatable, CommandSender, Nameable, PersistentDataHolder, Attachable, NBTHolder, EnchantmentHolder { // Kenzie
  
-     /*
+     /**
       * Gets the entity's current position
-@@ -696,4 +700,16 @@ public interface Entity extends Metadatable, CommandSender, Nameable, Persistent
-      */
-     public boolean isTicking();
-     // Paper end
+@@ -595,4 +600,89 @@ public interface Entity extends Metadatable, CommandSender, Nameable, Persistent
+     @Override
+     Spigot spigot();
+     // Spigot end
++
++    // Paper start
++    /**
++     * Gets the location where this entity originates from.
++     * <p>
++     * This value can be null if the entity hasn't yet been added to the world.
++     *
++     * @return Location where entity originates or null if not yet added
++     */
++    @Nullable
++    Location getOrigin();
++
++    /**
++     * Returns whether this entity was spawned from a mob spawner.
++     *
++     * @return True if entity spawned from a mob spawner
++     */
++    boolean fromMobSpawner();
++
++    /**
++     * Gets the latest chunk an entity is currently or was in.
++     *
++     * @return The current, or most recent chunk if the entity is invalid (which may load the chunk)
++     */
++    @NotNull
++    Chunk getChunk();
++
++    /**
++     * @return The {@link org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason} that initially spawned this entity. <!-- Paper - added "initially" to clarify that the SpawnReason doesn't change after the Entity was initially spawned" -->
++     */
++    @NotNull
++    org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason getEntitySpawnReason();
++
++    /**
++     * Check if entity is in water
++     */
++    public boolean isInWater();
++
++    /**
++     * Check if entity is in rain
++     */
++    public boolean isInRain();
++
++    /**
++     * Check if entity is in bubble column
++     */
++    public boolean isInBubbleColumn();
++
++    /**
++     * Check if entity is in water or rain
++     */
++    public boolean isInWaterOrRain();
++
++    /**
++     * Check if entity is in water or bubble column
++     */
++    public boolean isInWaterOrBubbleColumn();
++
++    /**
++     * Check if entity is in water or rain or bubble column
++     */
++    public boolean isInWaterOrRainOrBubbleColumn();
++
++    /**
++     * Check if entity is in lava
++     */
++    public boolean isInLava();
++
++    /**
++     * Check if entity is inside a ticking chunk
++     */
++    public boolean isTicking();
++    // Paper end
 +
 +    // Kenzie start
 +
@@ -4338,7 +4566,7 @@ index 4d1970bec04c5a3cf01d214f583efb0e1d08380d..f292bd38342a202212d6b9557af2f804
 +    // Kenzie end
  }
 diff --git a/src/main/java/org/bukkit/entity/EntityType.java b/src/main/java/org/bukkit/entity/EntityType.java
-index 692b75eb78405874077c850bfc72e247ccc80860..d0f94818cf0b764055cf4b8cd422152c38618713 100644
+index 774363a8186b3861f10c0452ac63726cae365169..11d11c2a8838d4bd2c247e1b28bcfdfb0413419d 100644
 --- a/src/main/java/org/bukkit/entity/EntityType.java
 +++ b/src/main/java/org/bukkit/entity/EntityType.java
 @@ -3,6 +3,8 @@ package org.bukkit.entity;
@@ -4360,89 +4588,67 @@ index 692b75eb78405874077c850bfc72e247ccc80860..d0f94818cf0b764055cf4b8cd422152c
      // These strings MUST match the strings in nms.EntityTypes and are case sensitive.
      /**
 diff --git a/src/main/java/org/bukkit/entity/Item.java b/src/main/java/org/bukkit/entity/Item.java
-index acd80d812fe88dee3978d19b24149e9fe0ac596b..c404a5b8efea7c780db5ddae19456753808abb3d 100644
+index 4f0caf5a7084f2be1ce1a4b49318e78597b45846..c404a5b8efea7c780db5ddae19456753808abb3d 100644
 --- a/src/main/java/org/bukkit/entity/Item.java
 +++ b/src/main/java/org/bukkit/entity/Item.java
-@@ -1,12 +1,9 @@
+@@ -1,7 +1,9 @@
  package org.bukkit.entity;
  
 +import java.util.UUID;
  import org.bukkit.inventory.ItemStack;
  import org.jetbrains.annotations.NotNull;
--
--// Paper start
- import org.jetbrains.annotations.Nullable;
--import java.util.UUID;
--// Paper end
++import org.jetbrains.annotations.Nullable;
  
  /**
   * Represents a dropped item.
-@@ -42,49 +39,56 @@ public interface Item extends Entity {
+@@ -36,4 +38,57 @@ public interface Item extends Entity {
+      * @param delay New delay
       */
      public void setPickupDelay(int delay);
- 
--    // Paper Start
-     /**
--     * Gets if non-player entities can pick this Item up
++
++    /**
 +     * Sets the owner of this item.
-      *
--     * @return True if non-player entities can pickup
--     */
--     public boolean canMobPickup();
--
--    /**
--     * Sets if non-player entities can pick this Item up
++     *
 +     * Other entities will not be able to pickup this item when an owner is set.
-      *
--     * @param canMobPickup True to allow non-player entity pickup
++     *
 +     * @param owner UUID of new owner
-      */
--    public void setCanMobPickup(boolean canMobPickup);
++     */
 +    public void setOwner(@Nullable UUID owner);
- 
-     /**
--     * The owner of this item. Only the owner can pick up the item until it is within 10 seconds of despawning
++
++    /**
 +     * Get the owner of this item.
-      *
--     * @return The owner's UUID
++     *
 +     * @return UUID of owner
-      */
-     @Nullable
-     public UUID getOwner();
- 
-     /**
--     * Set the owner of this item. Only the owner can pick up the item until it is within 10 seconds of despawning
++     */
++    @Nullable
++    public UUID getOwner();
++
++    /**
 +     * Set the thrower of this item.
-      *
--     * @param owner The owner's UUID
++     *
 +     * The thrower is the entity which dropped the item. This affects the
 +     * trigger criteria for item pickups, for things such as advancements.
 +     *
 +     * @param uuid UUID of thrower
-      */
--    public void setOwner(@Nullable UUID owner);
++     */
 +    public void setThrower(@Nullable UUID uuid);
- 
-     /**
-      * Get the thrower of this item.
-      *
--     * @return The thrower's UUID
++
++    /**
++     * Get the thrower of this item.
++     *
 +     * The thrower is the entity which dropped the item.
 +     *
 +     * @return UUID of thrower
-      */
-     @Nullable
-     public UUID getThrower();
- 
++     */
++    @Nullable
++    public UUID getThrower();
++
 +    // Paper Start
-     /**
--     * Set the thrower of this item.
++    /**
 +     * Gets if non-player entities can pick this Item up
-      *
--     * @param thrower The thrower's UUID
++     *
 +     * @return True if non-player entities can pickup
-      */
--    public void setThrower(@Nullable UUID thrower);
++     */
 +     public boolean canMobPickup();
 +
 +    /**
@@ -4451,7 +4657,7 @@ index acd80d812fe88dee3978d19b24149e9fe0ac596b..c404a5b8efea7c780db5ddae19456753
 +     * @param canMobPickup True to allow non-player entity pickup
 +     */
 +    public void setCanMobPickup(boolean canMobPickup);
-     // Paper end
++    // Paper end
  }
 diff --git a/src/main/java/org/bukkit/entity/minecart/PoweredMinecart.java b/src/main/java/org/bukkit/entity/minecart/PoweredMinecart.java
 index 57e8b1d59db3bbb5c0b92a0f9345b87115149f3c..2076af6c029027d3243ebfa518f4d69b716de7fe 100644
@@ -4500,7 +4706,7 @@ index cc06f480b788b19d4799ba0dcf53b3640059f023..d4a43f2972587ac3c4c79e3ee6c8b8c9
  
      /**
 diff --git a/src/main/java/org/bukkit/inventory/Inventory.java b/src/main/java/org/bukkit/inventory/Inventory.java
-index 6386206188e820206bb1a9f516b5e194fdc9d952..8ba67269f62a2c130c6327797220f192f3643467 100644
+index 5576a6a8df8c95164bf2dde45d756ce8b7ec957a..72ade8ab1899dec75ba64f25ebd3a79e19967419 100644
 --- a/src/main/java/org/bukkit/inventory/Inventory.java
 +++ b/src/main/java/org/bukkit/inventory/Inventory.java
 @@ -3,6 +3,8 @@ package org.bukkit.inventory;
@@ -4522,13 +4728,14 @@ index 6386206188e820206bb1a9f516b5e194fdc9d952..8ba67269f62a2c130c6327797220f192
      /**
       * Returns the size of the inventory
 diff --git a/src/main/java/org/bukkit/inventory/ItemStack.java b/src/main/java/org/bukkit/inventory/ItemStack.java
-index ccd81fca25233c2a9c2a8c3f4dda3053d7b2e723..5c8ca4ea19c49f5d211136f83244e196eb307991 100644
+index f70a6a22b85ff0da76e67e9b223ad4e0b020b5c4..cb73b664a09048a152ac2932800f4ca15dcb6f17 100644
 --- a/src/main/java/org/bukkit/inventory/ItemStack.java
 +++ b/src/main/java/org/bukkit/inventory/ItemStack.java
-@@ -5,6 +5,12 @@ import java.util.LinkedHashMap;
- import java.util.List; // Paper
+@@ -3,6 +3,13 @@ package org.bukkit.inventory;
+ import com.google.common.collect.ImmutableMap;
+ import java.util.LinkedHashMap;
  import java.util.Map;
- import java.util.Set; // Paper
++import java.util.Set; // Paper
 +
 +import mx.kenzie.wellspring.enchantment.EnchantmentBuilder;
 +import mx.kenzie.wellspring.enchantment.EnchantmentHolder;
@@ -4538,7 +4745,7 @@ index ccd81fca25233c2a9c2a8c3f4dda3053d7b2e723..5c8ca4ea19c49f5d211136f83244e196
  import org.apache.commons.lang.Validate;
  import org.bukkit.Bukkit;
  import org.bukkit.Material;
-@@ -25,7 +31,7 @@ import org.jetbrains.annotations.Nullable;
+@@ -22,7 +29,7 @@ import org.jetbrains.annotations.Nullable;
   * use this class to encapsulate Materials for which {@link Material#isItem()}
   * returns false.</b>
   */
@@ -4547,10 +4754,202 @@ index ccd81fca25233c2a9c2a8c3f4dda3053d7b2e723..5c8ca4ea19c49f5d211136f83244e196
      private Material type = Material.AIR;
      private int amount = 0;
      private MaterialData data = null;
-@@ -790,5 +796,86 @@ public class ItemStack implements Cloneable, ConfigurationSerializable {
-         ItemMeta itemMeta = getItemMeta();
-         return itemMeta.hasItemFlag(flag);
+@@ -595,4 +602,278 @@ public class ItemStack implements Cloneable, ConfigurationSerializable {
+ 
+         return true;
      }
++
++    // Paper start
++    /**
++     * Minecart updates are converting simple item stacks into more complex NBT oriented Item Stacks.
++     *
++     * Use this method to to ensure any desired data conversions are processed.
++     * The input itemstack will not be the same as the returned itemstack.
++     *
++     * @return A potentially Data Converted ItemStack
++     */
++    @NotNull
++    public ItemStack ensureServerConversions() {
++        return Bukkit.getServer().getItemFactory().ensureServerConversions(this);
++    }
++
++    /**
++     * Deserializes this itemstack from raw NBT bytes. NBT is safer for data migrations as it will
++     * use the built in data converter instead of bukkits dangerous serialization system.
++     *
++     * This expects that the DataVersion was stored on the root of the Compound, as saved from
++     * the {@link #serializeAsBytes()} API returned.
++     * @return ItemStack migrated to this version of Minecraft if needed.
++     */
++    @NotNull
++    public static ItemStack deserializeBytes(@NotNull byte[] bytes) {
++        return org.bukkit.Bukkit.getUnsafe().deserializeItem(bytes);
++    }
++
++    /**
++     * Serializes this itemstack to raw bytes in NBT. NBT is safer for data migrations as it will
++     * use the built in data converter instead of bukkits dangerous serialization system.
++     * @return bytes representing this item in NBT.
++     */
++    @NotNull
++    public byte[] serializeAsBytes() {
++        return org.bukkit.Bukkit.getUnsafe().serializeItem(this);
++    }
++
++    /**
++     * Gets the Display name as seen in the Client.
++     * Currently the server only supports the English language. To override this,
++     * You must replace the language file embedded in the server jar.
++     *
++     * @return Display name of Item
++     */
++    @Nullable
++    public String getI18NDisplayName() {
++        return Bukkit.getServer().getItemFactory().getI18NDisplayName(this);
++    }
++
++    public int getMaxItemUseDuration() {
++        if (type == null || type == Material.AIR || !type.isItem()) {
++            return 0;
++        }
++        // Requires access to NMS
++        return ensureServerConversions().getMaxItemUseDuration();
++    }
++
++    /**
++     * Clones the itemstack and returns it a single quantity.
++     * @return The new itemstack with 1 quantity
++     */
++    @NotNull
++    public ItemStack asOne() {
++        return asQuantity(1);
++    }
++
++    /**
++     * Clones the itemstack and returns it as the specified quantity
++     * @param qty The quantity of the cloned item
++     * @return The new itemstack with specified quantity
++     */
++    @NotNull
++    public ItemStack asQuantity(int qty) {
++        ItemStack clone = clone();
++        clone.setAmount(qty);
++        return clone;
++    }
++
++    /**
++     * Adds 1 to this itemstack. Will not go over the items max stack size.
++     * @return The same item (not a clone)
++     */
++    @NotNull
++    public ItemStack add() {
++        return add(1);
++    }
++
++    /**
++     * Adds quantity to this itemstack. Will not go over the items max stack size.
++     *
++     * @param qty The amount to add
++     * @return The same item (not a clone)
++     */
++    @NotNull
++    public ItemStack add(int qty) {
++        setAmount(Math.min(getMaxStackSize(), getAmount() + qty));
++        return this;
++    }
++
++    /**
++     * Subtracts 1 to this itemstack.  Going to 0 or less will invalidate the item.
++     * @return The same item (not a clone)
++     */
++    @NotNull
++    public ItemStack subtract() {
++        return subtract(1);
++    }
++
++    /**
++     * Subtracts quantity to this itemstack. Going to 0 or less will invalidate the item.
++     *
++     * @param qty The amount to add
++     * @return The same item (not a clone)
++     */
++    @NotNull
++    public ItemStack subtract(int qty) {
++        setAmount(Math.max(0, getAmount() - qty));
++        return this;
++    }
++
++    /**
++     * If the item has lore, returns it, else it will return null
++     * @return The lore, or null
++     */
++    @Nullable
++    public List<String> getLore() {
++        if (!hasItemMeta()) {
++            return null;
++        }
++        ItemMeta itemMeta = getItemMeta();
++        if (!itemMeta.hasLore()) {
++            return null;
++        }
++        return itemMeta.getLore();
++    }
++
++    /**
++     * Sets the lore for this item.
++     * Removes lore when given null.
++     *
++     * @param lore the lore that will be set
++     */
++    public void setLore(@Nullable List<String> lore) {
++        ItemMeta itemMeta = getItemMeta();
++        itemMeta.setLore(lore);
++        setItemMeta(itemMeta);
++    }
++
++    /**
++     * Set itemflags which should be ignored when rendering a ItemStack in the Client. This Method does silently ignore double set itemFlags.
++     *
++     * @param itemFlags The hideflags which shouldn't be rendered
++     */
++    public void addItemFlags(@NotNull ItemFlag... itemFlags) {
++        ItemMeta itemMeta = getItemMeta();
++        itemMeta.addItemFlags(itemFlags);
++        setItemMeta(itemMeta);
++    }
++
++    /**
++     * Remove specific set of itemFlags. This tells the Client it should render it again. This Method does silently ignore double removed itemFlags.
++     *
++     * @param itemFlags Hideflags which should be removed
++     */
++    public void removeItemFlags(@NotNull ItemFlag... itemFlags) {
++        ItemMeta itemMeta = getItemMeta();
++        itemMeta.removeItemFlags(itemFlags);
++        setItemMeta(itemMeta);
++    }
++
++    /**
++     * Get current set itemFlags. The collection returned is unmodifiable.
++     *
++     * @return A set of all itemFlags set
++     */
++    @NotNull
++    public Set<ItemFlag> getItemFlags() {
++        ItemMeta itemMeta = getItemMeta();
++        return itemMeta.getItemFlags();
++    }
++
++    /**
++     * Check if the specified flag is present on this item.
++     *
++     * @param flag the flag to check
++     * @return if it is present
++     */
++    public boolean hasItemFlag(@NotNull ItemFlag flag) {
++        ItemMeta itemMeta = getItemMeta();
++        return itemMeta.hasItemFlag(flag);
++    }
 +
 +    // Kenzie start
 +
@@ -4632,10 +5031,10 @@ index ccd81fca25233c2a9c2a8c3f4dda3053d7b2e723..5c8ca4ea19c49f5d211136f83244e196
 +    }
 +
 +    // Kenzie end
-     // Paper end
++    // Paper end
  }
 diff --git a/src/main/java/org/bukkit/plugin/java/JavaPluginLoader.java b/src/main/java/org/bukkit/plugin/java/JavaPluginLoader.java
-index 384edf9890dfbd1cddfdcac4db1ebe9a4d761f78..4faaab6bb2f17475e82acf5b01c8cff1cc603087 100644
+index b6d739ca8ad8ebd4b1be7ebd129f9a7ae16b2a2a..5336030d70c43635c06414abccad95d9f5e167d0 100644
 --- a/src/main/java/org/bukkit/plugin/java/JavaPluginLoader.java
 +++ b/src/main/java/org/bukkit/plugin/java/JavaPluginLoader.java
 @@ -6,12 +6,7 @@ import java.io.IOException;
@@ -4652,7 +5051,7 @@ index 384edf9890dfbd1cddfdcac4db1ebe9a4d761f78..4faaab6bb2f17475e82acf5b01c8cff1
  import java.util.concurrent.ConcurrentHashMap;
  import java.util.concurrent.CopyOnWriteArrayList;
  import java.util.jar.JarEntry;
-@@ -289,19 +284,17 @@ public final class JavaPluginLoader implements PluginLoader {
+@@ -246,19 +241,17 @@ public final class JavaPluginLoader implements PluginLoader {
              Method[] publicMethods = listener.getClass().getMethods();
              Method[] privateMethods = listener.getClass().getDeclaredMethods();
              methods = new HashSet<Method>(publicMethods.length + privateMethods.length, 1.0f);
@@ -4677,7 +5076,7 @@ index 384edf9890dfbd1cddfdcac4db1ebe9a4d761f78..4faaab6bb2f17475e82acf5b01c8cff1
              if (eh == null) continue;
              // Do not register bridge or synthetic methods to avoid event duplication
              // Fixes SPIGOT-893
-@@ -310,6 +303,7 @@ public final class JavaPluginLoader implements PluginLoader {
+@@ -267,6 +260,7 @@ public final class JavaPluginLoader implements PluginLoader {
              }
              final Class<?> checkClass;
              if (method.getParameterTypes().length != 1 || !Event.class.isAssignableFrom(checkClass = method.getParameterTypes()[0])) {

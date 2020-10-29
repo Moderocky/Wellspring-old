@@ -5,7 +5,7 @@ Subject: [PATCH] Entity change position/location.
 
 
 diff --git a/src/main/java/org/bukkit/entity/Entity.java b/src/main/java/org/bukkit/entity/Entity.java
-index f292bd38342a202212d6b9557af2f804b15e8862..7a932f7d0fe2f5e430251e897dc7684ffa3786c2 100644
+index 30f262cb963bb9603188c34e007174b9c97123a6..808781e4ee11ab8c9fe58d851bd17407181a88b9 100644
 --- a/src/main/java/org/bukkit/entity/Entity.java
 +++ b/src/main/java/org/bukkit/entity/Entity.java
 @@ -40,6 +40,43 @@ public interface Entity extends Metadatable, CommandSender, Nameable, Persistent

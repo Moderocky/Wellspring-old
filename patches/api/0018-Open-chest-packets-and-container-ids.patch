@@ -220,10 +220,10 @@ index f1e9bc9bc797b7216336d3470e3c696a06f2b21a..39d0935e706633bce37a4b2f5a620653
  
      public int getDefaultSize() {
 diff --git a/src/main/java/org/bukkit/inventory/Inventory.java b/src/main/java/org/bukkit/inventory/Inventory.java
-index 8ba67269f62a2c130c6327797220f192f3643467..1199dc6627b4e5b134c60005ddc5121c62335e6c 100644
+index 72ade8ab1899dec75ba64f25ebd3a79e19967419..458bd91e1b06843a7e4c7d9b95ce96ab8f0e41d0 100644
 --- a/src/main/java/org/bukkit/inventory/Inventory.java
 +++ b/src/main/java/org/bukkit/inventory/Inventory.java
-@@ -421,4 +421,5 @@ public interface Inventory extends Iterable<ItemStack>, NBTHolder { // Kenzie -
+@@ -382,4 +382,5 @@ public interface Inventory extends Iterable<ItemStack>, NBTHolder { // Kenzie -
       */
      @Nullable
      public Location getLocation();

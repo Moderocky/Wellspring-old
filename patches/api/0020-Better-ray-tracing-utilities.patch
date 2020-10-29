@@ -129,31 +129,34 @@ index 0000000000000000000000000000000000000000..9f0875ede3748d3e9c13219605636f06
 +
 +}
 diff --git a/src/main/java/org/bukkit/Location.java b/src/main/java/org/bukkit/Location.java
-index ec9eb042ee8354d17f8ad4230c4acc5fcb46f894..e503ad2c357b1379408594f426d050849032d83f 100644
+index 0939a8070f9cc4f66f1679fef74862debb7d32ae..ec365555e88e35a1106357aa5d3a0dc015c7eb45 100644
 --- a/src/main/java/org/bukkit/Location.java
 +++ b/src/main/java/org/bukkit/Location.java
-@@ -3,9 +3,10 @@ package org.bukkit;
- import com.google.common.base.Preconditions;
- import java.lang.ref.Reference;
+@@ -5,6 +5,8 @@ import java.lang.ref.Reference;
  import java.lang.ref.WeakReference;
--import com.google.common.base.Preconditions; // Paper
  import java.util.HashMap;
  import java.util.Map;
 +
 +import mx.kenzie.wellspring.util.Positional;
  import org.bukkit.block.Block;
  import org.bukkit.configuration.serialization.ConfigurationSerializable;
- import org.bukkit.entity.Entity; // Paper
-@@ -17,7 +18,7 @@ import org.jetbrains.annotations.Nullable;
- // Paper start
- import java.util.Collection;
- import java.util.function.Predicate;
--import org.bukkit.entity.Entity;
+ import org.bukkit.util.NumberConversions;
+@@ -12,6 +14,14 @@ import org.bukkit.util.Vector;
+ import org.jetbrains.annotations.NotNull;
+ import org.jetbrains.annotations.Nullable;
+ 
++// Paper start
++import java.util.Collection;
++import java.util.function.Predicate;
 +
- import org.bukkit.entity.LivingEntity;
- import org.bukkit.entity.Player;
- // Paper end
-@@ -30,7 +31,7 @@ import org.bukkit.entity.Player;
++import org.bukkit.entity.LivingEntity;
++import org.bukkit.entity.Player;
++// Paper end
++
+ /**
+  * Represents a 3-dimensional position in a world.
+  * <br>
+@@ -20,7 +30,7 @@ import org.jetbrains.annotations.Nullable;
   * magnitude than 360 are valid, but may be normalized to any other equivalent
   * representation by the implementation.
   */
@@ -162,7 +165,7 @@ index ec9eb042ee8354d17f8ad4230c4acc5fcb46f894..e503ad2c357b1379408594f426d05084
      private Reference<World> world;
      private double x;
      private double y;
-@@ -1161,4 +1162,16 @@ public class Location implements Cloneable, ConfigurationSerializable {
+@@ -706,4 +716,16 @@ public class Location implements Cloneable, ConfigurationSerializable {
          }
          return pitch;
      }
@@ -180,10 +183,10 @@ index ec9eb042ee8354d17f8ad4230c4acc5fcb46f894..e503ad2c357b1379408594f426d05084
 +    }
  }
 diff --git a/src/main/java/org/bukkit/World.java b/src/main/java/org/bukkit/World.java
-index a0f633779b1226444a61c6bf87763b4642ee3d28..8bc2a9b43e0abd0edc42476db22032a10026b871 100644
+index 526bc6e7f35c39d39f24a3dba36988e3a6017130..cbc163bd5ae9ef237ffa81a44ef2e035c10feb35 100644
 --- a/src/main/java/org/bukkit/World.java
 +++ b/src/main/java/org/bukkit/World.java
-@@ -1753,7 +1753,7 @@ public interface World extends PluginMessageRecipient, Metadatable, Attachable,
+@@ -858,7 +858,7 @@ public interface World extends PluginMessageRecipient, Metadatable, Attachable,
       * @param ignorePassableBlocks whether to ignore passable but collidable
       *     blocks (ex. tall grass, signs, fluids, ..)
       * @param raySize entity bounding boxes will be uniformly expanded (or
@@ -193,7 +196,7 @@ index a0f633779b1226444a61c6bf87763b4642ee3d28..8bc2a9b43e0abd0edc42476db22032a1
       *     or <code>null</code> to consider all entities
       * @return the closest ray trace hit result with either a block or an
 diff --git a/src/main/java/org/bukkit/block/Block.java b/src/main/java/org/bukkit/block/Block.java
-index 51ad1f0806953187da8ad878795f4f37023ce297..5d968cc0377909bbe7fa2563ff79db12a1a82323 100644
+index 083e07584e9c1bc8b48fc22cdfb7d94e7e44d560..627f9b4cd16339d96f66e6f90fb5da76c997fb37 100644
 --- a/src/main/java/org/bukkit/block/Block.java
 +++ b/src/main/java/org/bukkit/block/Block.java
 @@ -4,6 +4,7 @@ import java.util.Collection;
@@ -220,7 +223,7 @@ index 51ad1f0806953187da8ad878795f4f37023ce297..5d968cc0377909bbe7fa2563ff79db12
      /**
       * Gets the metadata for this block
 diff --git a/src/main/java/org/bukkit/entity/Entity.java b/src/main/java/org/bukkit/entity/Entity.java
-index 7a932f7d0fe2f5e430251e897dc7684ffa3786c2..34042493a59a3ab4816d3e6051b247a122d78ef6 100644
+index 808781e4ee11ab8c9fe58d851bd17407181a88b9..9a9f2450b10e32402a7171a715f51ee74b09cbb5 100644
 --- a/src/main/java/org/bukkit/entity/Entity.java
 +++ b/src/main/java/org/bukkit/entity/Entity.java
 @@ -6,6 +6,7 @@ import java.util.UUID;
@@ -238,7 +241,7 @@ index 7a932f7d0fe2f5e430251e897dc7684ffa3786c2..34042493a59a3ab4816d3e6051b247a1
 -public interface Entity extends Metadatable, CommandSender, Nameable, PersistentDataHolder, Attachable, NBTHolder, EnchantmentHolder { // Kenzie
 +public interface Entity extends Metadatable, CommandSender, Nameable, PersistentDataHolder, Attachable, NBTHolder, EnchantmentHolder, Positional { // Kenzie
  
-     /*
+     /**
       * Gets the entity's current position
 @@ -40,6 +41,12 @@ public interface Entity extends Metadatable, CommandSender, Nameable, Persistent
      @NotNull
