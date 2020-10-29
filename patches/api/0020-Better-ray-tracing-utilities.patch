@@ -1,0 +1,339 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Thu, 29 Oct 2020 09:38:55 +0000
+Subject: [PATCH] Better ray-tracing utilities.
+
+
+diff --git a/src/main/java/mx/kenzie/wellspring/Wellspring.java b/src/main/java/mx/kenzie/wellspring/Wellspring.java
+index 20315b6facb74b1af6387cae8099e1ce0aa636c3..5b6e411552627396c756641cd74eb077d3435893 100644
+--- a/src/main/java/mx/kenzie/wellspring/Wellspring.java
++++ b/src/main/java/mx/kenzie/wellspring/Wellspring.java
+@@ -4,9 +4,13 @@ import mx.kenzie.wellspring.enchantment.EnchantmentBuilder;
+ import mx.kenzie.wellspring.nbt.NBTCompound;
+ import mx.kenzie.wellspring.packet.data.MetaField;
+ import mx.kenzie.wellspring.structure.*;
++import mx.kenzie.wellspring.util.Positional;
++import mx.kenzie.wellspring.util.RayTrace;
+ import org.bukkit.*;
+ import org.bukkit.attribute.Attribute;
+ import org.bukkit.entity.EntityType;
++import org.bukkit.util.BoundingBox;
++import org.bukkit.util.Vector;
+ import org.jetbrains.annotations.Contract;
+ import org.jetbrains.annotations.NotNull;
+ import org.jetbrains.annotations.Nullable;
+@@ -69,6 +73,9 @@ public interface Wellspring extends Server {
+         public abstract @NotNull
+         <T> Object typeInputConversion(@NotNull T object, @NotNull MetaField.Converter<T> converter);
+ 
++        public abstract @NotNull
++        RayTrace createRayTrace(@NotNull Positional locative, @NotNull BoundingBox box, @NotNull Vector motion, @NotNull FluidCollisionMode fluids, boolean ignorePassableBlocks);
++
+         public abstract boolean isStructurePresent(@NotNull WorldStructureType structure, @NotNull Location location);
+ 
+         public abstract @NotNull
+diff --git a/src/main/java/mx/kenzie/wellspring/util/Positional.java b/src/main/java/mx/kenzie/wellspring/util/Positional.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..ed53e33d66751399141fb37e6073b3fa5eda1814
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/util/Positional.java
+@@ -0,0 +1,31 @@
++package mx.kenzie.wellspring.util;
++
++import org.bukkit.Location;
++import org.bukkit.UndefinedNullability;
++import org.bukkit.util.Vector;
++import org.jetbrains.annotations.NotNull;
++
++/**
++ * Used for things that can have a location and position.
++ * This is more a sort of catch-all type so that overloaded methods
++ * are not needed for multiple options.
++ *
++ * @author Moderocky
++ */
++public interface Positional {
++
++    /**
++     * @return the position
++     */
++    @NotNull
++    Vector getAsVector();
++
++    /**
++     *
++     * @return the location?
++     * @throws RuntimeException if used on something that has no location, e.g. a vector
++     */
++    @UndefinedNullability
++    Location getLocation() throws RuntimeException;
++
++}
+diff --git a/src/main/java/mx/kenzie/wellspring/util/RayTrace.java b/src/main/java/mx/kenzie/wellspring/util/RayTrace.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..9f0875ede3748d3e9c13219605636f06dd844d48
+--- /dev/null
++++ b/src/main/java/mx/kenzie/wellspring/util/RayTrace.java
+@@ -0,0 +1,53 @@
++package mx.kenzie.wellspring.util;
++
++import mx.kenzie.wellspring.Wellspring;
++import org.bukkit.FluidCollisionMode;
++import org.bukkit.World;
++import org.bukkit.entity.Entity;
++import org.bukkit.util.BoundingBox;
++import org.bukkit.util.RayTraceResult;
++import org.bukkit.util.Vector;
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
++
++/**
++ * A system for calculating collision boxes with blocks.
++ * This uses the same system as an entity does to cancel or redirect
++ * motion that would take the collision box into a block.
++ *
++ * @author Moderocky
++ */
++public interface RayTrace {
++
++    static @NotNull RayTrace create(@NotNull BoundingBox box, @NotNull Vector motion) {
++        return create(box, motion, true);
++    }
++
++    static @NotNull RayTrace create(@NotNull Entity entity, @NotNull Vector motion) {
++        return create(entity.getBoundingBox(), motion, true);
++    }
++
++    static @NotNull RayTrace create(@NotNull BoundingBox box, @NotNull Vector motion, boolean ignorePassableBlocks) {
++        return create(box, motion, FluidCollisionMode.NEVER, ignorePassableBlocks);
++    }
++
++    static @NotNull RayTrace create(@NotNull BoundingBox box, @NotNull Vector motion, @NotNull FluidCollisionMode fluids, boolean ignorePassableBlocks) {
++        return create(box, box, motion, fluids, ignorePassableBlocks);
++    }
++
++    static @NotNull <P extends Positional> RayTrace create(@NotNull P positional, @NotNull BoundingBox box, @NotNull Vector motion, @NotNull FluidCollisionMode fluids, boolean ignorePassableBlocks) {
++        return Wellspring.bridge().createRayTrace(positional, box, motion, fluids, ignorePassableBlocks);
++    }
++
++//    @Nullable
++//    RayTraceResult getResult(@NotNull World world);
++
++    boolean hasProcessed();
++
++    void process(@NotNull World world);
++
++    @NotNull BoundingBox getResultBox();
++
++    @NotNull Vector getResultMotion();
++
++}
+diff --git a/src/main/java/org/bukkit/Location.java b/src/main/java/org/bukkit/Location.java
+index ec9eb042ee8354d17f8ad4230c4acc5fcb46f894..e503ad2c357b1379408594f426d050849032d83f 100644
+--- a/src/main/java/org/bukkit/Location.java
++++ b/src/main/java/org/bukkit/Location.java
+@@ -3,9 +3,10 @@ package org.bukkit;
+ import com.google.common.base.Preconditions;
+ import java.lang.ref.Reference;
+ import java.lang.ref.WeakReference;
+-import com.google.common.base.Preconditions; // Paper
+ import java.util.HashMap;
+ import java.util.Map;
++
++import mx.kenzie.wellspring.util.Positional;
+ import org.bukkit.block.Block;
+ import org.bukkit.configuration.serialization.ConfigurationSerializable;
+ import org.bukkit.entity.Entity; // Paper
+@@ -17,7 +18,7 @@ import org.jetbrains.annotations.Nullable;
+ // Paper start
+ import java.util.Collection;
+ import java.util.function.Predicate;
+-import org.bukkit.entity.Entity;
++
+ import org.bukkit.entity.LivingEntity;
+ import org.bukkit.entity.Player;
+ // Paper end
+@@ -30,7 +31,7 @@ import org.bukkit.entity.Player;
+  * magnitude than 360 are valid, but may be normalized to any other equivalent
+  * representation by the implementation.
+  */
+-public class Location implements Cloneable, ConfigurationSerializable {
++public class Location implements Cloneable, ConfigurationSerializable, Positional { // Kenzie
+     private Reference<World> world;
+     private double x;
+     private double y;
+@@ -1161,4 +1162,16 @@ public class Location implements Cloneable, ConfigurationSerializable {
+         }
+         return pitch;
+     }
++
++    @NotNull
++    @Override
++    public Vector getAsVector() { // Kenzie
++        return toVector();
++    }
++
++    @NotNull
++    @Override
++    public Location getLocation() { // Kenzie
++        return this.clone();
++    }
+ }
+diff --git a/src/main/java/org/bukkit/World.java b/src/main/java/org/bukkit/World.java
+index a0f633779b1226444a61c6bf87763b4642ee3d28..8bc2a9b43e0abd0edc42476db22032a10026b871 100644
+--- a/src/main/java/org/bukkit/World.java
++++ b/src/main/java/org/bukkit/World.java
+@@ -1753,7 +1753,7 @@ public interface World extends PluginMessageRecipient, Metadatable, Attachable,
+      * @param ignorePassableBlocks whether to ignore passable but collidable
+      *     blocks (ex. tall grass, signs, fluids, ..)
+      * @param raySize entity bounding boxes will be uniformly expanded (or
+-     *     shrinked) by this value before doing collision checks
++     *     shrunk) by this value before doing collision checks // Kenzie - it is 'shrunk' not 'shrinked' btw :)
+      * @param filter only entities that fulfill this predicate are considered,
+      *     or <code>null</code> to consider all entities
+      * @return the closest ray trace hit result with either a block or an
+diff --git a/src/main/java/org/bukkit/block/Block.java b/src/main/java/org/bukkit/block/Block.java
+index 51ad1f0806953187da8ad878795f4f37023ce297..5d968cc0377909bbe7fa2563ff79db12a1a82323 100644
+--- a/src/main/java/org/bukkit/block/Block.java
++++ b/src/main/java/org/bukkit/block/Block.java
+@@ -4,6 +4,7 @@ import java.util.Collection;
+ 
+ import mx.kenzie.wellspring.nbt.NBTCompound;
+ import mx.kenzie.wellspring.nbt.NBTHolder;
++import mx.kenzie.wellspring.util.Positional;
+ import org.bukkit.Chunk;
+ import org.bukkit.FluidCollisionMode;
+ import org.bukkit.Location;
+@@ -32,7 +33,13 @@ import org.jetbrains.annotations.Nullable;
+  * (i.e. lighting and power) may not be able to be safely accessed during world
+  * generation when used in cases like BlockPhysicsEvent!!!!
+  */
+-public interface Block extends Metadatable, NBTHolder { // Kenzie
++public interface Block extends Metadatable, NBTHolder, Positional { // Kenzie
++
++    @NotNull
++    @Override
++    default Vector getAsVector() {
++        return getLocation().toVector();
++    }
+ 
+     /**
+      * Gets the metadata for this block
+diff --git a/src/main/java/org/bukkit/entity/Entity.java b/src/main/java/org/bukkit/entity/Entity.java
+index 7a932f7d0fe2f5e430251e897dc7684ffa3786c2..34042493a59a3ab4816d3e6051b247a122d78ef6 100644
+--- a/src/main/java/org/bukkit/entity/Entity.java
++++ b/src/main/java/org/bukkit/entity/Entity.java
+@@ -6,6 +6,7 @@ import java.util.UUID;
+ 
+ import mx.kenzie.wellspring.enchantment.EnchantmentHolder;
+ import mx.kenzie.wellspring.nbt.NBTHolder;
++import mx.kenzie.wellspring.util.Positional;
+ import org.bukkit.Chunk; // Paper
+ import org.bukkit.EntityEffect;
+ import org.bukkit.Location;
+@@ -30,7 +31,7 @@ import org.jetbrains.annotations.Nullable;
+ /**
+  * Represents a base entity in the world
+  */
+-public interface Entity extends Metadatable, CommandSender, Nameable, PersistentDataHolder, Attachable, NBTHolder, EnchantmentHolder { // Kenzie
++public interface Entity extends Metadatable, CommandSender, Nameable, PersistentDataHolder, Attachable, NBTHolder, EnchantmentHolder, Positional { // Kenzie
+ 
+     /*
+      * Gets the entity's current position
+@@ -40,6 +41,12 @@ public interface Entity extends Metadatable, CommandSender, Nameable, Persistent
+     @NotNull
+     public Location getLocation();
+ 
++    default @NotNull
++    @Override
++    Vector getAsVector() {
++        return getLocation().toVector();
++    }
++
+     /**
+      * Potentially unsafe - this avoids triggering all of the baggage
+      * that comes with a teleport (incl. events) but can cause
+diff --git a/src/main/java/org/bukkit/util/BoundingBox.java b/src/main/java/org/bukkit/util/BoundingBox.java
+index 01f80020b12c7b4637e5c22f7277a0268fe40cd2..5c34a640db17986edecdfd2707cf3d47527cff04 100644
+--- a/src/main/java/org/bukkit/util/BoundingBox.java
++++ b/src/main/java/org/bukkit/util/BoundingBox.java
+@@ -3,6 +3,8 @@ package org.bukkit.util;
+ import java.util.LinkedHashMap;
+ import java.util.Map;
+ import java.util.Objects;
++
++import mx.kenzie.wellspring.util.Positional;
+ import org.apache.commons.lang.Validate;
+ import org.bukkit.Location;
+ import org.bukkit.block.Block;
+@@ -27,7 +29,7 @@ import org.jetbrains.annotations.Nullable;
+  * be wise to call {@link #clone()} in order to get a copy.
+  */
+ @SerializableAs("BoundingBox")
+-public class BoundingBox implements Cloneable, ConfigurationSerializable {
++public class BoundingBox implements Cloneable, ConfigurationSerializable, Positional { // Kenzie
+ 
+     /**
+      * Creates a new bounding box using the coordinates of the given vectors as
+@@ -1063,4 +1065,19 @@ public class BoundingBox implements Cloneable, ConfigurationSerializable {
+ 
+         return new BoundingBox(minX, minY, minZ, maxX, maxY, maxZ);
+     }
++
++    @NotNull
++    @Override
++    public Vector getAsVector() {
++        return getCenter().clone();
++    }
++
++    @NotNull
++    @Override
++    @Deprecated
++    public Location getLocation() throws RuntimeException { // Kenzie
++        throw new RuntimeException(
++                new IllegalAccessException("Bounding boxes do not have a location!")
++        );
++    }
+ }
+diff --git a/src/main/java/org/bukkit/util/Vector.java b/src/main/java/org/bukkit/util/Vector.java
+index a8fd026b1e266dff35babccd5977a84770b31884..7864c5416ae943a1cba04f3c27200465e0977b00 100644
+--- a/src/main/java/org/bukkit/util/Vector.java
++++ b/src/main/java/org/bukkit/util/Vector.java
+@@ -5,6 +5,8 @@ import com.google.common.primitives.Doubles;
+ import java.util.LinkedHashMap;
+ import java.util.Map;
+ import java.util.Random;
++
++import mx.kenzie.wellspring.util.Positional;
+ import org.bukkit.Location;
+ import org.bukkit.World;
+ import org.bukkit.configuration.serialization.ConfigurationSerializable;
+@@ -18,7 +20,7 @@ import org.jetbrains.annotations.NotNull;
+  * <code>clone()</code> in order to get a copy.
+  */
+ @SerializableAs("Vector")
+-public class Vector implements Cloneable, ConfigurationSerializable {
++public class Vector implements Cloneable, ConfigurationSerializable, Positional { // Kenzie
+     private static final long serialVersionUID = -2657651106777219169L;
+ 
+     private static Random random = new Random();
+@@ -920,4 +922,19 @@ public class Vector implements Cloneable, ConfigurationSerializable {
+ 
+         return new Vector(x, y, z);
+     }
++
++    @NotNull
++    @Override
++    public Vector getAsVector() { // Kenzie
++        return this.clone();
++    }
++
++    @NotNull
++    @Override
++    @Deprecated
++    public Location getLocation() throws RuntimeException { // Kenzie
++        throw new RuntimeException(
++                new IllegalAccessException("Vectors do not have a location. Use * toLocation(World)!")
++        );
++    }
+ }
