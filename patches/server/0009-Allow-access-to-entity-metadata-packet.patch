@@ -123,7 +123,7 @@ index fc648dabbde8ab8fd2a16a6cf94f2e20021d6970..3f287f21be57320732f7056380800ac0
      public List<MobEffect> effects;
      private final Map<Entity, Integer> affectedEntities;
 diff --git a/src/main/java/net/minecraft/server/EntityArmorStand.java b/src/main/java/net/minecraft/server/EntityArmorStand.java
-index 937fa3c69a5cba2fc2fa4506dc34ff8a37dae19c..5ac7f2b86ce9a1153835f250253fa5a98d53d20f 100644
+index aff83945242c843d8cfd8dffc4c33298f38fb9f2..e347782491f4642ef7a80ace6a83a234892ed76d 100644
 --- a/src/main/java/net/minecraft/server/EntityArmorStand.java
 +++ b/src/main/java/net/minecraft/server/EntityArmorStand.java
 @@ -6,6 +6,7 @@ import java.util.function.Predicate;
