@@ -1643,7 +1643,7 @@ index dd235a6fc4bc731a344d7211879f9b40bb622c3e..120042783fd5b2aed8f989a08063dac4
          }
  
 diff --git a/src/main/java/net/minecraft/server/Chunk.java b/src/main/java/net/minecraft/server/Chunk.java
-index 083da88c1dd78b8ecdc8329c94430189cecb9d95..c2c067a5822b51c85f397678b20f182476b387d7 100644
+index 299d7d7a55532930e2d4340a6cfe77a5fd8a0a0c..85a9ef6d2ee06a9f85af47e4669044bf82a3975b 100644
 --- a/src/main/java/net/minecraft/server/Chunk.java
 +++ b/src/main/java/net/minecraft/server/Chunk.java
 @@ -7,23 +7,23 @@ import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
@@ -1709,7 +1709,7 @@ index 083da88c1dd78b8ecdc8329c94430189cecb9d95..c2c067a5822b51c85f397678b20f1824
      public final co.aikar.util.Counter<String> entityCounts = new co.aikar.util.Counter<>();
      public final co.aikar.util.Counter<String> tileEntityCounts = new co.aikar.util.Counter<>();
 diff --git a/src/main/java/net/minecraft/server/ChunkRegionLoader.java b/src/main/java/net/minecraft/server/ChunkRegionLoader.java
-index 8e7da2c5f3852920ec5fbcdd2bff4d299e6aa499..96972af348ac72e4460b36c028f7a9c749e916d5 100644
+index a0353da423b13ce9be48a0ed194c0182808800d2..5d41318fb83cd90970cb889e19413c54f557b1cb 100644
 --- a/src/main/java/net/minecraft/server/ChunkRegionLoader.java
 +++ b/src/main/java/net/minecraft/server/ChunkRegionLoader.java
 @@ -115,6 +115,22 @@ public class ChunkRegionLoader {
@@ -1735,7 +1735,7 @@ index 8e7da2c5f3852920ec5fbcdd2bff4d299e6aa499..96972af348ac72e4460b36c028f7a9c7
              }
  
              if (flag) {
-@@ -441,6 +457,26 @@ public class ChunkRegionLoader {
+@@ -428,6 +444,26 @@ public class ChunkRegionLoader {
                  nbttagcompound2.setByte("Y", (byte) (i & 255));
                  if (chunksection != Chunk.a) {
                      chunksection.getBlocks().a(nbttagcompound2, "Palette", "BlockStates");
@@ -4153,7 +4153,7 @@ index d27b4be211cce4f8754732021f0a31852d748b17..e3ddcf9fc41da4969d017ec9548a25dd
 +    }
  }
 diff --git a/src/main/java/net/minecraft/server/TileEntity.java b/src/main/java/net/minecraft/server/TileEntity.java
-index 58d958a88ac5af5b889d719d9f1ea90ce45cf184..9a679e0b5142b4d315344be40f501a611195bfe7 100644
+index d32540c88bb902e9c191142a2b75a05b63218e52..0473a024015c3346c27242f51b784f7dd0a03f27 100644
 --- a/src/main/java/net/minecraft/server/TileEntity.java
 +++ b/src/main/java/net/minecraft/server/TileEntity.java
 @@ -1,10 +1,22 @@
@@ -4284,7 +4284,7 @@ index 58d958a88ac5af5b889d719d9f1ea90ce45cf184..9a679e0b5142b4d315344be40f501a61
          this.persistentDataContainer.clear(); // Paper - clear instead of reinit
  
 @@ -90,6 +169,7 @@ public abstract class TileEntity implements KeyedObject { // Paper
-             this.persistentDataContainer.putAll((NBTTagCompound) persistentDataTag);
+             this.persistentDataContainer.putAll(persistentDataTag);
          }
          // CraftBukkit end
 +        attachments.load(nbttagcompound); // Kenzie - mark as data loaded in case of changes
@@ -4978,7 +4978,7 @@ index 60fc5aff80697cb4c85080350542c0f46056f74a..747335433374bd7be3eaf262cdd84494
          this.advancement = advancement;
          this.playerData = player;
 diff --git a/src/main/java/org/bukkit/craftbukkit/block/CraftBlock.java b/src/main/java/org/bukkit/craftbukkit/block/CraftBlock.java
-index 3baf7b75c65c9beba40945ba904315251b5b7a64..350ca26e81ef67a02174f34240430bf7cdfae542 100644
+index 3524b677525bf2bb529b797fe1f258efb34ac3fc..289c7229055b06c1a2d84f090d07da6e4d7b24c9 100644
 --- a/src/main/java/org/bukkit/craftbukkit/block/CraftBlock.java
 +++ b/src/main/java/org/bukkit/craftbukkit/block/CraftBlock.java
 @@ -5,6 +5,9 @@ import java.util.Collection;
@@ -5087,7 +5087,7 @@ index dc0e6e49e9eb5004e53d24304bce095bcef8f4c2..9f5e7316099e8af5e2c66c53fb141e12
  
      public final boolean snapshotDisabled; // Paper
 diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
-index f7d751348ca358a80bafc7f92c635eac316bc4cb..762c4f5998248ec6087503cdb822515394e98c78 100644
+index 6f59f8d4541451573eb50a1a3190788c51490502..8d456ff5601392021ab4e39d4310cea27a47da57 100644
 --- a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
 +++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
 @@ -6,6 +6,9 @@ import com.google.common.collect.Lists;
@@ -5100,7 +5100,7 @@ index f7d751348ca358a80bafc7f92c635eac316bc4cb..762c4f5998248ec6087503cdb8225153
  import net.minecraft.server.AxisAlignedBB;
  import net.minecraft.server.BlockPosition;
  import net.minecraft.server.DamageSource;
-@@ -149,15 +152,18 @@ import org.bukkit.EntityEffect;
+@@ -148,15 +151,18 @@ import org.bukkit.EntityEffect;
  import org.bukkit.Location;
  import org.bukkit.Server;
  import org.bukkit.World;
@@ -5119,7 +5119,7 @@ index f7d751348ca358a80bafc7f92c635eac316bc4cb..762c4f5998248ec6087503cdb8225153
  import org.bukkit.entity.Pose;
  import org.bukkit.event.entity.EntityDamageEvent;
  import org.bukkit.event.player.PlayerTeleportEvent.TeleportCause;
-@@ -180,12 +186,90 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
+@@ -179,12 +185,90 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
      protected Entity entity;
      private EntityDamageEvent lastDamageEvent;
      private final CraftPersistentDataContainer persistentDataContainer = new CraftPersistentDataContainer(DATA_TYPE_REGISTRY);
@@ -5210,7 +5210,7 @@ index f7d751348ca358a80bafc7f92c635eac316bc4cb..762c4f5998248ec6087503cdb8225153
      @Override
      public Chunk getChunk() {
          net.minecraft.server.Chunk currentChunk = entity.getCurrentChunk();
-@@ -1108,7 +1192,7 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
+@@ -1097,7 +1181,7 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
      public boolean isInWater() {
          return getHandle().isInWater();
      }
@@ -5219,7 +5219,7 @@ index f7d751348ca358a80bafc7f92c635eac316bc4cb..762c4f5998248ec6087503cdb8225153
      public boolean isInRain() {
          return getHandle().isInRain();
      }
-@@ -1124,7 +1208,7 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
+@@ -1113,7 +1197,7 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
      public boolean isInWaterOrBubbleColumn() {
          return getHandle().isInWaterOrBubbleColumn();
      }

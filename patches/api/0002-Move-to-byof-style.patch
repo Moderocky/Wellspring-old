@@ -6,7 +6,7 @@ Subject: [PATCH] Move to byof style.
 Fix missed block NBT.
 
 diff --git a/pom.xml b/pom.xml
-index 352e5a55dc1d8a830c08a587a811b2b59ecb24ae..8c8496ea5507f6191244d97b91c7dc8d8af8b607 100644
+index 3b28efedcbf7eba68f9a0dc68692aa8920ca5b53..4f306d6e36d2be7ec0e17be06bc9a9a8985a60d1 100644
 --- a/pom.xml
 +++ b/pom.xml
 @@ -15,7 +15,7 @@

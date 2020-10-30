@@ -358,7 +358,7 @@ index 27d0f93510a235b80784dd1f29b0c3b3910e4459..2525e40869e48294b6a6c6bd246935bc
      }
  
 diff --git a/src/main/java/net/minecraft/server/EntityFishingHook.java b/src/main/java/net/minecraft/server/EntityFishingHook.java
-index 25ec9e9319ca7badde845906679d78934eaf0ad6..98b273a20df8142e3f6b4d3704f0e78848e0e82d 100644
+index b6cace72ab2f3389408a5e528981fcff3b511180..c3d3d753fd354a2a215c3dcf86609b55d6349b63 100644
 --- a/src/main/java/net/minecraft/server/EntityFishingHook.java
 +++ b/src/main/java/net/minecraft/server/EntityFishingHook.java
 @@ -7,6 +7,7 @@ import java.util.List;
@@ -673,10 +673,10 @@ index 78e4ea52d2fc626f7542371de55f77b5af5835f4..90fcea7c7b273268efc885047d9f2f2f
      private int e;
  
 diff --git a/src/main/java/net/minecraft/server/EntityMinecartFurnace.java b/src/main/java/net/minecraft/server/EntityMinecartFurnace.java
-index 44a2a38b394ca67f5f4e7540a24b83529e42152c..6fb4cfb0867f12b47f4abb79d6d722b3cf79e15f 100644
+index 7d4e58bdc7e2b07a1f195ff6d7665a6f247703fb..6fb4cfb0867f12b47f4abb79d6d722b3cf79e15f 100644
 --- a/src/main/java/net/minecraft/server/EntityMinecartFurnace.java
 +++ b/src/main/java/net/minecraft/server/EntityMinecartFurnace.java
-@@ -1,8 +1,13 @@
+@@ -1,9 +1,14 @@
  package net.minecraft.server;
  
 +import mx.kenzie.wellspring.packet.meta.MetaField;
@@ -684,12 +684,14 @@ index 44a2a38b394ca67f5f4e7540a24b83529e42152c..6fb4cfb0867f12b47f4abb79d6d722b3
  public class EntityMinecartFurnace extends EntityMinecartAbstract {
  
      private static final DataWatcherObject<Boolean> d = DataWatcher.a(EntityMinecartFurnace.class, DataWatcherRegistry.i);
+-    private int e;
 +    static { // Kenzie - init datawatchers
 +        MetaField.MINECART_FURNACE_FUELLED = d;
 +    }
-     public int e; // CraftBukkit PAIL private -> public, RENAME fuel
++    public int e; // CraftBukkit PAIL private -> public, RENAME fuel
      public double b;
      public double c;
+     private static final RecipeItemStack f = RecipeItemStack.a(Items.COAL, Items.CHARCOAL);
 diff --git a/src/main/java/net/minecraft/server/EntityMushroomCow.java b/src/main/java/net/minecraft/server/EntityMushroomCow.java
 index 1aacbae04ce89be4da82d65116c494c493e71530..693a43ac328e11a27357bc9787949eac52ae51db 100644
 --- a/src/main/java/net/minecraft/server/EntityMushroomCow.java
@@ -1048,7 +1050,7 @@ index 42f02b03b14a5df4e336156717a5a82003397ee0..ce2478351ff4a403869adcc87f7db290
      public EntitySpider(EntityTypes<? extends EntitySpider> entitytypes, World world) {
          super(entitytypes, world);
 diff --git a/src/main/java/net/minecraft/server/EntityTNTPrimed.java b/src/main/java/net/minecraft/server/EntityTNTPrimed.java
-index 6a56649ff17592d5ab3da4a4b3e65b432eaf44bb..d4f6257435180f5cacf1c074e7c62ef74f4c90f3 100644
+index 3e71332c47000b21ff90aec6937f90dc639a41bd..36b9442dcfbf189a7895205e7ac748fe22329be3 100644
 --- a/src/main/java/net/minecraft/server/EntityTNTPrimed.java
 +++ b/src/main/java/net/minecraft/server/EntityTNTPrimed.java
 @@ -1,11 +1,16 @@
@@ -1066,7 +1068,7 @@ index 6a56649ff17592d5ab3da4a4b3e65b432eaf44bb..d4f6257435180f5cacf1c074e7c62ef7
 +        MetaField.TNT_FUSE_TICKS = FUSE_TICKS;
 +    }
      @Nullable
-     public EntityLiving source; // PAIL private -> public
+     private EntityLiving source;
      private int fuseTicks;
 diff --git a/src/main/java/net/minecraft/server/EntityThrownTrident.java b/src/main/java/net/minecraft/server/EntityThrownTrident.java
 index a3150bd1cee91b9b0f9192a4da394ac9585c0d41..d3aa0f89cb8b9c2db234df14c8c56ab161b5bc2c 100644
