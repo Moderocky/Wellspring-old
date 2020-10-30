@@ -1,0 +1,65 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Fri, 30 Oct 2020 12:06:02 +0000
+Subject: [PATCH] Ray trace improvements.
+
+
+diff --git a/src/main/java/mx/kenzie/server/util/RayTrace.java b/src/main/java/mx/kenzie/server/util/RayTrace.java
+index 650f126d2c5c23b9ad9e6f786f26471eabb21c60..aff0070bda521c6f99acc726c059c0453168f28e 100644
+--- a/src/main/java/mx/kenzie/server/util/RayTrace.java
++++ b/src/main/java/mx/kenzie/server/util/RayTrace.java
+@@ -79,12 +79,17 @@ public class RayTrace extends net.minecraft.server.RayTrace implements mx.kenzie
+         return new Vector(vector.getX(), vector.getY(), vector.getZ());
+     }
+ 
+-    protected static Vec3D collide(Vec3D vec3d, AxisAlignedBB axisalignedbb, IWorldReader iworldreader) { // collide
++    private static Stream<VoxelShape> getShapes(WorldServer world, AxisAlignedBB axisalignedbb) {
++        VoxelShape voxelshape = world.getWorldBorder().c();
++        return !world.getWorldBorder().isInBounds(axisalignedbb) ? Stream.empty() : Stream.of(voxelshape);
++    }
++
++    protected static Vec3D collide(Vec3D vec3d, AxisAlignedBB axisalignedbb, WorldServer iworldreader) { // collide
+         double vecX = vec3d.x;
+         double vecY = vec3d.y;
+         double vecZ = vec3d.z;
+-        Stream<VoxelShape> stream = Stream.empty();
+-        VoxelShapeCollision voxelshapecollision = VoxelShapeCollision.a();
++        Stream<VoxelShape> stream = getShapes(iworldreader, axisalignedbb);
++        VoxelShapeCollision voxelshapecollision = new ColliderParams(axisalignedbb);
+ 
+         if (vecY != 0.0D) {
+             vecY = VoxelShapes.a(EnumDirection.EnumAxis.Y, axisalignedbb, iworldreader, vecY, voxelshapecollision, stream);
+@@ -116,4 +121,33 @@ public class RayTrace extends net.minecraft.server.RayTrace implements mx.kenzie
+         return new Vec3D(vecX, vecY, vecZ);
+     }
+ 
++    static class ColliderParams implements VoxelShapeCollision {
++
++        final AxisAlignedBB box;
++
++        public ColliderParams(AxisAlignedBB box) {
++            this.box = box;
++        }
++
++        @Override
++        public boolean b() {
++            return false;
++        }
++
++        @Override
++        public boolean a(VoxelShape voxelShape, BlockPosition blockPosition, boolean b) {
++            return this.box.minY > (double)blockPosition.getY() + voxelShape.c(EnumDirection.EnumAxis.Y) - 9.999999747378752E-6D;
++        }
++
++        @Override
++        public boolean a(Item item) {
++            return false;
++        }
++
++        @Override
++        public boolean a(Fluid fluid, FluidTypeFlowing fluidTypeFlowing) {
++            return false;
++        }
++    }
++
+ }
