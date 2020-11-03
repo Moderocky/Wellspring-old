@@ -5,10 +5,10 @@ Subject: [PATCH] Entity change position/location.
 
 
 diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
-index 8d456ff5601392021ab4e39d4310cea27a47da57..d31a63dce4ebec1ede7a5730ac00c0cb0830d1f8 100644
+index 73ef4ce93d888d505e876d6a426ad29349225215..7a9125d9d5a86104346fb49a37b4f6b300c2a9cc 100644
 --- a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
 +++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
-@@ -249,6 +249,23 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
+@@ -251,6 +251,23 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
              throw new IllegalArgumentException("Illegal compound was loaded!", ex);
          }
      }

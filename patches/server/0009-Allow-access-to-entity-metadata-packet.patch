@@ -49,7 +49,7 @@ index 620517b47877ff8ee6afc89366c637dfa5dd03d6..0139d2852df3d35f99166a4e65da7929
      private final int a;
      private final DataWatcherSerializer<T> b;
 diff --git a/src/main/java/net/minecraft/server/Entity.java b/src/main/java/net/minecraft/server/Entity.java
-index d97f8134a27bec7894c0c50071149b5ae8710601..c7e1478f2f0e39c50ff7adbf87e4f2604c0f978a 100644
+index 4429aa5dcee83bf5de13700d4b0fc2e22f452c9e..420f5f6c6155d0b68819431260cd08dd016dd5de 100644
 --- a/src/main/java/net/minecraft/server/Entity.java
 +++ b/src/main/java/net/minecraft/server/Entity.java
 @@ -20,6 +20,7 @@ import java.util.stream.Stream;
@@ -77,7 +77,7 @@ index d97f8134a27bec7894c0c50071149b5ae8710601..c7e1478f2f0e39c50ff7adbf87e4f260
      public int chunkX;
      public int chunkY;
 diff --git a/src/main/java/net/minecraft/server/EntityAgeable.java b/src/main/java/net/minecraft/server/EntityAgeable.java
-index 026e75e5ae9e231e3f898823825adab30237d53d..13ece318933e3086a4c319c5e01b32e429b2813b 100644
+index de48dc7cd1996f1a62ef1d0047b1182d7889bd38..78cd7a44bd264c6c0d1c93831ca01fba91993536 100644
 --- a/src/main/java/net/minecraft/server/EntityAgeable.java
 +++ b/src/main/java/net/minecraft/server/EntityAgeable.java
 @@ -1,10 +1,15 @@
@@ -97,7 +97,7 @@ index 026e75e5ae9e231e3f898823825adab30237d53d..13ece318933e3086a4c319c5e01b32e4
      protected int c;
      protected int d;
 diff --git a/src/main/java/net/minecraft/server/EntityAreaEffectCloud.java b/src/main/java/net/minecraft/server/EntityAreaEffectCloud.java
-index fc648dabbde8ab8fd2a16a6cf94f2e20021d6970..3f287f21be57320732f7056380800ac08544f0c5 100644
+index 5b0ee830b45a677bf354b02cf4fd311d842e7678..52ddad735ba6ddd123813ca7ac30e3b14d77219e 100644
 --- a/src/main/java/net/minecraft/server/EntityAreaEffectCloud.java
 +++ b/src/main/java/net/minecraft/server/EntityAreaEffectCloud.java
 @@ -11,6 +11,8 @@ import java.util.Map;
@@ -123,7 +123,7 @@ index fc648dabbde8ab8fd2a16a6cf94f2e20021d6970..3f287f21be57320732f7056380800ac0
      public List<MobEffect> effects;
      private final Map<Entity, Integer> affectedEntities;
 diff --git a/src/main/java/net/minecraft/server/EntityArmorStand.java b/src/main/java/net/minecraft/server/EntityArmorStand.java
-index 937fa3c69a5cba2fc2fa4506dc34ff8a37dae19c..5ac7f2b86ce9a1153835f250253fa5a98d53d20f 100644
+index 66597c6e1add4df2f093480f507f03788a3eb30b..ff96e6d0853ad5fb88d97c855601702a79c02ef5 100644
 --- a/src/main/java/net/minecraft/server/EntityArmorStand.java
 +++ b/src/main/java/net/minecraft/server/EntityArmorStand.java
 @@ -6,6 +6,7 @@ import java.util.function.Predicate;
@@ -151,7 +151,7 @@ index 937fa3c69a5cba2fc2fa4506dc34ff8a37dae19c..5ac7f2b86ce9a1153835f250253fa5a9
          return entity instanceof EntityMinecartAbstract && ((EntityMinecartAbstract) entity).getMinecartType() == EntityMinecartAbstract.EnumMinecartType.RIDEABLE;
      };
 diff --git a/src/main/java/net/minecraft/server/EntityArrow.java b/src/main/java/net/minecraft/server/EntityArrow.java
-index b0218959a0e553b034745802765e0f93b62b32fb..78d528012ffec5c9263bb0b10ba23bba2076849d 100644
+index 1e7f5957d879d1ba8cf2b29cf9397b8e204e4381..15e1f3440bf08233006cf27243df877b68da63e7 100644
 --- a/src/main/java/net/minecraft/server/EntityArrow.java
 +++ b/src/main/java/net/minecraft/server/EntityArrow.java
 @@ -9,6 +9,7 @@ import java.util.List;
@@ -174,7 +174,7 @@ index b0218959a0e553b034745802765e0f93b62b32fb..78d528012ffec5c9263bb0b10ba23bba
      private IBlockData ag;
      public boolean inGround;
 diff --git a/src/main/java/net/minecraft/server/EntityBat.java b/src/main/java/net/minecraft/server/EntityBat.java
-index af67cf86839e3b8c028d47fd9b65513e0ab24e70..1126fd3736d15c656d0cc379406919d14b82b0b0 100644
+index 38ce3563106b02bfefb54a637713f27262ff258f..bc6ea60e4427e79f56a819a0a7e56bad9304cdbb 100644
 --- a/src/main/java/net/minecraft/server/EntityBat.java
 +++ b/src/main/java/net/minecraft/server/EntityBat.java
 @@ -4,11 +4,16 @@ import java.time.LocalDate;
@@ -195,7 +195,7 @@ index af67cf86839e3b8c028d47fd9b65513e0ab24e70..1126fd3736d15c656d0cc379406919d1
      private BlockPosition d;
  
 diff --git a/src/main/java/net/minecraft/server/EntityBee.java b/src/main/java/net/minecraft/server/EntityBee.java
-index b1ff30fb1569ddf59f46240266ce32f0aa96da1a..07d167555b328a093be838f5995c05be6fd2eda9 100644
+index f73641ddb3e82bc653732105ef0a3d41a28e845f..6530649ea29481e876e04c29f20b1e2eb3ce3ad6 100644
 --- a/src/main/java/net/minecraft/server/EntityBee.java
 +++ b/src/main/java/net/minecraft/server/EntityBee.java
 @@ -1,6 +1,8 @@
@@ -219,7 +219,7 @@ index b1ff30fb1569ddf59f46240266ce32f0aa96da1a..07d167555b328a093be838f5995c05be
      private UUID br;
      private float bs;
 diff --git a/src/main/java/net/minecraft/server/EntityBoat.java b/src/main/java/net/minecraft/server/EntityBoat.java
-index 5d14c235b4badfc49d5f3cd83c159c1775782ea6..8bd54a42e9b2e27a7cb34f753a2bc858e012b451 100644
+index 45fea38933d57e52dea19317c65682d57114a077..b599813b059ec670fdcd70236ab851d5f193e5b1 100644
 --- a/src/main/java/net/minecraft/server/EntityBoat.java
 +++ b/src/main/java/net/minecraft/server/EntityBoat.java
 @@ -5,6 +5,7 @@ import java.util.List;
@@ -247,7 +247,7 @@ index 5d14c235b4badfc49d5f3cd83c159c1775782ea6..8bd54a42e9b2e27a7cb34f753a2bc858
      private float ai;
      private float aj;
 diff --git a/src/main/java/net/minecraft/server/EntityCat.java b/src/main/java/net/minecraft/server/EntityCat.java
-index 3148863984c9acb8611831551acc44bcab14f757..f8978abc9ffbbd4b2384e5ea029aa3b231cdc080 100644
+index 957a351c3f6c4f66d7af6657ab0c3cbeed94662f..9be02b1513c33792a75ce5b64913743ad6a1d83d 100644
 --- a/src/main/java/net/minecraft/server/EntityCat.java
 +++ b/src/main/java/net/minecraft/server/EntityCat.java
 @@ -1,6 +1,8 @@
@@ -273,7 +273,7 @@ index 3148863984c9acb8611831551acc44bcab14f757..f8978abc9ffbbd4b2384e5ea029aa3b2
          hashmap.put(0, new MinecraftKey("textures/entity/cat/tabby.png"));
          hashmap.put(1, new MinecraftKey("textures/entity/cat/black.png"));
 diff --git a/src/main/java/net/minecraft/server/EntityCreeper.java b/src/main/java/net/minecraft/server/EntityCreeper.java
-index ad422dfafbfcf62f6aa483dafa9764c274414d8d..dae0d1abce55da3acd4e9e226c51a1c44920a2dc 100644
+index 79ef955070b2982be79cc58e40093624bd088ff0..ee117f66ef57a67fad9d5bf6e834a253eda682c5 100644
 --- a/src/main/java/net/minecraft/server/EntityCreeper.java
 +++ b/src/main/java/net/minecraft/server/EntityCreeper.java
 @@ -3,6 +3,7 @@ package net.minecraft.server;
@@ -297,7 +297,7 @@ index ad422dfafbfcf62f6aa483dafa9764c274414d8d..dae0d1abce55da3acd4e9e226c51a1c4
      public int fuseTicks; // Paper - public
      public int maxFuseTicks = 30;
 diff --git a/src/main/java/net/minecraft/server/EntityDolphin.java b/src/main/java/net/minecraft/server/EntityDolphin.java
-index b5191eb0b10c90d5cd6be2fa68e955b7d625b4c6..c0d21d46093631b421ce1ed07e50307c182c234c 100644
+index 2916ee89ef7a14619703dfbe7efd5c78a2f34337..0f4dbcfad7017d724958618d88ee8e0d4c461bc5 100644
 --- a/src/main/java/net/minecraft/server/EntityDolphin.java
 +++ b/src/main/java/net/minecraft/server/EntityDolphin.java
 @@ -1,5 +1,7 @@
@@ -321,7 +321,7 @@ index b5191eb0b10c90d5cd6be2fa68e955b7d625b4c6..c0d21d46093631b421ce1ed07e50307c
      public static final Predicate<EntityItem> b = (entityitem) -> {
          return !entityitem.p() && entityitem.isAlive() && entityitem.isInWater();
 diff --git a/src/main/java/net/minecraft/server/EntityInsentient.java b/src/main/java/net/minecraft/server/EntityInsentient.java
-index 04eff01825bcf4cc38a749902065a5f54e73f1d7..a306784fe4cf182989e4c22ec5a30a5bff2577cb 100644
+index 7ddf276732a58c998c733aaaeee3e1bfc614ea0a..849ed362b2eb9d6f1f79f703ec67d96008ab01f7 100644
 --- a/src/main/java/net/minecraft/server/EntityInsentient.java
 +++ b/src/main/java/net/minecraft/server/EntityInsentient.java
 @@ -11,6 +11,7 @@ import java.util.UUID;
@@ -343,7 +343,7 @@ index 04eff01825bcf4cc38a749902065a5f54e73f1d7..a306784fe4cf182989e4c22ec5a30a5b
      protected int f;
      protected ControllerLook lookController;
 diff --git a/src/main/java/net/minecraft/server/EntityLiving.java b/src/main/java/net/minecraft/server/EntityLiving.java
-index 76185f042dd773f267dc7574116cec7bd8a28ca8..753a7ab647f22b622261706f6b72e0fb1ef8c2ec 100644
+index fe0334b505de64ae1d96c4f0b6e66313d2b40010..fd898252a4e24775ac97a0dc56ec06cd3954f339 100644
 --- a/src/main/java/net/minecraft/server/EntityLiving.java
 +++ b/src/main/java/net/minecraft/server/EntityLiving.java
 @@ -20,6 +20,8 @@ import java.util.Random;

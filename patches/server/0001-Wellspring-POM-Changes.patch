@@ -5,7 +5,7 @@ Subject: [PATCH] Wellspring POM Changes
 
 
 diff --git a/pom.xml b/pom.xml
-index add3a9c1a9ea823a62783351cfb4cf4269752c26..ce7a39dc878acfb7728801baa1531d8a4753912d 100644
+index 80f165291385f5f54def1a8e8487b209fb06a4a3..94a88cc1a7e6318fc9a851f1ec3785492fcaadc1 100644
 --- a/pom.xml
 +++ b/pom.xml
 @@ -1,11 +1,11 @@
@@ -15,7 +15,7 @@ index add3a9c1a9ea823a62783351cfb4cf4269752c26..ce7a39dc878acfb7728801baa1531d8a
 -    <artifactId>paper</artifactId>
 +    <artifactId>wellspring</artifactId>
      <packaging>jar</packaging>
-     <version>1.16.3-R0.1-SNAPSHOT</version>
+     <version>1.16.4-R0.1-SNAPSHOT</version>
 -    <name>Paper</name>
 -    <url>https://papermc.io</url>
 +    <name>Wellspring-Server</name>

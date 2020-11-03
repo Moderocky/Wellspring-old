@@ -5,7 +5,7 @@ Subject: [PATCH] Pickup radii and attempt method.
 
 
 diff --git a/src/main/java/net/minecraft/server/EntityHuman.java b/src/main/java/net/minecraft/server/EntityHuman.java
-index ce4ebc96c01f3dacf4e4d0569d86f52140440d43..9502d72f3a2b376302f75d17d16c08eac43c37f7 100644
+index caaa01b20e5b7430b809477022f8ab35f3c5bf20..2ce93f837e98b90b94196b8c9c9f3faefaddeb79 100644
 --- a/src/main/java/net/minecraft/server/EntityHuman.java
 +++ b/src/main/java/net/minecraft/server/EntityHuman.java
 @@ -78,6 +78,9 @@ public abstract class EntityHuman extends EntityLiving {

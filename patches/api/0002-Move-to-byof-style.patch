@@ -6,7 +6,7 @@ Subject: [PATCH] Move to byof style.
 Fix missed block NBT.
 
 diff --git a/pom.xml b/pom.xml
-index 3b28efedcbf7eba68f9a0dc68692aa8920ca5b53..4f306d6e36d2be7ec0e17be06bc9a9a8985a60d1 100644
+index 8151b8092fac46d2ac20eadb290e1e0d8e7663d2..4913ab599f7a53abfd57b1693a16fc726f53866d 100644
 --- a/pom.xml
 +++ b/pom.xml
 @@ -15,7 +15,7 @@
@@ -3246,7 +3246,7 @@ index 0000000000000000000000000000000000000000..bfac1922c3463ed537cea8b3bac8a575
 +
 +}
 diff --git a/src/main/java/org/bukkit/Bukkit.java b/src/main/java/org/bukkit/Bukkit.java
-index bfe842364ee0a4bf39dacdbb6972477d57a4ef8a..6fda50e92435efcf015dd217eb6dc44b7dd9db01 100644
+index 464b2161f42a9a3969336820bc793274f4d6e942..d1473d1ddb863bed0a2ca8e70802ddb755311658 100644
 --- a/src/main/java/org/bukkit/Bukkit.java
 +++ b/src/main/java/org/bukkit/Bukkit.java
 @@ -12,9 +12,18 @@ import java.util.Map;
@@ -3284,7 +3284,7 @@ index bfe842364ee0a4bf39dacdbb6972477d57a4ef8a..6fda50e92435efcf015dd217eb6dc44b
  import org.bukkit.plugin.PluginManager;
  import org.bukkit.plugin.ServicesManager;
  import org.bukkit.plugin.messaging.Messenger;
-@@ -1783,6 +1794,220 @@ public final class Bukkit {
+@@ -1804,6 +1815,220 @@ public final class Bukkit {
      }
      // Paper end
  
@@ -3597,7 +3597,7 @@ index d3f346413ed92db46d4b5d8f3437ac0cb55adf37..7b95abeedf29cc253ab47814e0185114
       * Server biomes.
       *
 diff --git a/src/main/java/org/bukkit/Server.java b/src/main/java/org/bukkit/Server.java
-index 7c0a788900c93c29d14d8c45ac5ae3317cf4a94e..73e1488ff070c29cbdeef9c6584f8353859b699c 100644
+index 3e6331807f2c411cef3c2774a503f162685e8b46..014fd7cd333052478c6794fd49a0a2f6be9882d0 100644
 --- a/src/main/java/org/bukkit/Server.java
 +++ b/src/main/java/org/bukkit/Server.java
 @@ -12,9 +12,18 @@ import java.util.Map;
@@ -3635,7 +3635,7 @@ index 7c0a788900c93c29d14d8c45ac5ae3317cf4a94e..73e1488ff070c29cbdeef9c6584f8353
  import org.bukkit.plugin.PluginManager;
  import org.bukkit.plugin.ServicesManager;
  import org.bukkit.plugin.messaging.Messenger;
-@@ -1420,6 +1431,101 @@ public interface Server extends PluginMessageRecipient {
+@@ -1439,6 +1450,101 @@ public interface Server extends PluginMessageRecipient {
      @NotNull
      List<Entity> selectEntities(@NotNull CommandSender sender, @NotNull String selector) throws IllegalArgumentException;
  

@@ -5,10 +5,10 @@ Subject: [PATCH] Fix git error.
 
 
 diff --git a/src/main/java/org/bukkit/Bukkit.java b/src/main/java/org/bukkit/Bukkit.java
-index 6fda50e92435efcf015dd217eb6dc44b7dd9db01..52807e52a6f4e58a1c00d57ba6e00bb844c8dc51 100644
+index d1473d1ddb863bed0a2ca8e70802ddb755311658..76e9916815ce5529238b2d303a09f2201914bca3 100644
 --- a/src/main/java/org/bukkit/Bukkit.java
 +++ b/src/main/java/org/bukkit/Bukkit.java
-@@ -1794,46 +1794,6 @@ public final class Bukkit {
+@@ -1815,46 +1815,6 @@ public final class Bukkit {
      }
      // Paper end
  
@@ -55,7 +55,7 @@ index 6fda50e92435efcf015dd217eb6dc44b7dd9db01..52807e52a6f4e58a1c00d57ba6e00bb8
      // Kenzie start - attachments
  
      /**
-@@ -1950,64 +1910,6 @@ public final class Bukkit {
+@@ -1971,64 +1931,6 @@ public final class Bukkit {
      }
      // Kenzie end
  

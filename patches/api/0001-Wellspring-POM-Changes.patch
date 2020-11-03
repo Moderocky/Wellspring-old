@@ -5,7 +5,7 @@ Subject: [PATCH] Wellspring POM Changes
 
 
 diff --git a/pom.xml b/pom.xml
-index 29dafd4b937e635bcce7b3712122ad3452fedfc2..3b28efedcbf7eba68f9a0dc68692aa8920ca5b53 100644
+index 1c33b1f4d2366116dd45478b8ad9cdb51fd6bb57..8151b8092fac46d2ac20eadb290e1e0d8e7663d2 100644
 --- a/pom.xml
 +++ b/pom.xml
 @@ -3,18 +3,18 @@
@@ -23,7 +23,7 @@ index 29dafd4b937e635bcce7b3712122ad3452fedfc2..3b28efedcbf7eba68f9a0dc68692aa89
 -    <groupId>com.destroystokyo.paper</groupId>
 -    <artifactId>paper-api</artifactId>
 +    <artifactId>wellspring-api</artifactId>
-     <version>1.16.3-R0.1-SNAPSHOT</version>
+     <version>1.16.4-R0.1-SNAPSHOT</version>
      <packaging>jar</packaging>
  
 -    <name>Paper-API</name>

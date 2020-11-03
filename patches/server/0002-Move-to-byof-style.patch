@@ -1424,7 +1424,7 @@ index 0000000000000000000000000000000000000000..18450b649f46babfb1f44e34b8504cc9
 +
 +}
 diff --git a/src/main/java/net/minecraft/server/AttributeDefaults.java b/src/main/java/net/minecraft/server/AttributeDefaults.java
-index da66cf0a459f06124f5f4615a5e47241865b10a9..1e2a3c32ceffb97b89306bf5562ec4a997152d1e 100644
+index 8f95a4e49714e352b9cdf82d7f4acdd3459978ad..1e2a3c32ceffb97b89306bf5562ec4a997152d1e 100644
 --- a/src/main/java/net/minecraft/server/AttributeDefaults.java
 +++ b/src/main/java/net/minecraft/server/AttributeDefaults.java
 @@ -1,6 +1,8 @@
@@ -1440,7 +1440,7 @@ index da66cf0a459f06124f5f4615a5e47241865b10a9..1e2a3c32ceffb97b89306bf5562ec4a9
  public class AttributeDefaults {
  
      private static final Logger LOGGER = LogManager.getLogger();
--    private static final Map<EntityTypes<? extends EntityLiving>, AttributeProvider> b = ImmutableMap.builder().put(EntityTypes.ARMOR_STAND, EntityLiving.cK().a()).put(EntityTypes.BAT, EntityBat.m().a()).put(EntityTypes.BEE, EntityBee.eZ().a()).put(EntityTypes.BLAZE, EntityBlaze.m().a()).put(EntityTypes.CAT, EntityCat.fa().a()).put(EntityTypes.CAVE_SPIDER, EntityCaveSpider.m().a()).put(EntityTypes.CHICKEN, EntityChicken.eK().a()).put(EntityTypes.COD, EntityFish.m().a()).put(EntityTypes.COW, EntityCow.eK().a()).put(EntityTypes.CREEPER, EntityCreeper.m().a()).put(EntityTypes.DOLPHIN, EntityDolphin.eM().a()).put(EntityTypes.DONKEY, EntityHorseChestedAbstract.eL().a()).put(EntityTypes.DROWNED, EntityZombie.eS().a()).put(EntityTypes.ELDER_GUARDIAN, EntityGuardianElder.m().a()).put(EntityTypes.ENDERMAN, EntityEnderman.m().a()).put(EntityTypes.ENDERMITE, EntityEndermite.m().a()).put(EntityTypes.ENDER_DRAGON, EntityEnderDragon.m().a()).put(EntityTypes.EVOKER, EntityEvoker.eK().a()).put(EntityTypes.FOX, EntityFox.eK().a()).put(EntityTypes.GHAST, EntityGhast.eJ().a()).put(EntityTypes.GIANT, EntityGiantZombie.m().a()).put(EntityTypes.GUARDIAN, EntityGuardian.eM().a()).put(EntityTypes.HOGLIN, EntityHoglin.eK().a()).put(EntityTypes.HORSE, EntityHorseAbstract.fi().a()).put(EntityTypes.HUSK, EntityZombie.eS().a()).put(EntityTypes.ILLUSIONER, EntityIllagerIllusioner.eK().a()).put(EntityTypes.IRON_GOLEM, EntityIronGolem.m().a()).put(EntityTypes.LLAMA, EntityLlama.fw().a()).put(EntityTypes.MAGMA_CUBE, EntityMagmaCube.m().a()).put(EntityTypes.MOOSHROOM, EntityCow.eK().a()).put(EntityTypes.MULE, EntityHorseChestedAbstract.eL().a()).put(EntityTypes.OCELOT, EntityOcelot.eK().a()).put(EntityTypes.PANDA, EntityPanda.eY().a()).put(EntityTypes.PARROT, EntityParrot.eU().a()).put(EntityTypes.PHANTOM, EntityMonster.eR().a()).put(EntityTypes.PIG, EntityPig.eK().a()).put(EntityTypes.PIGLIN, EntityPiglin.eT().a()).put(EntityTypes.PIGLIN_BRUTE, EntityPiglinBrute.eS().a()).put(EntityTypes.PILLAGER, EntityPillager.eK().a()).put(EntityTypes.PLAYER, EntityHuman.eo().a()).put(EntityTypes.POLAR_BEAR, EntityPolarBear.eK().a()).put(EntityTypes.PUFFERFISH, EntityFish.m().a()).put(EntityTypes.RABBIT, EntityRabbit.eL().a()).put(EntityTypes.RAVAGER, EntityRavager.m().a()).put(EntityTypes.SALMON, EntityFish.m().a()).put(EntityTypes.SHEEP, EntitySheep.eK().a()).put(EntityTypes.SHULKER, EntityShulker.m().a()).put(EntityTypes.SILVERFISH, EntitySilverfish.m().a()).put(EntityTypes.SKELETON, EntitySkeletonAbstract.m().a()).put(EntityTypes.SKELETON_HORSE, EntityHorseSkeleton.eL().a()).put(EntityTypes.SLIME, EntityMonster.eR().a()).put(EntityTypes.SNOW_GOLEM, EntitySnowman.m().a()).put(EntityTypes.SPIDER, EntitySpider.eK().a()).put(EntityTypes.SQUID, EntitySquid.m().a()).put(EntityTypes.STRAY, EntitySkeletonAbstract.m().a()).put(EntityTypes.STRIDER, EntityStrider.eM().a()).put(EntityTypes.TRADER_LLAMA, EntityLlama.fw().a()).put(EntityTypes.TROPICAL_FISH, EntityFish.m().a()).put(EntityTypes.TURTLE, EntityTurtle.eM().a()).put(EntityTypes.VEX, EntityVex.m().a()).put(EntityTypes.VILLAGER, EntityVillager.eY().a()).put(EntityTypes.VINDICATOR, EntityVindicator.eK().a()).put(EntityTypes.WANDERING_TRADER, EntityInsentient.p().a()).put(EntityTypes.WITCH, EntityWitch.eK().a()).put(EntityTypes.WITHER, EntityWither.eK().a()).put(EntityTypes.WITHER_SKELETON, EntitySkeletonAbstract.m().a()).put(EntityTypes.WOLF, EntityWolf.eU().a()).put(EntityTypes.ZOGLIN, EntityZoglin.m().a()).put(EntityTypes.ZOMBIE, EntityZombie.eS().a()).put(EntityTypes.ZOMBIE_HORSE, EntityHorseZombie.eL().a()).put(EntityTypes.ZOMBIE_VILLAGER, EntityZombie.eS().a()).put(EntityTypes.ZOMBIFIED_PIGLIN, EntityPigZombie.eW().a()).build();
+-    private static final Map<EntityTypes<? extends EntityLiving>, AttributeProvider> b = ImmutableMap.builder().put(EntityTypes.ARMOR_STAND, EntityLiving.cL().a()).put(EntityTypes.BAT, EntityBat.m().a()).put(EntityTypes.BEE, EntityBee.eZ().a()).put(EntityTypes.BLAZE, EntityBlaze.m().a()).put(EntityTypes.CAT, EntityCat.fa().a()).put(EntityTypes.CAVE_SPIDER, EntityCaveSpider.m().a()).put(EntityTypes.CHICKEN, EntityChicken.eK().a()).put(EntityTypes.COD, EntityFish.m().a()).put(EntityTypes.COW, EntityCow.eK().a()).put(EntityTypes.CREEPER, EntityCreeper.m().a()).put(EntityTypes.DOLPHIN, EntityDolphin.eM().a()).put(EntityTypes.DONKEY, EntityHorseChestedAbstract.eL().a()).put(EntityTypes.DROWNED, EntityZombie.eS().a()).put(EntityTypes.ELDER_GUARDIAN, EntityGuardianElder.m().a()).put(EntityTypes.ENDERMAN, EntityEnderman.m().a()).put(EntityTypes.ENDERMITE, EntityEndermite.m().a()).put(EntityTypes.ENDER_DRAGON, EntityEnderDragon.m().a()).put(EntityTypes.EVOKER, EntityEvoker.eK().a()).put(EntityTypes.FOX, EntityFox.eK().a()).put(EntityTypes.GHAST, EntityGhast.eJ().a()).put(EntityTypes.GIANT, EntityGiantZombie.m().a()).put(EntityTypes.GUARDIAN, EntityGuardian.eM().a()).put(EntityTypes.HOGLIN, EntityHoglin.eK().a()).put(EntityTypes.HORSE, EntityHorseAbstract.fi().a()).put(EntityTypes.HUSK, EntityZombie.eS().a()).put(EntityTypes.ILLUSIONER, EntityIllagerIllusioner.eK().a()).put(EntityTypes.IRON_GOLEM, EntityIronGolem.m().a()).put(EntityTypes.LLAMA, EntityLlama.fw().a()).put(EntityTypes.MAGMA_CUBE, EntityMagmaCube.m().a()).put(EntityTypes.MOOSHROOM, EntityCow.eK().a()).put(EntityTypes.MULE, EntityHorseChestedAbstract.eL().a()).put(EntityTypes.OCELOT, EntityOcelot.eK().a()).put(EntityTypes.PANDA, EntityPanda.eY().a()).put(EntityTypes.PARROT, EntityParrot.eU().a()).put(EntityTypes.PHANTOM, EntityMonster.eR().a()).put(EntityTypes.PIG, EntityPig.eK().a()).put(EntityTypes.PIGLIN, EntityPiglin.eT().a()).put(EntityTypes.PIGLIN_BRUTE, EntityPiglinBrute.eS().a()).put(EntityTypes.PILLAGER, EntityPillager.eK().a()).put(EntityTypes.PLAYER, EntityHuman.ep().a()).put(EntityTypes.POLAR_BEAR, EntityPolarBear.eK().a()).put(EntityTypes.PUFFERFISH, EntityFish.m().a()).put(EntityTypes.RABBIT, EntityRabbit.eL().a()).put(EntityTypes.RAVAGER, EntityRavager.m().a()).put(EntityTypes.SALMON, EntityFish.m().a()).put(EntityTypes.SHEEP, EntitySheep.eK().a()).put(EntityTypes.SHULKER, EntityShulker.m().a()).put(EntityTypes.SILVERFISH, EntitySilverfish.m().a()).put(EntityTypes.SKELETON, EntitySkeletonAbstract.m().a()).put(EntityTypes.SKELETON_HORSE, EntityHorseSkeleton.eL().a()).put(EntityTypes.SLIME, EntityMonster.eR().a()).put(EntityTypes.SNOW_GOLEM, EntitySnowman.m().a()).put(EntityTypes.SPIDER, EntitySpider.eK().a()).put(EntityTypes.SQUID, EntitySquid.m().a()).put(EntityTypes.STRAY, EntitySkeletonAbstract.m().a()).put(EntityTypes.STRIDER, EntityStrider.eM().a()).put(EntityTypes.TRADER_LLAMA, EntityLlama.fw().a()).put(EntityTypes.TROPICAL_FISH, EntityFish.m().a()).put(EntityTypes.TURTLE, EntityTurtle.eM().a()).put(EntityTypes.VEX, EntityVex.m().a()).put(EntityTypes.VILLAGER, EntityVillager.eY().a()).put(EntityTypes.VINDICATOR, EntityVindicator.eK().a()).put(EntityTypes.WANDERING_TRADER, EntityInsentient.p().a()).put(EntityTypes.WITCH, EntityWitch.eK().a()).put(EntityTypes.WITHER, EntityWither.eK().a()).put(EntityTypes.WITHER_SKELETON, EntitySkeletonAbstract.m().a()).put(EntityTypes.WOLF, EntityWolf.eU().a()).put(EntityTypes.ZOGLIN, EntityZoglin.m().a()).put(EntityTypes.ZOMBIE, EntityZombie.eS().a()).put(EntityTypes.ZOMBIE_HORSE, EntityHorseZombie.eL().a()).put(EntityTypes.ZOMBIE_VILLAGER, EntityZombie.eS().a()).put(EntityTypes.ZOMBIFIED_PIGLIN, EntityPigZombie.eW().a()).build();
 +    // Kenzie - make mutable for subsequent access
 +    private static final Map<EntityTypes<? extends EntityLiving>, AttributeProvider> b = new HashMap<>(ImmutableMap.<EntityTypes<? extends EntityLiving>, AttributeProvider>builder().put(EntityTypes.ARMOR_STAND, EntityLiving.cK().a()).put(EntityTypes.BAT, EntityBat.m().a()).put(EntityTypes.BEE, EntityBee.eZ().a()).put(EntityTypes.BLAZE, EntityBlaze.m().a()).put(EntityTypes.CAT, EntityCat.fa().a()).put(EntityTypes.CAVE_SPIDER, EntityCaveSpider.m().a()).put(EntityTypes.CHICKEN, EntityChicken.eK().a()).put(EntityTypes.COD, EntityFish.m().a()).put(EntityTypes.COW, EntityCow.eK().a()).put(EntityTypes.CREEPER, EntityCreeper.m().a()).put(EntityTypes.DOLPHIN, EntityDolphin.eM().a()).put(EntityTypes.DONKEY, EntityHorseChestedAbstract.eL().a()).put(EntityTypes.DROWNED, EntityZombie.eS().a()).put(EntityTypes.ELDER_GUARDIAN, EntityGuardianElder.m().a()).put(EntityTypes.ENDERMAN, EntityEnderman.m().a()).put(EntityTypes.ENDERMITE, EntityEndermite.m().a()).put(EntityTypes.ENDER_DRAGON, EntityEnderDragon.m().a()).put(EntityTypes.EVOKER, EntityEvoker.eK().a()).put(EntityTypes.FOX, EntityFox.eK().a()).put(EntityTypes.GHAST, EntityGhast.eJ().a()).put(EntityTypes.GIANT, EntityGiantZombie.m().a()).put(EntityTypes.GUARDIAN, EntityGuardian.eM().a()).put(EntityTypes.HOGLIN, EntityHoglin.eK().a()).put(EntityTypes.HORSE, EntityHorseAbstract.fi().a()).put(EntityTypes.HUSK, EntityZombie.eS().a()).put(EntityTypes.ILLUSIONER, EntityIllagerIllusioner.eK().a()).put(EntityTypes.IRON_GOLEM, EntityIronGolem.m().a()).put(EntityTypes.LLAMA, EntityLlama.fw().a()).put(EntityTypes.MAGMA_CUBE, EntityMagmaCube.m().a()).put(EntityTypes.MOOSHROOM, EntityCow.eK().a()).put(EntityTypes.MULE, EntityHorseChestedAbstract.eL().a()).put(EntityTypes.OCELOT, EntityOcelot.eK().a()).put(EntityTypes.PANDA, EntityPanda.eY().a()).put(EntityTypes.PARROT, EntityParrot.eU().a()).put(EntityTypes.PHANTOM, EntityMonster.eR().a()).put(EntityTypes.PIG, EntityPig.eK().a()).put(EntityTypes.PIGLIN, EntityPiglin.eT().a()).put(EntityTypes.PIGLIN_BRUTE, EntityPiglinBrute.eS().a()).put(EntityTypes.PILLAGER, EntityPillager.eK().a()).put(EntityTypes.PLAYER, EntityHuman.eo().a()).put(EntityTypes.POLAR_BEAR, EntityPolarBear.eK().a()).put(EntityTypes.PUFFERFISH, EntityFish.m().a()).put(EntityTypes.RABBIT, EntityRabbit.eL().a()).put(EntityTypes.RAVAGER, EntityRavager.m().a()).put(EntityTypes.SALMON, EntityFish.m().a()).put(EntityTypes.SHEEP, EntitySheep.eK().a()).put(EntityTypes.SHULKER, EntityShulker.m().a()).put(EntityTypes.SILVERFISH, EntitySilverfish.m().a()).put(EntityTypes.SKELETON, EntitySkeletonAbstract.m().a()).put(EntityTypes.SKELETON_HORSE, EntityHorseSkeleton.eL().a()).put(EntityTypes.SLIME, EntityMonster.eR().a()).put(EntityTypes.SNOW_GOLEM, EntitySnowman.m().a()).put(EntityTypes.SPIDER, EntitySpider.eK().a()).put(EntityTypes.SQUID, EntitySquid.m().a()).put(EntityTypes.STRAY, EntitySkeletonAbstract.m().a()).put(EntityTypes.STRIDER, EntityStrider.eM().a()).put(EntityTypes.TRADER_LLAMA, EntityLlama.fw().a()).put(EntityTypes.TROPICAL_FISH, EntityFish.m().a()).put(EntityTypes.TURTLE, EntityTurtle.eM().a()).put(EntityTypes.VEX, EntityVex.m().a()).put(EntityTypes.VILLAGER, EntityVillager.eY().a()).put(EntityTypes.VINDICATOR, EntityVindicator.eK().a()).put(EntityTypes.WANDERING_TRADER, EntityInsentient.p().a()).put(EntityTypes.WITCH, EntityWitch.eK().a()).put(EntityTypes.WITHER, EntityWither.eK().a()).put(EntityTypes.WITHER_SKELETON, EntitySkeletonAbstract.m().a()).put(EntityTypes.WOLF, EntityWolf.eU().a()).put(EntityTypes.ZOGLIN, EntityZoglin.m().a()).put(EntityTypes.ZOMBIE, EntityZombie.eS().a()).put(EntityTypes.ZOMBIE_HORSE, EntityHorseZombie.eL().a()).put(EntityTypes.ZOMBIE_VILLAGER, EntityZombie.eS().a()).put(EntityTypes.ZOMBIFIED_PIGLIN, EntityPigZombie.eW().a()).build());
  
@@ -1643,7 +1643,7 @@ index dd235a6fc4bc731a344d7211879f9b40bb622c3e..120042783fd5b2aed8f989a08063dac4
          }
  
 diff --git a/src/main/java/net/minecraft/server/Chunk.java b/src/main/java/net/minecraft/server/Chunk.java
-index 299d7d7a55532930e2d4340a6cfe77a5fd8a0a0c..85a9ef6d2ee06a9f85af47e4669044bf82a3975b 100644
+index dcbae1c4512cf267719934785ea60de8ae66052d..813e8091c3610623c917b151e44ec2159759ddee 100644
 --- a/src/main/java/net/minecraft/server/Chunk.java
 +++ b/src/main/java/net/minecraft/server/Chunk.java
 @@ -7,23 +7,23 @@ import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
@@ -1709,7 +1709,7 @@ index 299d7d7a55532930e2d4340a6cfe77a5fd8a0a0c..85a9ef6d2ee06a9f85af47e4669044bf
      public final co.aikar.util.Counter<String> entityCounts = new co.aikar.util.Counter<>();
      public final co.aikar.util.Counter<String> tileEntityCounts = new co.aikar.util.Counter<>();
 diff --git a/src/main/java/net/minecraft/server/ChunkRegionLoader.java b/src/main/java/net/minecraft/server/ChunkRegionLoader.java
-index a0353da423b13ce9be48a0ed194c0182808800d2..5d41318fb83cd90970cb889e19413c54f557b1cb 100644
+index 8e7da2c5f3852920ec5fbcdd2bff4d299e6aa499..96972af348ac72e4460b36c028f7a9c749e916d5 100644
 --- a/src/main/java/net/minecraft/server/ChunkRegionLoader.java
 +++ b/src/main/java/net/minecraft/server/ChunkRegionLoader.java
 @@ -115,6 +115,22 @@ public class ChunkRegionLoader {
@@ -1735,7 +1735,7 @@ index a0353da423b13ce9be48a0ed194c0182808800d2..5d41318fb83cd90970cb889e19413c54
              }
  
              if (flag) {
-@@ -428,6 +444,26 @@ public class ChunkRegionLoader {
+@@ -441,6 +457,26 @@ public class ChunkRegionLoader {
                  nbttagcompound2.setByte("Y", (byte) (i & 255));
                  if (chunksection != Chunk.a) {
                      chunksection.getBlocks().a(nbttagcompound2, "Palette", "BlockStates");
@@ -2459,7 +2459,7 @@ index 7e2162fc78168adb96ed20651e1a3e061c29f96d..8ba31c04f12a9d6562f013dfb9442398
  
          public int a() {
 diff --git a/src/main/java/net/minecraft/server/Entity.java b/src/main/java/net/minecraft/server/Entity.java
-index b845e488e3b9a4f19d1fcf169533046b7e72ba28..d97f8134a27bec7894c0c50071149b5ae8710601 100644
+index 0c952fea30aa6890809d728420e4710d95e10c19..4429aa5dcee83bf5de13700d4b0fc2e22f452c9e 100644
 --- a/src/main/java/net/minecraft/server/Entity.java
 +++ b/src/main/java/net/minecraft/server/Entity.java
 @@ -18,6 +18,8 @@ import java.util.UUID;
@@ -2491,7 +2491,7 @@ index b845e488e3b9a4f19d1fcf169533046b7e72ba28..d97f8134a27bec7894c0c50071149b5a
          this.dead = true;
      }
  
-@@ -629,7 +637,11 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
+@@ -630,7 +638,11 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
              this.world.getMethodProfiler().enter("rest");
              this.positionChanged = !MathHelper.b(vec3d.x, vec3d1.x) || !MathHelper.b(vec3d.z, vec3d1.z);
              this.v = vec3d.y != vec3d1.y;
@@ -2500,10 +2500,10 @@ index b845e488e3b9a4f19d1fcf169533046b7e72ba28..d97f8134a27bec7894c0c50071149b5a
 +            if (onGround && !previousOnGround) { // Kenzie - Fall event
 +                new EntityLandEvent(getBukkitEntity()).callEvent();
 +            }
-             BlockPosition blockposition = this.ao();
+             BlockPosition blockposition = this.ap();
              IBlockData iblockdata = this.world.getType(blockposition);
  
-@@ -1618,6 +1630,8 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
+@@ -1619,6 +1631,8 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
  
              // CraftBukkit start - stores eventually existing bukkit values
              if (this.bukkitEntity != null) {
@@ -2512,7 +2512,7 @@ index b845e488e3b9a4f19d1fcf169533046b7e72ba28..d97f8134a27bec7894c0c50071149b5a
                  this.bukkitEntity.storeBukkitValues(nbttagcompound);
              }
              // CraftBukkit end
-@@ -1789,6 +1803,10 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
+@@ -1790,6 +1804,10 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
                  spawnReason = org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason.DEFAULT;
              }
              // Paper end
@@ -2524,7 +2524,7 @@ index b845e488e3b9a4f19d1fcf169533046b7e72ba28..d97f8134a27bec7894c0c50071149b5a
          } catch (Throwable throwable) {
              CrashReport crashreport = CrashReport.a(throwable, "Loading entity NBT");
 diff --git a/src/main/java/net/minecraft/server/EntityItemFrame.java b/src/main/java/net/minecraft/server/EntityItemFrame.java
-index b61876affd09b4bcd2062fd725b8525edc68b054..db6e5ec8b79380b2939cc8667c31d5a620d78711 100644
+index 16c8f2cdf7120337bec6f1d28822f3219c7d2d8f..54a11c238ce720179a1a4cdd76e246768d81563e 100644
 --- a/src/main/java/net/minecraft/server/EntityItemFrame.java
 +++ b/src/main/java/net/minecraft/server/EntityItemFrame.java
 @@ -372,6 +372,6 @@ public class EntityItemFrame extends EntityHanging {
@@ -4153,7 +4153,7 @@ index d27b4be211cce4f8754732021f0a31852d748b17..e3ddcf9fc41da4969d017ec9548a25dd
 +    }
  }
 diff --git a/src/main/java/net/minecraft/server/TileEntity.java b/src/main/java/net/minecraft/server/TileEntity.java
-index d32540c88bb902e9c191142a2b75a05b63218e52..0473a024015c3346c27242f51b784f7dd0a03f27 100644
+index 58d958a88ac5af5b889d719d9f1ea90ce45cf184..9a679e0b5142b4d315344be40f501a611195bfe7 100644
 --- a/src/main/java/net/minecraft/server/TileEntity.java
 +++ b/src/main/java/net/minecraft/server/TileEntity.java
 @@ -1,10 +1,22 @@
@@ -4284,7 +4284,7 @@ index d32540c88bb902e9c191142a2b75a05b63218e52..0473a024015c3346c27242f51b784f7d
          this.persistentDataContainer.clear(); // Paper - clear instead of reinit
  
 @@ -90,6 +169,7 @@ public abstract class TileEntity implements KeyedObject { // Paper
-             this.persistentDataContainer.putAll(persistentDataTag);
+             this.persistentDataContainer.putAll((NBTTagCompound) persistentDataTag);
          }
          // CraftBukkit end
 +        attachments.load(nbttagcompound); // Kenzie - mark as data loaded in case of changes
@@ -4507,7 +4507,7 @@ index 5fc302bf0631d4e0b887b7c2a4e0e5a3c78d6875..86c957a8ce84f85b35c7efd6a606c4cb
      }
  }
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index d8d29d14559169f5e8d8b4cf63d8b427b823eb2f..b68c29b5ef87c97d12567a1c89e5c6e2aa32ec1d 100644
+index 4e1b4d7cde8e0ea2d5e765dfc879db55e7bd669d..05b7de5074599578ca6f4c311f70fddda8db9d4c 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 @@ -8,6 +8,7 @@ import com.google.common.collect.ImmutableSet;
@@ -4679,7 +4679,7 @@ index d8d29d14559169f5e8d8b4cf63d8b427b823eb2f..b68c29b5ef87c97d12567a1c89e5c6e2
          Plugin[] pluginClone = pluginManager.getPlugins().clone(); // Paper
          pluginManager.clearPlugins();
          commandMap.clearCommands();
-@@ -2386,5 +2361,79 @@ public final class CraftServer implements Server {
+@@ -2408,5 +2383,79 @@ public final class CraftServer implements Server {
      public com.destroystokyo.paper.entity.ai.MobGoals getMobGoals() {
          return mobGoals;
      }
@@ -4978,7 +4978,7 @@ index 60fc5aff80697cb4c85080350542c0f46056f74a..747335433374bd7be3eaf262cdd84494
          this.advancement = advancement;
          this.playerData = player;
 diff --git a/src/main/java/org/bukkit/craftbukkit/block/CraftBlock.java b/src/main/java/org/bukkit/craftbukkit/block/CraftBlock.java
-index 3524b677525bf2bb529b797fe1f258efb34ac3fc..289c7229055b06c1a2d84f090d07da6e4d7b24c9 100644
+index 3baf7b75c65c9beba40945ba904315251b5b7a64..350ca26e81ef67a02174f34240430bf7cdfae542 100644
 --- a/src/main/java/org/bukkit/craftbukkit/block/CraftBlock.java
 +++ b/src/main/java/org/bukkit/craftbukkit/block/CraftBlock.java
 @@ -5,6 +5,9 @@ import java.util.Collection;
@@ -5087,20 +5087,20 @@ index dc0e6e49e9eb5004e53d24304bce095bcef8f4c2..9f5e7316099e8af5e2c66c53fb141e12
  
      public final boolean snapshotDisabled; // Paper
 diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
-index 6f59f8d4541451573eb50a1a3190788c51490502..8d456ff5601392021ab4e39d4310cea27a47da57 100644
+index 4ec0e9220d2fa976dc6dfecd3eedb5b78a0ef8f4..73ef4ce93d888d505e876d6a426ad29349225215 100644
 --- a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
 +++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
-@@ -6,6 +6,9 @@ import com.google.common.collect.Lists;
- import java.util.List;
+@@ -7,6 +7,9 @@ import java.util.List;
  import java.util.Set;
  import java.util.UUID;
+ import net.md_5.bungee.api.chat.BaseComponent;
 +
 +import mx.kenzie.server.CraftBridge;
 +import mx.kenzie.wellspring.nbt.NBTCompound;
  import net.minecraft.server.AxisAlignedBB;
  import net.minecraft.server.BlockPosition;
  import net.minecraft.server.DamageSource;
-@@ -148,15 +151,18 @@ import org.bukkit.EntityEffect;
+@@ -150,15 +153,18 @@ import org.bukkit.EntityEffect;
  import org.bukkit.Location;
  import org.bukkit.Server;
  import org.bukkit.World;
@@ -5119,7 +5119,7 @@ index 6f59f8d4541451573eb50a1a3190788c51490502..8d456ff5601392021ab4e39d4310cea2
  import org.bukkit.entity.Pose;
  import org.bukkit.event.entity.EntityDamageEvent;
  import org.bukkit.event.player.PlayerTeleportEvent.TeleportCause;
-@@ -179,12 +185,90 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
+@@ -181,12 +187,90 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
      protected Entity entity;
      private EntityDamageEvent lastDamageEvent;
      private final CraftPersistentDataContainer persistentDataContainer = new CraftPersistentDataContainer(DATA_TYPE_REGISTRY);
@@ -5210,7 +5210,7 @@ index 6f59f8d4541451573eb50a1a3190788c51490502..8d456ff5601392021ab4e39d4310cea2
      @Override
      public Chunk getChunk() {
          net.minecraft.server.Chunk currentChunk = entity.getCurrentChunk();
-@@ -1097,7 +1181,7 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
+@@ -1119,7 +1203,7 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
      public boolean isInWater() {
          return getHandle().isInWater();
      }
@@ -5219,7 +5219,7 @@ index 6f59f8d4541451573eb50a1a3190788c51490502..8d456ff5601392021ab4e39d4310cea2
      public boolean isInRain() {
          return getHandle().isInRain();
      }
-@@ -1113,7 +1197,7 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
+@@ -1135,7 +1219,7 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
      public boolean isInWaterOrBubbleColumn() {
          return getHandle().isInWaterOrBubbleColumn();
      }
