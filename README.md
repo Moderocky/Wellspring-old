@@ -45,6 +45,12 @@ Current additional features:
    * They function as an actually-useful replacement for both entity metadata and persistent data containers.
    * Attachments have a normal class structure, but have a hook to allow data to be saved within NBT.
    * See [here](https://github.com/Moderocky/Wellspring/blob/master/guides/attachments.md) for more information.
+ * An extensive and easy-to-use packet API.
+   * Allows creating and sending packets to network clients (players.)
+   * Easy-to-use factory for most packets.
+   * Field-index-based packet builder (similar to protocollib style.)
+   * Individual API for complex packets like EntityMetadata. 
+   * Basic listening system for incoming packets (in progress.)
  * A full Structure API, not only for procedural world structures but also for structure-block structures.
    * Pasting and loading from a structure 'clipboard.'
    * Saving and loading from to world resources, files and resource streams.
