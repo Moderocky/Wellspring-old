@@ -1,0 +1,163 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Thu, 5 Nov 2020 11:09:16 +0000
+Subject: [PATCH] Move Attachment API to Wellspring.
+
+
+diff --git a/pom.xml b/pom.xml
+index 4913ab599f7a53abfd57b1693a16fc726f53866d..4c964f007092c9e0903c50ef2f929af7d75bc59a 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -235,6 +235,16 @@
+                     <shadedArtifactAttached>true</shadedArtifactAttached>
+                 </configuration>
+             </plugin>
++            <plugin>
++                <artifactId>maven-source-plugin</artifactId>
++                <executions>
++                    <execution>
++                        <id>attach-sources</id>
++                        <phase>deploy</phase>
++                        <goals><goal>jar-no-fork</goal></goals>
++                    </execution>
++                </executions>
++            </plugin>
+             <plugin>
+                 <groupId>org.apache.maven.plugins</groupId>
+                 <artifactId>maven-javadoc-plugin</artifactId>
+@@ -261,6 +271,16 @@
+                     <additionalJOption>--allow-script-in-comments</additionalJOption>
+                 </configuration>
+             </plugin>
++            <plugin>
++                <artifactId>maven-deploy-plugin</artifactId>
++                <executions>
++                    <execution>
++                        <id>deploy</id>
++                        <phase>deploy</phase>
++                        <goals><goal>deploy</goal></goals>
++                    </execution>
++                </executions>
++            </plugin>
+         </plugins>
+     </build>
+ 
+diff --git a/src/main/java/org/bukkit/attachment/Attachable.java b/src/main/java/mx/kenzie/wellspring/attachment/Attachable.java
+similarity index 97%
+rename from src/main/java/org/bukkit/attachment/Attachable.java
+rename to src/main/java/mx/kenzie/wellspring/attachment/Attachable.java
+index 672b53ec9c803d702f257df28faa6308900a0abe..56b4e354455c7cb0dbc947b4e23e2c3730aa6fbf 100644
+--- a/src/main/java/org/bukkit/attachment/Attachable.java
++++ b/src/main/java/mx/kenzie/wellspring/attachment/Attachable.java
+@@ -1,4 +1,4 @@
+-package org.bukkit.attachment;
++package mx.kenzie.wellspring.attachment;
+ 
+ import org.jetbrains.annotations.NotNull;
+ 
+diff --git a/src/main/java/org/bukkit/attachment/Attachment.java b/src/main/java/mx/kenzie/wellspring/attachment/Attachment.java
+similarity index 98%
+rename from src/main/java/org/bukkit/attachment/Attachment.java
+rename to src/main/java/mx/kenzie/wellspring/attachment/Attachment.java
+index 6d3dbe01c0d29a7fa0e44b88a836910a959f12fa..38e99aa30bdc1fd945632d83269f08f99a60a5c4 100644
+--- a/src/main/java/org/bukkit/attachment/Attachment.java
++++ b/src/main/java/mx/kenzie/wellspring/attachment/Attachment.java
+@@ -1,4 +1,4 @@
+-package org.bukkit.attachment;
++package mx.kenzie.wellspring.attachment;
+ 
+ import mx.kenzie.wellspring.nbt.NBTCompound;
+ import org.bukkit.plugin.Plugin;
+diff --git a/src/main/java/mx/kenzie/wellspring/tile/TileEntity.java b/src/main/java/mx/kenzie/wellspring/tile/TileEntity.java
+index 8b2dc506d6b6bc7d7b052e810ee162c0cb87479e..5ab1951bd62624c6e3fcedd386e228cc018e0184 100644
+--- a/src/main/java/mx/kenzie/wellspring/tile/TileEntity.java
++++ b/src/main/java/mx/kenzie/wellspring/tile/TileEntity.java
+@@ -2,7 +2,7 @@ package mx.kenzie.wellspring.tile;
+ 
+ import mx.kenzie.wellspring.nbt.NBTHolder;
+ import org.bukkit.Location;
+-import org.bukkit.attachment.Attachable;
++import mx.kenzie.wellspring.attachment.Attachable;
+ import org.bukkit.block.TileState;
+ import org.jetbrains.annotations.NotNull;
+ import org.jetbrains.annotations.Nullable;
+diff --git a/src/main/java/org/bukkit/Bukkit.java b/src/main/java/org/bukkit/Bukkit.java
+index 76e9916815ce5529238b2d303a09f2201914bca3..38c1f5e8c803cc96e9c8d20a4a7f37f95a57df9d 100644
+--- a/src/main/java/org/bukkit/Bukkit.java
++++ b/src/main/java/org/bukkit/Bukkit.java
+@@ -21,8 +21,8 @@ import mx.kenzie.wellspring.potion.PotionBuilder;
+ import mx.kenzie.wellspring.tile.TileType;
+ import org.bukkit.Warning.WarningState;
+ import org.bukkit.advancement.Advancement;
+-import org.bukkit.attachment.Attachable;
+-import org.bukkit.attachment.Attachment;
++import mx.kenzie.wellspring.attachment.Attachable;
++import mx.kenzie.wellspring.attachment.Attachment;
+ import org.bukkit.attribute.Attribute;
+ import org.bukkit.block.data.BlockData;
+ import org.bukkit.boss.BarColor;
+diff --git a/src/main/java/org/bukkit/Server.java b/src/main/java/org/bukkit/Server.java
+index 014fd7cd333052478c6794fd49a0a2f6be9882d0..7c3441f695f2445dd892bb2b59ccb3abcfc3ecca 100644
+--- a/src/main/java/org/bukkit/Server.java
++++ b/src/main/java/org/bukkit/Server.java
+@@ -21,8 +21,8 @@ import mx.kenzie.wellspring.potion.PotionBuilder;
+ import mx.kenzie.wellspring.tile.TileType;
+ import org.bukkit.Warning.WarningState;
+ import org.bukkit.advancement.Advancement;
+-import org.bukkit.attachment.Attachable;
+-import org.bukkit.attachment.Attachment;
++import mx.kenzie.wellspring.attachment.Attachable;
++import mx.kenzie.wellspring.attachment.Attachment;
+ import org.bukkit.attribute.Attribute;
+ import org.bukkit.block.data.BlockData;
+ import org.bukkit.boss.BarColor;
+diff --git a/src/main/java/org/bukkit/World.java b/src/main/java/org/bukkit/World.java
+index 8bc2a9b43e0abd0edc42476db22032a10026b871..984021f71c4c0164f6fd37e4acd2256d08adfc45 100644
+--- a/src/main/java/org/bukkit/World.java
++++ b/src/main/java/org/bukkit/World.java
+@@ -4,8 +4,7 @@ import java.io.File;
+ 
+ import mx.kenzie.wellspring.nbt.BlockNBTStorage;
+ import mx.kenzie.wellspring.nbt.NBTCompound;
+-import mx.kenzie.wellspring.nbt.NBTHolder;
+-import org.bukkit.attachment.Attachable;
++import mx.kenzie.wellspring.attachment.Attachable;
+ import org.bukkit.event.entity.CreatureSpawnEvent;
+ import org.bukkit.generator.ChunkGenerator;
+ 
+@@ -30,7 +29,6 @@ import org.bukkit.entity.LightningStrike;
+ import org.bukkit.entity.LivingEntity;
+ import org.bukkit.entity.Player;
+ import org.bukkit.generator.BlockPopulator;
+-import org.bukkit.generator.ChunkGenerator;
+ import org.bukkit.inventory.ItemStack;
+ import org.bukkit.material.MaterialData;
+ import org.bukkit.metadata.Metadatable;
+diff --git a/src/main/java/org/bukkit/block/TileState.java b/src/main/java/org/bukkit/block/TileState.java
+index 5397a405eff251092d2960dc9569311131a471c8..ff99c6ac32badddf585ef33e34710467b715f33f 100644
+--- a/src/main/java/org/bukkit/block/TileState.java
++++ b/src/main/java/org/bukkit/block/TileState.java
+@@ -2,8 +2,8 @@ package org.bukkit.block;
+ 
+ import mx.kenzie.wellspring.nbt.NBTHolder;
+ import mx.kenzie.wellspring.tile.TileEntity;
+-import org.bukkit.attachment.Attachable;
+-import org.bukkit.attachment.Attachment;
++import mx.kenzie.wellspring.attachment.Attachable;
++import mx.kenzie.wellspring.attachment.Attachment;
+ import org.bukkit.persistence.PersistentDataContainer;
+ import org.bukkit.persistence.PersistentDataHolder;
+ import org.jetbrains.annotations.NotNull;
+diff --git a/src/main/java/org/bukkit/entity/Entity.java b/src/main/java/org/bukkit/entity/Entity.java
+index 34042493a59a3ab4816d3e6051b247a122d78ef6..9d7b2f773199f5b69c3a94733e49e1512fce42e4 100644
+--- a/src/main/java/org/bukkit/entity/Entity.java
++++ b/src/main/java/org/bukkit/entity/Entity.java
+@@ -13,7 +13,7 @@ import org.bukkit.Location;
+ import org.bukkit.Nameable;
+ import org.bukkit.Server;
+ import org.bukkit.World;
+-import org.bukkit.attachment.Attachable;
++import mx.kenzie.wellspring.attachment.Attachable;
+ import org.bukkit.block.BlockFace;
+ import org.bukkit.block.PistonMoveReaction;
+ import org.bukkit.command.CommandSender;

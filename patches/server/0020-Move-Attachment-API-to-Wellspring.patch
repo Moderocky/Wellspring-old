@@ -1,0 +1,156 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Moderocky <admin@moderocky.com>
+Date: Thu, 5 Nov 2020 11:09:24 +0000
+Subject: [PATCH] Move Attachment API to Wellspring.
+
+
+diff --git a/src/main/java/mx/kenzie/server/attachment/AttachmentFactory.java b/src/main/java/mx/kenzie/server/attachment/AttachmentFactory.java
+index 74f0cb133ad9adcd7e8135e99c87f04a9e19302f..6f1b40a81540e1940ed8ae7bf17b136f9c6c92b0 100644
+--- a/src/main/java/mx/kenzie/server/attachment/AttachmentFactory.java
++++ b/src/main/java/mx/kenzie/server/attachment/AttachmentFactory.java
+@@ -2,8 +2,8 @@ package mx.kenzie.server.attachment;
+ 
+ import mx.kenzie.wellspring.Provider;
+ import org.apache.commons.lang3.Validate;
+-import org.bukkit.attachment.Attachable;
+-import org.bukkit.attachment.Attachment;
++import mx.kenzie.wellspring.attachment.Attachable;
++import mx.kenzie.wellspring.attachment.Attachment;
+ import org.bukkit.craftbukkit.CraftServer;
+ import org.bukkit.plugin.Plugin;
+ 
+diff --git a/src/main/java/mx/kenzie/server/attachment/AttachmentHolder.java b/src/main/java/mx/kenzie/server/attachment/AttachmentHolder.java
+index dbea2f768297ab0c85f9ea4f1b2de8c4c671fa9d..0814e8185d178b0c6cf436e4b521a3a76e9d4466 100644
+--- a/src/main/java/mx/kenzie/server/attachment/AttachmentHolder.java
++++ b/src/main/java/mx/kenzie/server/attachment/AttachmentHolder.java
+@@ -1,11 +1,10 @@
+ package mx.kenzie.server.attachment;
+ 
+ import mx.kenzie.wellspring.nbt.NBTCompound;
+-import org.bukkit.attachment.Attachable;
+-import org.bukkit.attachment.Attachment;
++import mx.kenzie.wellspring.attachment.Attachable;
++import mx.kenzie.wellspring.attachment.Attachment;
+ import org.bukkit.plugin.Plugin;
+ 
+-import javax.annotation.Nullable;
+ import java.util.ArrayList;
+ import java.util.HashSet;
+ import java.util.Set;
+diff --git a/src/main/java/net/minecraft/server/TileEntity.java b/src/main/java/net/minecraft/server/TileEntity.java
+index 9a679e0b5142b4d315344be40f501a611195bfe7..26911d0d8ebbec064d6b60c0cb341ea8a93c589e 100644
+--- a/src/main/java/net/minecraft/server/TileEntity.java
++++ b/src/main/java/net/minecraft/server/TileEntity.java
+@@ -4,7 +4,6 @@ import javax.annotation.Nullable;
+ 
+ import mx.kenzie.server.attachment.AttachmentHolder;
+ import mx.kenzie.wellspring.nbt.NBTCompound;
+-import mx.kenzie.wellspring.nbt.NBTHolder;
+ import mx.kenzie.wellspring.tile.TileType;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+@@ -12,11 +11,10 @@ import org.apache.logging.log4j.util.Supplier;
+ // CraftBukkit start
+ import org.bukkit.Bukkit;
+ import org.bukkit.Location;
+-import org.bukkit.attachment.Attachable;
+-import org.bukkit.attachment.Attachment;
++import mx.kenzie.wellspring.attachment.Attachable;
++import mx.kenzie.wellspring.attachment.Attachment;
+ import org.bukkit.block.TileState;
+ import org.bukkit.craftbukkit.CraftServer;
+-import org.bukkit.craftbukkit.block.CraftBlockEntityState;
+ import org.bukkit.craftbukkit.persistence.CraftPersistentDataContainer;
+ import org.bukkit.craftbukkit.persistence.CraftPersistentDataTypeRegistry;
+ import org.bukkit.inventory.InventoryHolder;
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+index dd36eccd8184ba059dac070c0501f088576f0ba2..d06cf16909aa5a67a7c26690042a41012c6ae7c5 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+@@ -8,7 +8,6 @@ import com.google.common.collect.ImmutableSet;
+ import com.google.common.collect.Iterators;
+ import com.google.common.collect.Lists;
+ import com.google.common.collect.MapMaker;
+-import com.google.common.reflect.TypeToken;
+ import com.mojang.authlib.GameProfile;
+ import com.mojang.brigadier.StringReader;
+ import com.mojang.brigadier.exceptions.CommandSyntaxException;
+@@ -55,10 +54,7 @@ import mx.kenzie.server.packet.IncomingPacketManager;
+ import mx.kenzie.server.potion.PotionBuilderImpl;
+ import mx.kenzie.wellspring.Wellspring;
+ import mx.kenzie.wellspring.enchantment.EnchantmentBuilder;
+-import mx.kenzie.wellspring.nbt.NBT;
+-import mx.kenzie.wellspring.nbt.NBTCompound;
+ import mx.kenzie.wellspring.nbt.NBTFactory;
+-import mx.kenzie.wellspring.nbt.NBTList;
+ import mx.kenzie.wellspring.packet.PacketFactory;
+ import mx.kenzie.wellspring.packet.receiving.PacketEventController;
+ import mx.kenzie.wellspring.potion.PotionBuilder;
+@@ -81,8 +77,8 @@ import org.bukkit.Warning.WarningState;
+ import org.bukkit.World;
+ import org.bukkit.World.Environment;
+ import org.bukkit.WorldCreator;
+-import org.bukkit.attachment.Attachable;
+-import org.bukkit.attachment.Attachment;
++import mx.kenzie.wellspring.attachment.Attachable;
++import mx.kenzie.wellspring.attachment.Attachment;
+ import org.bukkit.attribute.Attribute;
+ import org.bukkit.block.TileState;
+ import org.bukkit.block.data.BlockData;
+@@ -108,7 +104,6 @@ import org.bukkit.craftbukkit.boss.CraftKeyedBossbar;
+ import org.bukkit.craftbukkit.command.BukkitCommandWrapper;
+ import org.bukkit.craftbukkit.command.CraftCommandMap;
+ import org.bukkit.craftbukkit.command.VanillaCommandWrapper;
+-import org.bukkit.craftbukkit.entity.CraftEntity;
+ import org.bukkit.craftbukkit.entity.CraftPlayer;
+ import org.bukkit.craftbukkit.generator.CraftChunkData;
+ import org.bukkit.craftbukkit.help.SimpleHelpMap;
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
+index 259316ac49f86d1b701e3b764756f4c942ecc307..86980967bf0ec69e101cf1844c9ad250fa37bdca 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
+@@ -44,7 +44,7 @@ import org.bukkit.StructureType;
+ import org.bukkit.TreeType;
+ import org.bukkit.World;
+ import org.bukkit.WorldBorder;
+-import org.bukkit.attachment.Attachment;
++import mx.kenzie.wellspring.attachment.Attachment;
+ import org.bukkit.block.Biome;
+ import org.bukkit.block.Block;
+ import org.bukkit.block.BlockFace;
+diff --git a/src/main/java/org/bukkit/craftbukkit/block/CraftBlockEntityState.java b/src/main/java/org/bukkit/craftbukkit/block/CraftBlockEntityState.java
+index 9f5e7316099e8af5e2c66c53fb141e122f78a682..18735f3b28ed5e47023c13b3eeaa7528aeb8f55c 100644
+--- a/src/main/java/org/bukkit/craftbukkit/block/CraftBlockEntityState.java
++++ b/src/main/java/org/bukkit/craftbukkit/block/CraftBlockEntityState.java
+@@ -1,17 +1,14 @@
+ package org.bukkit.craftbukkit.block;
+ 
+ import com.google.common.base.Preconditions;
+-import mx.kenzie.server.attachment.AttachmentHolder;
+ import mx.kenzie.wellspring.nbt.NBTCompound;
+ import net.minecraft.server.BlockPosition;
+ import net.minecraft.server.NBTTagCompound;
+ import net.minecraft.server.TileEntity;
+-import org.bukkit.Bukkit;
+ import org.bukkit.Material;
+-import org.bukkit.attachment.Attachment;
++import mx.kenzie.wellspring.attachment.Attachment;
+ import org.bukkit.block.Block;
+ import org.bukkit.block.TileState;
+-import org.bukkit.craftbukkit.CraftServer;
+ import org.bukkit.craftbukkit.CraftWorld;
+ import org.bukkit.persistence.PersistentDataContainer;
+ 
+diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
+index 7a9125d9d5a86104346fb49a37b4f6b300c2a9cc..c508e13ff6f209ac0003eef50b8a06c3bb889cf0 100644
+--- a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
++++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
+@@ -153,7 +153,7 @@ import org.bukkit.EntityEffect;
+ import org.bukkit.Location;
+ import org.bukkit.Server;
+ import org.bukkit.World;
+-import org.bukkit.attachment.Attachment;
++import mx.kenzie.wellspring.attachment.Attachment;
+ import org.bukkit.block.BlockFace;
+ import org.bukkit.block.PistonMoveReaction;
+ import org.bukkit.craftbukkit.CraftServer;
