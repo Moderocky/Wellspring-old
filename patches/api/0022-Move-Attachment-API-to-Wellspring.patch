@@ -1,47 +1,9 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Moderocky <admin@moderocky.com>
-Date: Thu, 5 Nov 2020 11:09:16 +0000
+Date: Sun, 8 Nov 2020 13:23:26 +0000
 Subject: [PATCH] Move Attachment API to Wellspring.
 
 
-diff --git a/pom.xml b/pom.xml
-index 4913ab599f7a53abfd57b1693a16fc726f53866d..4c964f007092c9e0903c50ef2f929af7d75bc59a 100644
---- a/pom.xml
-+++ b/pom.xml
-@@ -235,6 +235,16 @@
-                     <shadedArtifactAttached>true</shadedArtifactAttached>
-                 </configuration>
-             </plugin>
-+            <plugin>
-+                <artifactId>maven-source-plugin</artifactId>
-+                <executions>
-+                    <execution>
-+                        <id>attach-sources</id>
-+                        <phase>deploy</phase>
-+                        <goals><goal>jar-no-fork</goal></goals>
-+                    </execution>
-+                </executions>
-+            </plugin>
-             <plugin>
-                 <groupId>org.apache.maven.plugins</groupId>
-                 <artifactId>maven-javadoc-plugin</artifactId>
-@@ -261,6 +271,16 @@
-                     <additionalJOption>--allow-script-in-comments</additionalJOption>
-                 </configuration>
-             </plugin>
-+            <plugin>
-+                <artifactId>maven-deploy-plugin</artifactId>
-+                <executions>
-+                    <execution>
-+                        <id>deploy</id>
-+                        <phase>deploy</phase>
-+                        <goals><goal>deploy</goal></goals>
-+                    </execution>
-+                </executions>
-+            </plugin>
-         </plugins>
-     </build>
- 
 diff --git a/src/main/java/org/bukkit/attachment/Attachable.java b/src/main/java/mx/kenzie/wellspring/attachment/Attachable.java
 similarity index 97%
 rename from src/main/java/org/bukkit/attachment/Attachable.java
